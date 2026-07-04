@@ -3,7 +3,7 @@ const PISCINA_CONFIG = {
     target: { ph: 7.30, cloro: 1.5 },
     prodotti: {
         phMeno: { nome: "pH- (Acido Sec)", dosePerCentesimo: 9.2 },          // 9.2g per 0.01 pH per 92mc
-        cloroCa: { nome: "Cloro Granulare (Ipoclorito)", dosePerPpm: 1.84 }, // 1.84g per 0.01 ppm per 92mc (184g per 1 ppm)
+        cloroCa: { nome: "Cloro Granulare (Ipoclorito)", dosePerPpm: 1.84 }, // 1.84g per 0.01 ppm per 92mc
         waterStop: { nome: "Water Stop (Abbattitore)", dosePerPpm: 2.76 }   // 2.76g per 0.01 ppm per 92mc
     }
 };
@@ -22,7 +22,6 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
     const title = document.getElementById('overlayTitle');
     const canvas = document.getElementById('overlayCanvas');
     
-    // Contenitore personalizzato per la tabella delle dosi (lo creiamo se non esiste)
     let containerDosi = document.getElementById('overlayDosiContent');
     if (!containerDosi) {
         containerDosi = document.createElement('div');
@@ -30,20 +29,21 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
         canvas.parentNode.insertBefore(containerDosi, canvas);
     }
 
-    // Reset della finestra popup: nascondiamo il grafico Canvas e mostriamo il testo delle dosi
     if (canvas) canvas.style.display = 'none';
     containerDosi.style.display = 'block';
     containerDosi.innerHTML = "";
 
-    // Estraiamo la data e la temperatura per la diagnosi
     const dataRilevamento = rigaDati["Data"] || rigaDati["data"] || "Rilevamento";
     const oraRilevamento = rigaDati["Ora"] || rigaDati["ora"] || "";
-    const tempAttuale = rigaDati["Temp"] || rigaDati["temp"] ? parseFloat(String(rigaDati["Temp"] || rigaDati["temp"]).replace(',', '.')) : NaN;
+    
+    // Cerchiamo la chiave della temperatura in modo sicuro
+    const keys = Object.keys(rigaDati);
+    const tempKey = keys.find(k => k.toLowerCase().includes('temp'));
+    const tempAttuale = tempKey ? parseFloat(String(rigaDati[tempKey]).replace(',', '.')) : NaN;
     
     const fattoreTemp = getFattoreTemperatura(tempAttuale);
     let consiglio = null;
 
-    // --- ELABORAZIONE DOSI IN BASE AL PARAMETRO CLICCATO ---
     if (parametro === 'pH' && valoreAttuale > 7.5) {
         title.innerText = `🧪 Assistente Chimico - Correzione pH (${dataRilevamento} ore ${oraRilevamento})`;
         const deltaPh = valoreAttuale - PISCINA_CONFIG.target.ph;
@@ -96,7 +96,6 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
 
     if (!consiglio) return;
 
-    // Generazione dinamica della tabella dentro il popup
     containerDosi.innerHTML = `
         <div class="card-assistente" style="border-left: 6px solid #d73a49; margin-top: 10px;">
             <p class="sottotitolo-assistente">Calcolo automatico istantaneo tarato per il volume vasca di <strong>92 m³</strong>.</p>
@@ -128,7 +127,6 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
     overlay.classList.remove('hidden');
 }
 
-// === CHIUSURA BLINDATA POPUP ===
 function closeOverlay() {
     const overlay = document.getElementById('chartOverlay');
     const canvas = document.getElementById('overlayCanvas');
@@ -139,9 +137,8 @@ function closeOverlay() {
     if (containerDosi) containerDosi.style.display = 'none';
 }
 
-// === LETTURA E COSTRUZIONE VISIVA DELLE TABELLE ===
+// === LETTURA E COSTRUZIONE VISIVA DELLE TABELLE CON ARROTONDAMENTO BLINDATO ===
 function caricaTabelle() {
-    // Caricamento del file CSV principale
     Papa.parse("REGISTRO CHIMICO 2026.csv", {
         download: true,
         header: true,
@@ -153,13 +150,13 @@ function caricaTabelle() {
             
             if (data.length === 0) return;
 
-            // Creazione Intestazione con pulsanti grafici
             let keys = Object.keys(data[0]);
             let thead = table.createTHead();
             let rowHead = thead.insertRow();
             keys.forEach(key => {
                 let th = document.createElement("th");
-                if (['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'n.ospiti', 'cya'].includes(key.toLowerCase().trim())) {
+                let cleanKey = key.toLowerCase().trim();
+                if (['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'n.ospiti', 'cya'].includes(cleanKey)) {
                     th.innerHTML = `<button class="table-th-btn" onclick="apriGrafico('${key}')">${key} 📊</button>`;
                 } else {
                     th.innerText = key;
@@ -167,19 +164,25 @@ function caricaTabelle() {
                 rowHead.appendChild(th);
             });
 
-            // Popolamento Righe Dati
             let tbody = table.createTBody();
             data.forEach(riga => {
                 let row = tbody.insertRow();
                 keys.forEach(key => {
                     let cell = row.insertCell();
                     let valoreTesto = riga[key] ? riga[key].trim() : "";
-                    cell.innerText = valoreTesto;
+                    let cleanKey = key.toLowerCase().trim();
 
                     let valoreFloat = parseFloat(valoreTesto.replace(',', '.'));
 
-                    // Evidenziazione pH e attivazione clic interattivo
-                    if (key.toLowerCase().trim() === 'ph' && !isNaN(valoreFloat)) {
+                    // 1. CORREZIONE ARROTONDAMENTO: Se è un numero ed è una colonna chimica, forziamo massimo 2 decimali
+                    if (!isNaN(valoreFloat) && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'cya'].includes(cleanKey)) {
+                        cell.innerText = valoreFloat.toFixed(2).replace('.', ',');
+                    } else {
+                        cell.innerText = valoreTesto;
+                    }
+
+                    // 2. RIPRISTINO COLORI E GESTIONE DEL REFRESH BLINDATO
+                    if (cleanKey === 'ph' && !isNaN(valoreFloat)) {
                         if (valoreFloat > 7.50 || valoreFloat < 7.20) {
                             cell.className = "badge-pericolo";
                             if (valoreFloat > 7.50) {
@@ -188,12 +191,11 @@ function caricaTabelle() {
                                 cell.onclick = () => mostraDosiInOverlay('pH', valoreFloat, riga);
                             }
                         } else {
-                            cell.style.backgroundColor = "#ecfdf5"; // Verde ottimale
+                            cell.style.backgroundColor = "#ecfdf5";
                         }
                     }
 
-                    // Evidenziazione Cloro Libero e attivazione clic interattivo
-                    if (key.toLowerCase().includes('cl. lib') && !isNaN(valoreFloat)) {
+                    if (cleanKey === 'cl. lib' && !isNaN(valoreFloat)) {
                         if (valoreFloat < 0.70 || valoreFloat > 2.00) {
                             cell.className = "badge-pericolo";
                             cell.style.cursor = "pointer";
@@ -204,30 +206,26 @@ function caricaTabelle() {
                         }
                     }
 
-                    // Evidenziazione altri parametri fuori soglia (Solo colore)
-                    if (key.toLowerCase().includes('cl. com') && valoreFloat > 0.40) cell.className = "badge-pericolo";
-                    if (key.toLowerCase().includes('temp') && (valoreFloat < 24 || valoreFloat > 30)) cell.className = "badge-pericolo";
-                    if (key.toLowerCase().includes('cya') && valoreFloat > 50) cell.className = "badge-pericolo";
+                    if (cleanKey === 'cl. com' && valoreFloat > 0.40) cell.className = "badge-pericolo";
+                    if (cleanKey === 'temp' && (valoreFloat < 24 || valoreFloat > 30)) cell.className = "badge-pericolo";
+                    if (cleanKey === 'cya' && valoreFloat > 50) cell.className = "badge-pericolo";
                 });
             });
         }
     });
 }
 
-// Gestione dei menu e visualizzazione sezioni
 function mostraSezione(sezioneId) {
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
     const sez = document.getElementById(sezioneId);
     if (sez) sez.classList.remove('hidden');
 }
 
-// Avvio della pagina
 window.onload = function() {
     caricaTabelle();
-    mostraSezione('chimicoSection'); // Mostra la sezione chimica come predefinita
+    mostraSezione('chimicoSection');
 };
 
-// Funzione placeholder per i grafici (collegata ai pulsanti delle colonne)
 function apriGrafico(parametro) {
     const overlay = document.getElementById('chartOverlay');
     const title = document.getElementById('overlayTitle');
@@ -239,5 +237,4 @@ function apriGrafico(parametro) {
 
     title.innerText = `Andamento Storico Parametro: ${parametro}`;
     overlay.classList.remove('hidden');
-    // Qui andrà l'eventuale logica di rendering del grafico Chart.js
 }
