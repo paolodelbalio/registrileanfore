@@ -36,12 +36,12 @@ let currentChart = null;
 (async function init() {
     console.log("Caricamento dati in corso...");
     
-    // Inietta lo stile corretto eliminando il gap vuoto superiore durante lo scorrimento
+    // Inietta lo stile modificato per incollare l'intestazione perfettamente sotto il menu
     const style = document.createElement('style');
     style.innerHTML = `
         thead th {
             position: sticky !important;
-            top: 0px; /* Si ancora perfettamente al bordo superiore senza lasciare spazi vuoti */
+            top: 54px; /* Valore calibrato per agganciarsi al millimetro sotto la barra dei pulsanti blu */
             background-color: #ebf3f9 !important; 
             z-index: 99 !important;
             box-shadow: 0 2px 5px rgba(0,0,0,0.15); 
