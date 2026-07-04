@@ -16,9 +16,17 @@ const PISCINA_CONFIG = {
     acquaReintegro: { temp: 12 } 
 };
 
-// Variabili globali per la gestione dati e grafici
+// Variabili globali per grafici e registri
 let mioGrafico = null;
 let datiCsvGlobali = []; 
+
+// Mappatura dei file CSV con le rispettive tabelle HTML e i contenitori di sicurezza
+const REGISTRI_FILES = {
+    chimico: { file: "REGISTRO CHIMICO 2026.csv", tableId: "chimicoTable", containerId: "chimicoSection" },
+    contatori: { file: "REGISTRO CONTATORI 2026.csv", tableId: "contatoriTable", containerId: "contatoriSection" },
+    pulizie: { file: "REGISTRO PULIZIE 2026.csv", tableId: "pulizieTable", containerId: "pulizieSection" },
+    manutenzioni: { file: "REGISTRO MANUTENZIONI 2026.csv", tableId: "manutenzioniTable", containerId: "manutenzioniSection" }
+};
 
 function getFattoreTemperatura(temp) {
     if (isNaN(temp) || temp <= 28) return 1.0;
@@ -188,91 +196,110 @@ function closeOverlay() {
     if (containerDosi) containerDosi.style.display = 'none';
 }
 
-// === LETTURA CSV E COSTRUZIONE DELLA TABELLA ===
-function caricaTabelle() {
-    Papa.parse("REGISTRO CHIMICO 2026.csv", {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        complete: function(results) {
-            datiCsvGlobali = results.data; 
-            const table = document.getElementById("chimicoTable");
-            table.innerHTML = "";
-            
-            if (datiCsvGlobali.length === 0) return;
-
-            let keys = Object.keys(datiCsvGlobali[0]);
-            let thead = table.createTHead();
-            let rowHead = thead.insertRow();
-            keys.forEach(key => {
-                let th = document.createElement("th");
-                let cleanKey = key.toLowerCase().trim();
-                if (['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'n.ospiti', 'cya', 'reintegro', 'reintegrosup'].includes(cleanKey)) {
-                    th.innerHTML = `<button class="table-th-btn" onclick="apriGrafico('${key}')">${key} 📊</button>`;
-                } else {
-                    th.innerText = key;
+// === CARICAMENTO DI TUTTI E 4 I REGISTRI CSV ===
+function caricaTuttiIRegistri() {
+    Object.keys(REGISTRI_FILES).forEach(chiave => {
+        const config = REGISTRI_FILES[chiave];
+        Papa.parse(config.file, {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                const dati = results.data;
+                if (chiave === 'chimico') {
+                    datiCsvGlobali = dati; // Salviamo i dati chimici per i grafici
                 }
-                rowHead.appendChild(th);
-            });
-
-            let tbody = table.createTBody();
-            datiCsvGlobali.forEach(riga => {
-                let row = tbody.insertRow();
-                keys.forEach(key => {
-                    let cell = row.insertCell();
-                    let valoreTesto = riga[key] ? riga[key].trim() : "";
-                    let cleanKey = key.toLowerCase().trim();
-                    let valoreFloat = parseFloat(valoreTesto.replace(',', '.'));
-
-                    if (!isNaN(valoreFloat) && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'cya'].includes(cleanKey)) {
-                        cell.innerText = valoreFloat.toFixed(2).replace('.', ',');
-                    } else {
-                        cell.innerText = valoreTesto;
-                    }
-
-                    if (isNaN(valoreFloat) || valoreTesto === "") return;
-                    
-                    if (cleanKey === 'ph') {
-                        if (valoreFloat > 7.50 || valoreFloat < 7.20) {
-                            cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
-                            if (valoreFloat > 7.50) { cell.style.cursor = "pointer"; cell.onclick = () => muestraDosiInOverlay('pH', valoreFloat, riga); }
-                        } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
-                    }
-                    if (cleanKey === 'cl. lib') {
-                        if (valoreFloat < 0.70 || valoreFloat > 2.00) {
-                            cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
-                            cell.onclick = () => muestraDosiInOverlay('Cloro', valoreFloat, riga);
-                        } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
-                    }
-                    if (cleanKey === 'cl. com') {
-                        if (valoreFloat > 0.40) {
-                            cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
-                            cell.onclick = () => muestraDosiInOverlay('CloroCombinato', valoreFloat, riga);
-                        } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
-                    }
-                    if (cleanKey === 'temp') {
-                        if (valoreFloat < 24.0 || valoreFloat > 30.0) {
-                            cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c";
-                            if (valoreFloat > 30.0) { cell.style.cursor = "pointer"; cell.onclick = () => muestraDosiInOverlay('Temperatura', valoreFloat, riga); }
-                        } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
-                    }
-                    if (cleanKey === 'cya') {
-                        if (valoreFloat > 60.0) {
-                            cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
-                            cell.onclick = () => muestraDosiInOverlay('CYA', valoreFloat, riga);
-                        } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
-                    }
-                    if (cleanKey === 'cl. tot') {
-                        if (valoreFloat < 0.70 || valoreFloat > 2.40) { cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; } 
-                        else { cell.style.backgroundColor = "#ecfdf5"; }
-                    }
-                });
-            });
-        }
+                popolaTabellaHtml(dati, config.tableId, chiave);
+            },
+            error: function(err) {
+                console.error(`Impossibile leggere il file ${config.file}:`, err);
+                const table = document.getElementById(config.tableId);
+                if(table) table.innerHTML = `<tr><td style="color:red; padding:15px;">Nessun dato trovato o file ${config.file} mancante.</td></tr>`;
+            }
+        });
     });
 }
 
-// === GENERAZIONE E OTTIMIZZAZIONE GRAFICI ===
+// === GENERATORE UNIFICATO DELLE TABELLE HTML ===
+function popolaTabellaHtml(dati, tableId, tipoRegistro) {
+    const table = document.getElementById(tableId);
+    if (!table || dati.length === 0) return;
+    table.innerHTML = "";
+
+    let keys = Object.keys(dati[0]);
+    let thead = table.createTHead();
+    let rowHead = thead.insertRow();
+    
+    keys.forEach(key => {
+        let th = document.createElement("th");
+        let cleanKey = key.toLowerCase().trim();
+        // Solo nel registro chimico abilitiamo i pulsanti per i grafici
+        if (tipoRegistro === 'chimico' && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'n.ospiti', 'cya', 'reintegro', 'reintegrosup'].includes(cleanKey)) {
+            th.innerHTML = `<button class="table-th-btn" onclick="apriGrafico('${key}')">${key} 📊</button>`;
+        } else {
+            th.innerText = key;
+        }
+        rowHead.appendChild(th);
+    });
+
+    let tbody = table.createTBody();
+    dati.forEach(riga => {
+        let row = tbody.insertRow();
+        keys.forEach(key => {
+            let cell = row.insertCell();
+            let valoreTesto = riga[key] ? riga[key].trim() : "";
+            let cleanKey = key.toLowerCase().trim();
+            let valoreFloat = parseFloat(valoreTesto.replace(',', '.'));
+
+            // Formattazione decimali automatica per i parametri chimici principali
+            if (!isNaN(valoreFloat) && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'cya'].includes(cleanKey)) {
+                cell.innerText = valoreFloat.toFixed(2).replace('.', ',');
+            } else {
+                cell.innerText = valoreTesto;
+            }
+
+            if (isNaN(valoreFloat) || valoreTesto === "" || tipoRegistro !== 'chimico') return;
+            
+            // Logiche di colorazione e click per l'assistente chimico
+            if (cleanKey === 'ph') {
+                if (valoreFloat > 7.50 || valoreFloat < 7.20) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
+                    if (valoreFloat > 7.50) { cell.style.cursor = "pointer"; cell.onclick = () => mostraDosiInOverlay('pH', valoreFloat, riga); }
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'cl. lib') {
+                if (valoreFloat < 0.70 || valoreFloat > 2.00) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
+                    cell.onclick = () => mostraDosiInOverlay('Cloro', valoreFloat, riga);
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'cl. com') {
+                if (valoreFloat > 0.40) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
+                    cell.onclick = () => mostraDosiInOverlay('CloroCombinato', valoreFloat, riga);
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'temp') {
+                if (valoreFloat < 24.0 || valoreFloat > 30.0) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c";
+                    if (valoreFloat > 30.0) { cell.style.cursor = "pointer"; cell.onclick = () => mostraDosiInOverlay('Temperatura', valoreFloat, riga); }
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'cya') {
+                if (valoreFloat > 60.0) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
+                    cell.onclick = () => mostraDosiInOverlay('CYA', valoreFloat, riga);
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'cl. tot') {
+                if (valoreFloat < 0.70 || valoreFloat > 2.40) { cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; } 
+                else { cell.style.backgroundColor = "#ecfdf5"; }
+            }
+        });
+    });
+}
+
+// === GENERAZIONE E RISOLUZIONE BUG DI RENDERING GRAFICI ===
 function apriGrafico(parametro) {
     const overlay = document.getElementById('chartOverlay');
     const title = document.getElementById('overlayTitle');
@@ -283,6 +310,8 @@ function apriGrafico(parametro) {
     if (canvas) canvas.style.display = 'block';
 
     title.innerText = `Andamento Storico Parametro: ${parametro}`;
+    
+    // Mostriamo prima l'overlay per consentire a Chart.js di calcolare i pixel reali del canvas
     overlay.classList.remove('hidden');
 
     let etichette = [];
@@ -307,53 +336,55 @@ function apriGrafico(parametro) {
         mioGrafico.destroy();
     }
 
-    // Configurazione base assi mobili per cellulare
     let opzioniScale = {
         x: { ticks: { font: { size: 10 } } },
         y: { ticks: { font: { size: 10 } } }
     };
 
-    // 1. ZOOM DINAMICO pH (Evita il grafico piatto)
     if (cleanParam === 'ph') {
         opzioniScale.y.min = 7.0;
         opzioniScale.y.max = 8.0;
     }
-    // 2. CORREZIONE SCALA REINTEGRI: TETTO 20.000 LITRI E GRIGLIA AD ACCRESCIMENTI DI 500 LITRI
     else if (cleanParam.includes('reintegro') || cleanParam.includes('reintegrosup')) {
         opzioniScale.y.min = 0;
         opzioniScale.y.suggestedMax = 20000;
         opzioniScale.y.ticks = {
-            stepSize: 500, // Linee orizzontali ogni 500 litri
+            stepSize: 500,
             font: { size: 10 }
         };
     }
 
-    const ctx = canvas.getContext('2d');
-    mioGrafico = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: etichette,
-            datasets: [{
-                label: parametro,
-                data: valori,
-                borderColor: '#0284c7',
-                backgroundColor: 'rgba(2, 132, 199, 0.1)',
-                borderWidth: 2,
-                // PALLINI MINUSCOLI PER LO SMARTPHONE
-                pointRadius: 1.5,         
-                pointHoverRadius: 4,      
-                tension: 0.15             
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: opzioniScale,
-            plugins: {
-                legend: { display: false }
+    // Forza un reset del canvas cancellando vecchi residui di rendering
+    ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Piccolo timeout di sicurezza per allinearsi alle transizioni CSS di Android/iOS
+    setTimeout(() => {
+        mioGrafico = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: etichette,
+                datasets: [{
+                    label: parametro,
+                    data: valori,
+                    borderColor: '#0284c7',
+                    backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 2,         
+                    pointHoverRadius: 5,      
+                    tension: 0.15             
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: opzioniScale,
+                plugins: {
+                    legend: { display: false }
+                }
             }
-        }
-    });
+        });
+    }, 50);
 }
 
 function mostraSezione(sezioneId) {
@@ -363,6 +394,6 @@ function mostraSezione(sezioneId) {
 }
 
 window.onload = function() {
-    caricaTabelle();
+    caricaTuttiIRegistri();
     mostraSezione('chimicoSection');
 };
