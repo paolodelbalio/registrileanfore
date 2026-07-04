@@ -4,19 +4,19 @@ const PISCINA_CONFIG = {
     target: { 
         ph: 7.30, 
         cloro: 1.5,
-        cya: 30,    // Target ottimale di mantenimento
-        temp: 27    
+        cya: 55,    // Target di rientro preventivo di sicurezza
+        temp: 27    // Temperatura ideale comfort bagnanti
     },
     prodotti: {
         phMeno: { nome: "pH- (Acido Sec)", dosePerCentesimo: 9.2 },          
         cloroCa: { nome: "Cloro Granulare (Ipoclorito)", dosePerPpm: 1.84 }, 
-        cloroShock: { nome: "Cloro Shock Granulare", doseShockPerMc: 15 },    
+        cloroShock: { nome: "Cloro Shock Granulare", doseShockPerMc: 15 },    // 15g per mc per superclorazione d'urto
         waterStop: { nome: "Water Stop (Abbattitore)", dosePerPpm: 2.76 }   
     },
-    acquaReintegro: { temp: 12 } 
+    acquaReintegro: { temp: 12 } // Temperatura dell'acqua fresca immessa (comunicata dall'utente)
 };
 
-// Funzione ausiliaria per la compensazione termica del cloro
+// Funzione ausiliaria per la compensazione termica del cloro standard
 function getFattoreTemperatura(temp) {
     if (isNaN(temp) || temp <= 28) return 1.0;
     if (temp <= 30) return 1.15;
@@ -58,7 +58,7 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
         
         consiglio = {
             parametro: "pH",
-            stato: `Alto (${valoreAttuale.toFixed(2)})`,
+            stato: `Alto (${valoreActual.toFixed(2)})`,
             azione: `Abbassare di ${deltaPh.toFixed(2)} unità per rientrare al valore ottimale di ${PISCINA_CONFIG.target.ph}`,
             prodotto: PISCINA_CONFIG.prodotti.phMeno.nome,
             quantita: `${(doseTotale / 1000).toFixed(2)} kg`,
@@ -116,23 +116,27 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
             nota: "Eseguire il trattamento TASSATIVAMENTE a vasca vuota (assenza di bagnanti), preferibilmente al tramonto. Lasciare la filtrazione accesa H24. Attendere il rientro dei parametri normali prima di riaprire."
         };
     }
-    // --- CASE 5: ACIDO CIANURICO ALTO (SOGLIA TOSCANA: > 75 ppm) ---
-    else if (parametro === 'CYA' && valoreAttuale > 75) {
-        title.innerText = `💧 Assistente Chimico - Diluizione Stabilizzante (${dataRilevamento})`;
-        const frazioneRimante = PISCINA_CONFIG.target.cya / valoreAttuale;
-        const percentualeDaScaricare = (1 - frazioneRimante) * 100;
-        const mcDaScaricare = PISCINA_CONFIG.volume * (1 - frazioneRimante);
+    // --- CASE 5: ACIDO CIANURICO ALTO (DILUIZIONE PREVENTIVA CON SOGLIA DI ALLARME A 60 ppm) ---
+    else if (parametro === 'CYA' && valoreAttuale > 60) {
+        title.innerText = `💧 Assistente Chimico - Diluizione Preventiva Stabilizzante (${dataRilevamento})`;
+        
+        // Target di sicurezza fissato a 55 ppm per risparmiare acqua pur sbloccando l'azione del cloro
+        const targetSicurezzaCya = PISCINA_CONFIG.target.cya; 
+        
+        const frazioneRimanente = targetSicurezzaCya / valoreAttuale;
+        const percentualeDaScaricare = (1 - frazioneRimanente) * 100;
+        const mcDaScaricare = PISCINA_CONFIG.volume * (1 - frazioneRimanente);
 
         consiglio = {
             parametro: "Acido Cianurico (CYA)",
-            stato: `Fuori Norma Toscana (${valoreAttuale.toFixed(0)} ppm)`,
-            azione: `Sostituire il ${percentualeDaScaricare.toFixed(0)}% dell'acqua per scendere sotto il limite regionale (75 ppm) e sbloccare l'azione del cloro`,
+            stato: `Superata soglia di controllo (${valoreAttuale.toFixed(0)} ppm)`,
+            azione: `Sostituire il ${percentualeDaScaricare.toFixed(1)}% dell'acqua per scendere a ${targetSicurezzaCya} ppm (evita il blocco del cloro)`,
             prodotto: "Reintegro Acqua Nuova (Pozzo / Acquedotto)",
             quantita: `Scaricare ${mcDaScaricare.toFixed(1)} m³ di acqua`,
-            nota: `Effettuare uno scarico parziale di circa ${mcDaScaricare.toFixed(1)} metri cubi (pari a ${(mcDaScaricare * 1000).toLocaleString('it-IT')} litri) e ripristinare il livello della piscina con acqua nuova per azzerare il cianurico in eccesso.`
+            nota: `Effettuare uno scarico parziale controllato di ${mcDaScaricare.toFixed(1)} metri cubi (circa ${(Math.round(mcDaScaricare * 1000)).toLocaleString('it-IT')} litri) e ripristinare il livello della piscina. Agire preventivamente a 60 ppm ti evita di dover svuotare interamente la vasca in pieno luglio.`
         };
     }
-    // --- CASE 6: TEMPERATURA ACQUA TROPPO ALTA ---
+    // --- CASE 6: TEMPERATURA ACQUA TROPPO ALTA (ABBASSAMENTO TERMICO CON REINTEGRO A 12°C) ---
     else if (parametro === 'Temperatura' && valoreAttuale > 30) {
         title.innerText = `❄️ Assistente Chimico - Raffreddamento Vasca (${dataRilevamento} ore ${oraRilevamento})`;
         
@@ -194,7 +198,7 @@ function closeOverlay() {
     if (containerDosi) containerDosi.style.display = 'none';
 }
 
-// === LETTURA E COSTRUZIONE DELLA TABELLA DATI CON COLORI AGGIORNATI ===
+// === LETTURA E COSTRUZIONE DELLA TABELLA DATI CON COLORI E INTERATTIVITÀ ===
 function caricaTabelle() {
     Papa.parse("REGISTRO CHIMICO 2026.csv", {
         download: true,
@@ -231,6 +235,7 @@ function caricaTabelle() {
 
                     let valoreFloat = parseFloat(valoreTesto.replace(',', '.'));
 
+                    // Formattazione decimali visivi coerenti (virgola per l'italiano e blocco allargamento colonne)
                     if (!isNaN(valoreFloat) && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'cya'].includes(cleanKey)) {
                         cell.innerText = valoreFloat.toFixed(2).replace('.', ',');
                     } else {
@@ -271,7 +276,7 @@ function caricaTabelle() {
                         }
                     }
 
-                    // --- 3. CLORO COMBINATO ---
+                    // --- 3. CLORO COMBINATO (TRATTAMENTO SHOCK) ---
                     if (cleanKey === 'cl. com') {
                         if (valoreFloat > 0.40) {
                             cell.style.backgroundColor = "#fee2e2";
@@ -302,14 +307,14 @@ function caricaTabelle() {
                         }
                     }
 
-                    // --- 5. ACIDO CIANURICO SOGLIA ADATTATA PER LA TOSCANA (75 ppm) ---
+                    // --- 5. ACIDO CIANURICO SOGLIA PREVENTIVA DI ALLARME (60 ppm) ---
                     if (cleanKey === 'cya') {
-                        if (valoreFloat > 75.0) {
+                        if (valoreFloat > 60.0) {
                             cell.style.backgroundColor = "#fee2e2";
                             cell.style.color = "#b91c1c";
                             cell.style.fontWeight = "bold";
                             cell.style.cursor = "pointer";
-                            cell.title = "Clicca per calcolare lo scarico dell'acqua";
+                            cell.title = "Clicca per calcolare lo scarico preventivo dell'acqua";
                             cell.onclick = () => mostraDosiInOverlay('CYA', valoreFloat, riga);
                         } else {
                             cell.style.backgroundColor = "#ecfdf5";
