@@ -16,16 +16,21 @@ const PISCINA_CONFIG = {
     acquaReintegro: { temp: 12 } 
 };
 
-// Variabili globali
+// Variabili globali per memorizzare i dati di tutti i registri
 let mioGrafico = null;
-let datiCsvGlobali = []; 
+let datiRegistriGlobali = {
+    chimico: [],
+    contatori: [],
+    pulizie: [],
+    manutenzioni: []
+}; 
 
-// Mappatura file CSV con i nomi ESATTI dal tuo screenshot e relative tabelle HTML
+// Mappatura file CSV con i nomi ESATTI rilevati nella tua cartella
 const REGISTRI_FILES = {
     chimico: { file: "REGISTRO CHIMICO 2026.csv", tableId: "chimicoTable" },
-    contatori: { file: "REGISTRO CONTATORI 2026.csv", tableId: "contatoriTable" },
-    pulizie: { file: "REGISTRO IGIENIZZAZIONE E PULIZIE 2026.csv", tableId: "pulizieTable" },
-    manutenzioni: { file: "REGISTRO INTERVENTI E MANUTENZIONI 2026.csv", tableId: "manutenzioniTable" }
+    contatori: { file: "REGISTRO CONTATORI.csv", tableId: "contatoriTable" },
+    pulizie: { file: "REGISTRO PULIZIE PISCINA 2026.csv", tableId: "pulizieTable" },
+    manutenzioni: { file: "REGISTRO MANUTENZIONE INTERVENTI .csv", tableId: "manutenzioniTable" }
 };
 
 function getFattoreTemperatura(temp) {
@@ -196,29 +201,55 @@ function closeOverlay() {
     if (containerDosi) containerDosi.style.display = 'none';
 }
 
-// === CARICAMENTO SICURO DEI FILE CSV ===
+// === CARICAMENTO INTELLIGENTE DEI FILE CSV (Ignora le righe di intestazione descrittive) ===
 function caricaTuttiIRegistri() {
     Object.keys(REGISTRI_FILES).forEach(chiave => {
         const config = REGISTRI_FILES[chiave];
         Papa.parse(config.file, {
             download: true,
-            header: true,
-            skipEmptyLines: true,
+            header: false, // Leggiamo come array di array per trovare la vera riga di intestazione
+            skipEmptyLines: 'greedy',
             complete: function(results) {
-                const dati = results.data;
-                if (chiave === 'chimico') {
-                    datiCsvGlobali = dati; 
+                let righe = results.data;
+                if (!righe || righe.length === 0) return;
+                
+                // Cerca dinamicamente la riga che contiene la parola "Data" come prima colonna
+                let indexHeader = righe.findIndex(r => r && r[0] && r[0].trim().toLowerCase() === 'data');
+                if (indexHeader === -1) {
+                    indexHeader = 0; // Se non la trova, assume sia la prima
                 }
-                popolaTabellaHtml(dati, config.tableId, chiave);
+                
+                let headers = righe[indexHeader].map(h => h ? h.trim() : "");
+                
+                // Convertiamo le righe successive in oggetti chiave/valore puliti
+                let datiTrasformati = [];
+                for (let i = indexHeader + 1; i < righe.length; i++) {
+                    let rigaCorrente = righe[i];
+                    if (!rigaCorrente || rigaCorrente.length === 0 || rigaCorrente.every(c => !c || c.trim() === "")) {
+                        continue; // Salta righe vuote
+                    }
+                    
+                    let obj = {};
+                    headers.forEach((h, idx) => {
+                        if (h !== "") {
+                            obj[h] = rigaCorrente[idx] ? rigaCorrente[idx].trim() : "";
+                        }
+                    });
+                    datiTrasformati.push(obj);
+                }
+                
+                // Salvataggio globale nello stato
+                datiRegistriGlobali[chiave] = datiTrasformati;
+                popolaTabellaHtml(datiTrasformati, config.tableId, chiave);
             },
             error: function(err) {
-                console.error("Errore caricamento:", config.file, err);
+                console.error("Errore caricamento per il file:", config.file, err);
             }
         });
     });
 }
 
-// === GENERAZIONE DELLE TABELLE HTML ===
+// === GENERAZIONE DELLE TABELLE HTML CON PULSANTI GRAFICI ===
 function popolaTabellaHtml(dati, tableId, tipoRegistro) {
     const table = document.getElementById(tableId);
     if (!table || !dati || dati.length === 0) return;
@@ -231,8 +262,17 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
     keys.forEach(key => {
         let th = document.createElement("th");
         let cleanKey = key.toLowerCase().trim();
-        if (tipoRegistro === 'chimico' && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'n.ospiti', 'cya', 'reintegro', 'reintegrosup'].includes(cleanKey)) {
-            th.innerHTML = `<button class="table-th-btn" onclick="apriGrafico('${key}')">${key} 📊</button>`;
+        
+        // Definiamo quali colonne meritano un grafico interattivo
+        let daGraficare = false;
+        if (tipoRegistro === 'chimico' && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'n.ospiti', 'cya'].includes(cleanKey)) {
+            daGraficare = true;
+        } else if (tipoRegistro === 'contatori' && (cleanKey.includes('reintegro') || cleanKey.includes('ricircolo'))) {
+            daGraficare = true;
+        }
+
+        if (daGraficare) {
+            th.innerHTML = `<button class="table-th-btn" onclick="apriGrafico('${key}', '${tipoRegistro}')">${key} 📊</button>`;
         } else {
             th.innerText = key;
         }
@@ -256,7 +296,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
 
             if (isNaN(valoreFloat) || valoreTesto === "" || tipoRegistro !== 'chimico') return;
             
-            // Colori e trigger assistente chimico
+            // Regole di evidenziazione per il registro chimico
             if (cleanKey === 'ph') {
                 if (valoreFloat > 7.50 || valoreFloat < 7.20) {
                     cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
@@ -295,8 +335,9 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
     });
 }
 
-// === GENERAZIONE GRAFICI ===
-function apriGrafico(parametro) {
+// === GENERAZIONE DEI GRAFICI STORICI DINAMICI ===
+function apriGrafico(parametro, tipoRegistro) {
+    if (!tipoRegistro) tipoRegistro = 'chimico';
     const overlay = document.getElementById('chartOverlay');
     const title = document.getElementById('overlayTitle');
     const canvas = document.getElementById('overlayCanvas');
@@ -311,8 +352,9 @@ function apriGrafico(parametro) {
     let etichette = [];
     let valori = [];
     let cleanParam = parametro.toLowerCase().trim();
+    let datiDaUsare = datiRegistriGlobali[tipoRegistro] || [];
 
-    datiCsvGlobali.forEach(riga => {
+    datiDaUsare.forEach(riga => {
         let dataStr = riga["Data"] || riga["data"] || "";
         let oraStr = riga["Ora"] || riga["ora"] || "";
         let valStr = riga[parametro] || "";
@@ -339,11 +381,10 @@ function apriGrafico(parametro) {
         opzioniScale.y.min = 7.0;
         opzioniScale.y.max = 8.0;
     }
-    else if (cleanParam.includes('reintegro') || cleanParam.includes('reintegrosup')) {
+    else if (cleanParam.includes('reintegro')) {
         opzioniScale.y.min = 0;
-        opzioniScale.y.suggestedMax = 20000;
         opzioniScale.y.ticks = {
-            stepSize: 500,
+            stepSize: 500, // Griglia bloccata ogni 500 litri per i contatori
             font: { size: 10 }
         };
     }
@@ -362,8 +403,8 @@ function apriGrafico(parametro) {
                     borderColor: '#0284c7',
                     backgroundColor: 'rgba(2, 132, 199, 0.1)',
                     borderWidth: 2,
-                    pointRadius: 1.5,         
-                    pointHoverRadius: 4,      
+                    pointRadius: 2,         
+                    pointHoverRadius: 5,      
                     tension: 0.15             
                 }]
             },
@@ -379,17 +420,13 @@ function apriGrafico(parametro) {
     }, 60);
 }
 
-function montreSezione(sezioneId) {
-    // Questa funzione gestisce lo switch corretto tra le sezioni
+function mostraSezione(sezioneId) {
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
     const sez = document.getElementById(sezioneId);
     if (sez) sez.classList.remove('hidden');
 }
 
-// Rinominiamo internamente per sicurezza
-window.mostraSezione = montreSezione;
-
 window.onload = function() {
     caricaTuttiIRegistri();
-    window.mostraSezione('chimicoSection');
+    mostraSezione('chimicoSection');
 };
