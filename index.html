@@ -6,6 +6,7 @@
     <title>Dashboard Piscina 2026</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -27,24 +28,29 @@
             💡 <em>Suggerimento: Le celle evidenziate in rosso indicano parametri fuori soglia. Clicca direttamente sopra le celle rosse di <strong>pH</strong> o <strong>Cl. Lib</strong> per aprire l'assistente di dosaggio dei prodotti.</em>
         </p>
         <div class="table-wrapper">
-            <table id="chimicoTable">
-                </table>
+            <table id="chimicoTable"></table>
         </div>
     </section>
 
     <section id="contatoriSection" class="register-section hidden">
         <h2>Registro Contatori</h2>
-        <p>Sezione contatori in attesa di caricamento dati...</p>
+        <div class="table-wrapper">
+            <table id="contatoriTable"></table>
+        </div>
     </section>
 
     <section id="pulizieSection" class="register-section hidden">
         <h2>Registro Pulizie</h2>
-        <p>Sezione pulizie e igienizzazione in attesa di caricamento dati...</p>
+        <div class="table-wrapper">
+            <table id="pulizieTable"></table>
+        </div>
     </section>
 
     <section id="manutenzioniSection" class="register-section hidden">
         <h2>Registro Manutenzioni</h2>
-        <p>Sezione interventi tecnici e manutenzione in attesa di caricamento dati...</p>
+        <div class="table-wrapper">
+            <table id="manutenzioniTable"></table>
+        </div>
     </section>
 
     <div id="chartOverlay" class="overlay hidden">
@@ -53,8 +59,7 @@
             <h3 id="overlayTitle"></h3>
             
             <canvas id="overlayCanvas"></canvas>
-            
-            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
