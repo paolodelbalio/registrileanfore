@@ -3,10 +3,33 @@ const FILES = {
     chimico: "REGISTRO CHIMICO 2026.csv?t=" + new Date().getTime(),
     contatori: "REGISTRO CONTATORI.csv?t=" + new Date().getTime(),
     pulizie: "REGISTRO PULIZIE PISCINA 2026.csv?t=" + new Date().getTime(),
-   manutenzione: "REGISTRO MANUTENZIONE INTERVENTI .csv?t=" + new Date().getTime()
+    manutenzione: "REGISTRO MANUTENZIONE INTERVENTI .csv?t=" + new Date().getTime()
 };
 
-// === LIMITI DI LEGGE (Per colorare le celle) ===
+// === CONFIGURAZIONE PARAMETRI PISCINA (92 mc e Prodotti) ===
+const PISCINA_CONFIG = {
+    volume: 92, // metri cubi della vasca
+    target: {
+        ph: 7.3,        // Valore ideale pH
+        cloro: 1.2      // Valore ideale Cloro Libero (ppm)
+    },
+    prodotti: {
+        phMeno: {
+            nome: "pH Minor CTX Professional",
+            dosePerCentesimo: 11.0 // 11g per abbassare di 0.01 unità il pH in 92mc
+        },
+        cloroCa: {
+            nome: "Brenntag Chlore Pure Ca Granular (Ipoclorito di Calcio 70%)",
+            dosePerPpm: 130 // ~130g per alzare di 1 ppm il cloro in 92mc
+        },
+        waterStop: {
+            nome: "Water Stop Clor (Abbattitore)",
+            dosePerPpm: 92 // 92g per abbassare di 1 ppm il cloro in 92mc
+        }
+    }
+};
+
+// === LIMITI DI LEGGE (Per colorare le celle della tabella) ===
 const LEGAL_RANGES = {
     "ph": [6.5, 7.5],
     "cl. lib": [0.7, 1.5],
@@ -36,7 +59,7 @@ let currentChart = null;
 (async function init() {
     console.log("Caricamento dati in corso...");
     
-    // Inietta lo stile per forzare l'ancoraggio millimetrico delle intestazioni
+    // Inietta lo stile per forzare l'ancoraggio delle intestazioni delle tabelle
     const style = document.createElement('style');
     style.innerHTML = `
         table { border-collapse: separate !important; }
@@ -66,6 +89,11 @@ let currentChart = null;
     buildTable("pulizieTable", pulizie, () => false, null);
     buildTable("manutenzioneTable", manutenzione, () => false, null);
 
+    // Se ci sono dati validi nel registro chimico, calcola i consigli sull'ultima riga disponibile
+    if (chimico && chimico.length > 0 && !chimico.error) {
+        generaConsigliDosaggio(chimico[chimico.length - 1]);
+    }
+
     // Mostra il registro chimico all'avvio
     showRegister("chimicoSection");
 })();
@@ -77,7 +105,7 @@ async function loadFile(url) {
         if (!response.ok) throw new Error(`Errore HTTP: ${response.status}`);
         let text = await response.text();
         
-        // Protezione contro file mancanti (se il server risponde con una pagina HTML)
+        // Protezione contro file mancanti (se il server risponde con una pagina HTML/Errore)
         if (text.trim().startsWith("<!DOCTYPE") || text.trim().toLowerCase().includes("<html")) {
             return { error: "File CSV non trovato sul server. Verifica che il nome del file sia identico e caricato correttamente." };
         }
@@ -95,7 +123,6 @@ async function loadFile(url) {
         let headerIndex = 0;
         for (let i = 0; i < parsedRaw.length; i++) {
             const rowCleaned = parsedRaw[i].map(cell => cell ? cell.trim().toLowerCase() : "");
-            // Se la riga contiene parole chiave storiche dei registri, è la nostra intestazione
             if (rowCleaned.includes("data") || rowCleaned.includes("ph") || rowCleaned.includes("intervento") || rowCleaned.includes("contatore")) {
                 headerIndex = i;
                 break;
@@ -135,7 +162,6 @@ function buildTable(tableId, data, checkClickable, onHeaderClick) {
     const table = document.getElementById(tableId);
     if (!table) return;
 
-    // Se l'oggetto contiene una stringa di errore (es. File non trovato o Errore HTML)
     if (data && data.error) {
         table.innerHTML = `<tr><td style='padding:25px; text-align:center; color:#d93025; font-weight:bold; background:#feeaea;'>⚠️ ${data.error}</td></tr>`;
         return;
@@ -220,6 +246,138 @@ function colorCell(td, colName, rawValue) {
     } else {
         td.style.backgroundColor = "rgba(0, 200, 0, 0.20)";
         td.style.color = "#155724";
+    }
+}
+
+// === CALCOLO COEFFICIENTE TEMPERATURA PER DEGRADAZIONE CLORO ===
+function getFattoreTemperatura(temp) {
+    if (!temp || isNaN(temp)) return 1.0;
+    if (temp <= 26) return 1.0;
+    if (temp > 26 && temp <= 28) return 1.15; // +15% di dose
+    if (temp > 28 && temp <= 30) return 1.30; // +30% di dose
+    return 1.50; // Oltre i 30°C: +50% di dose necessaria
+}
+
+// === ASSISTENTE CHIMICO: GENERAZIONE DEI CONSIGLI DI DOSAGGIO ===
+function generaConsigliDosaggio(ultimoDato) {
+    const container = document.getElementById('assistente-chimico-container');
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    // Trova le chiavi corrette ignorando maiuscole/minuscole
+    const keys = Object.keys(ultimoDato);
+    const phKey = keys.find(k => k.toLowerCase().trim() === 'ph');
+    const cloroKey = keys.find(k => k.toLowerCase().includes('cl. lib') || k.toLowerCase().includes('cloro lib'));
+    const tempKey = keys.find(k => k.toLowerCase().includes('temp'));
+
+    const phAttuale = phKey ? parseFloat(String(ultimoDato[phKey]).replace(',', '.')) : NaN;
+    const cloroAttuale = cloroKey ? parseFloat(String(ultimoDato[cloroKey]).replace(',', '.')) : NaN;
+    const tempAttuale = tempKey ? parseFloat(String(ultimoDato[tempKey]).replace(',', '.')) : NaN;
+
+    if (isNaN(phAttuale) || isNaN(cloroAttuale)) {
+        container.innerHTML = `<div class="avviso-assistente info">Inserisci i parametri dell'ultima lettura odierna per sbloccare i consigli sui prodotti chimici.</div>`;
+        return;
+    }
+
+    let consigli = [];
+    const fattoreTemp = getFattoreTemperatura(tempAttuale);
+
+    // --- ANALISI PH ---
+    if (phAttuale > 7.5) {
+        const deltaPh = phAttuale - PISCINA_CONFIG.target.ph;
+        const puntiCentesimi = Math.round(deltaPh * 100);
+        const doseTotale = Math.round(puntiCentesimi * PISCINA_CONFIG.prodotti.phMeno.dosePerCentesimo);
+        
+        consigli.push({
+            parametro: "pH",
+            stato: `Alto (${phAttuale.toFixed(2)})`,
+            azione: `Abbassare di ${deltaPh.toFixed(2)} unità per rientrare al valore ottimale di ${PISCINA_CONFIG.target.ph}`,
+            prodotto: PISCINA_CONFIG.prodotti.phMeno.nome,
+            quantita: `${(doseTotale / 1000).toFixed(2)} kg`,
+            nota: "Sciogliere la polvere in un secchio d'acqua pulita e versare uniformemente in vasca davanti alle bocchette con filtrazione attiva."
+        });
+    }
+
+    // --- ANALISI CLORO ---
+    if (cloroAttuale < 0.7) {
+        const deltaCloro = PISCINA_CONFIG.target.cloro - cloroAttuale;
+        let doseBase = deltaCloro * PISCINA_CONFIG.prodotti.cloroCa.dosePerPpm;
+        let doseCorretta = Math.round(doseBase * fattoreTemp);
+
+        let notaTemp = "";
+        if (fattoreTemp > 1.0) {
+            notaTemp = ` (Incrementato del ${Math.round((fattoreTemp - 1) * 100)}% per compensare l'evaporazione causata dai ${tempAttuale}°C dell'acqua)`;
+        }
+
+        consigli.push({
+            parametro: "Cloro Libero",
+            stato: `Basso (${cloroAttuale.toFixed(2)} ppm)`,
+            azione: `Aumentare di ${deltaCloro.toFixed(2)} ppm per raggiungere la quota ideale di ${PISCINA_CONFIG.target.cloro} ppm`,
+            prodotto: PISCINA_CONFIG.prodotti.cloroCa.nome,
+            quantita: `${doseCorretta} grammi`,
+            nota: `Dosaggio rapido predittivo.${notaTemp} Aggiungere direttamente negli skimmer o premiscelare.`
+        });
+    } else if (cloroAttuale > 2.0) {
+        const deltaCloro = cloroAttuale - 1.5;
+        const doseTotale = Math.round(deltaCloro * PISCINA_CONFIG.prodotti.waterStop.dosePerPpm);
+
+        consigli.push({
+            parametro: "Cloro Libero",
+            stato: `Alto (${cloroAttuale.toFixed(2)} ppm)`,
+            azione: `Abbassare di ${deltaCloro.toFixed(2)} ppm per riportare l'acqua in equilibrio confortevole`,
+            prodotto: PISCINA_CONFIG.prodotti.waterStop.nome,
+            quantita: `${doseTotale} grammi`,
+            nota: "Utilizzare solo se è necessario riaprire immediatamente la vasca agli ospiti, altrimenti l'azione del sole e dei raggi UV lo consumerà in modo naturale."
+        });
+    }
+
+    // --- RENDERING INTERFACCIA GRAFICA ---
+    if (consigli.length === 0) {
+        container.innerHTML = `
+            <div class="avviso-assistente successo">
+                <strong>✨ Parametri Eccellenti!</strong> Tutti i valori dell'ultimo rilevamento sono perfettamente bilanciati per la cubatura di 92 m³. Non è richiesta alcuna correzione immediata.
+            </div>`;
+    } else {
+        let htmlTabella = `
+            <div class="card-assistente">
+                <h3>🧪 Assistente di Dosaggio Intelligente (Volume Vasca: 92 m³)</h3>
+                <p class="sottotitolo-assistente">Diagnosi in tempo reale calibrata sui prodotti commerciali in uso e compensazione termica attiva.</p>
+                <div style="overflow-x: auto;">
+                    <table class="tabella-consigli">
+                        <thead>
+                            <tr>
+                                <th>Parametro</th>
+                                <th>Diagnosi</th>
+                                <th>Azione Suggerita</th>
+                                <th>Prodotto Specifico</th>
+                                <th>Quantità da Dosare</th>
+                                <th>Modalità d'Uso</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+
+        consigli.forEach(c => {
+            htmlTabella += `
+                <tr>
+                    <td><strong>${c.parametro}</strong></td>
+                    <td><span class="badge badge-pericolo">${c.stato}</span></td>
+                    <td>${c.azione}</td>
+                    <td><em>${c.prodotto}</em></td>
+                    <td><span class="badge-dose">${c.quantita}</span></td>
+                    <td class="nota-testo">${c.nota}</td>
+                </tr>
+            `;
+        });
+
+        htmlTabella += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        container.innerHTML = htmlTabella;
     }
 }
 
