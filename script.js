@@ -40,8 +40,6 @@ let currentChart = null;
     let pulizie = await loadFile(FILES.pulizie, false);
     let manutenzione = await loadFile(FILES.manutenzione, false);
 
-    // NOTA: Rimossa la funzione .reverse() per preservare l'ordine naturale del calendario (da Maggio a Settembre)
-
     const chimicoClickable = ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya", "n.ospiti"];
     const contatoriClickable = ["reintegro (l)", "ricircolo 24h (m³)"];
 
@@ -50,7 +48,7 @@ let currentChart = null;
     buildTable("pulizieTable", pulizie, [], null);
     buildTable("manutenzioneTable", manutenzione, [], null);
 
-    // Mostra la sezione principale e si posiziona sui dati recenti
+    // Mostra il registro chimico all'avvio
     showRegister("chimicoSection");
 })();
 
@@ -124,7 +122,6 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
             const cleanHeader = h.trim().toLowerCase();
             let valText = row[h] ? row[h].trim() : "";
 
-            // Formatta a 2 decimali solo se c'è un valore numerico reale
             if (valText !== "" && (cleanHeader === "cl. com" || cleanHeader === "cl. lib" || cleanHeader === "cl. tot" || cleanHeader === "ph")) {
                 const numericValue = parseFloat(valText.replace(/"/g, "").replace(",", ".").trim());
                 if (!isNaN(numericValue)) {
@@ -223,35 +220,55 @@ function showOverlayChart(title, labels, values) {
     });
 }
 
-// === NAVIGAZIONE INTERFACCIA E INQUADRATURA AUTOMATICA SUI DATI RECENTI ===
+// === NAVIGAZIONE INTERFACCIA E INQUADRATURA SULLA DATA ODIERNA / COMPILAZIONE ===
 function showRegister(sectionId) {
-    // Nasconde tutte le sezioni
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
     
-    // Mostra la sezione selezionata
     const activeSection = document.getElementById(sectionId);
     if (!activeSection) return;
     
     activeSection.classList.remove('hidden');
 
-    // Trova l'ultima riga compilata con dati reali all'interno della tabella attuale
     const rows = activeSection.querySelectorAll('tbody tr');
-    let lastFilledRow = null;
+    let targetRow = null;
 
-    rows.forEach(row => {
-        const cells = Array.from(row.querySelectorAll('td'));
-        // Verifica se le celle dei parametri (escluso Data e Ora) contengono dati scritti
-        const hasData = cells.slice(2).some(cell => cell.innerText.trim() !== "");
-        if (hasData) {
-            lastFilledRow = row;
+    // 1. STRATEGIA PRINCIPALE: Trova la riga che corrisponde alla data di oggi (es. "sab 4 lug 2026")
+    const today = new Date();
+    const giorni = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
+    const mesi = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+    
+    const stringaOggi = `${giorni[today.getDay()]} ${today.getDate()} ${mesi[today.getMonth()]} ${today.getFullYear()}`.toLowerCase();
+
+    for (let row of rows) {
+        const firstCellText = row.querySelector('td')?.innerText.toLowerCase().trim() || "";
+        if (firstCellText.includes(stringaOggi)) {
+            targetRow = row;
+            break; 
         }
-    });
+    }
 
-    // Se trova una riga compilata recente, sposta l'inquadratura su di essa
-    if (lastFilledRow) {
+    // 2. STRATEGIA DI RISERVA: Se oggi non è nel CSV, inquadra la prima riga vuota subito sotto l'ultimo dato inserito
+    if (!targetRow) {
+        let lastFilledRowIndex = -1;
+        rows.forEach((row, index) => {
+            const cells = Array.from(row.querySelectorAll('td'));
+            const hasData = cells.slice(2).some(cell => cell.innerText.trim() !== "" && cell.innerText.trim() !== "0,00");
+            if (hasData) {
+                lastFilledRowIndex = index;
+            }
+        });
+        
+        // Sceglie la prima o la seconda riga vuota subito successiva
+        if (lastFilledRowIndex !== -1 && rows[lastFilledRowIndex + 1]) {
+            targetRow = rows[lastFilledRowIndex + 1];
+        }
+    }
+
+    // Esegue lo scorrimento fluido mettendo la riga al centro dello schermo
+    if (targetRow) {
         setTimeout(() => {
-            lastFilledRow.scrollIntoView({ block: 'center', behavior: 'instant' });
-        }, 60);
+            targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }, 80);
     }
 }
 
