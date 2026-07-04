@@ -210,8 +210,14 @@ function showOverlayChart(title, labels, values) {
     const key = title.trim().toLowerCase();
     const colors = CHART_COLORS[key] || CHART_COLORS["default"];
 
+    // Rileva automaticamente se il grafico deve essere a barre (per contatori e ospiti)
+    let tipoGrafico = 'line';
+    if (key === 'reintegro (l)' || key === 'ricircolo 24h (m³)' || key === 'n.ospiti') {
+        tipoGrafico = 'bar';
+    }
+
     currentChart = new Chart(ctx, {
-        type: 'line',
+        type: tipoGrafico, // Usa 'bar' o 'line' in base alla colonna cliccata
         data: {
             labels: labels,
             datasets: [{
@@ -229,7 +235,7 @@ function showOverlayChart(title, labels, values) {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: false }
+                y: { beginAtZero: true } // Forza la partenza da zero, ideale per i grafici a barre
             }
         }
     });
