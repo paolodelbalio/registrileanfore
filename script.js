@@ -35,6 +35,20 @@ let currentChart = null;
 // === AVVIO AUTOMATICO ===
 (async function init() {
     console.log("Caricamento dati in corso...");
+    
+    // Inietta dinamicamente lo stile per bloccare le intestazioni delle tabelle sotto la barra menu
+    const style = document.createElement('style');
+    style.innerHTML = `
+        thead th {
+            position: sticky !important;
+            top: 45px; /* Si ancora perfettamente sotto la barra dei pulsanti dei registri */
+            background-color: #ebf3f9 !important; /* Mantiene lo sfondo colorato coprente durante lo scorrimento */
+            z-index: 99 !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Crea una leggera ombreggiatura di distacco */
+        }
+    `;
+    document.head.appendChild(style);
+
     let chimico = await loadFile(FILES.chimico, false);
     let contatori = await loadFile(FILES.contatori, true); 
     let pulizie = await loadFile(FILES.pulizie, false);
@@ -182,6 +196,7 @@ function showChart(colName, data, filterHour = null) {
     }
 }
 
+// === OVERLAY GRAFICO ===
 function showOverlayChart(title, labels, values) {
     document.getElementById("overlayTitle").innerText = "Andamento: " + title;
     document.getElementById("chartOverlay").classList.remove("hidden");
@@ -232,7 +247,7 @@ function showRegister(sectionId) {
     const rows = activeSection.querySelectorAll('tbody tr');
     let targetRow = null;
 
-    // 1. STRATEGIA PRINCIPALE: Trova la riga che corrisponde alla data di oggi (es. "sab 4 lug 2026")
+    // 1. STRATEGIA PRINCIPALE: Trova la riga che corrisponde alla data di oggi
     const today = new Date();
     const giorni = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
     const mesi = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
@@ -258,7 +273,6 @@ function showRegister(sectionId) {
             }
         });
         
-        // Sceglie la prima o la seconda riga vuota subito successiva
         if (lastFilledRowIndex !== -1 && rows[lastFilledRowIndex + 1]) {
             targetRow = rows[lastFilledRowIndex + 1];
         }
