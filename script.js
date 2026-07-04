@@ -6,7 +6,7 @@ const FILES = {
     manutenzione: "REGISTRO MANUTENZIONE 2026.csv?t=" + new Date().getTime()
 };
 
-// === LIMITI DI LEGGE ESTRATTI E CORRETTI (Per colorare le celle) ===
+// === LIMITI DI LEGGE (Per colorare le celle) ===
 const LEGAL_RANGES = {
     "ph": [6.5, 7.5],
     "cl. lib": [0.7, 1.5],
@@ -40,11 +40,7 @@ let currentChart = null;
     let pulizie = await loadFile(FILES.pulizie, false);
     let manutenzione = await loadFile(FILES.manutenzione, false);
 
-    // INVERSIONE: Mostra prima le righe più recenti (solo se contengono dati reali)
-    if (chimico.length > 0) chimico.reverse();
-    if (contatori.length > 0) contatori.reverse();
-    if (pulizie.length > 0) pulizie.reverse();
-    if (manutenzione.length > 0) manutenzione.reverse();
+    // NOTA: Rimossa la funzione .reverse() per preservare l'ordine naturale del calendario (da Maggio a Settembre)
 
     const chimicoClickable = ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya", "n.ospiti"];
     const contatoriClickable = ["reintegro (l)", "ricircolo 24h (m³)"];
@@ -54,10 +50,11 @@ let currentChart = null;
     buildTable("pulizieTable", pulizie, [], null);
     buildTable("manutenzioneTable", manutenzione, [], null);
 
+    // Mostra la sezione principale e si posiziona sui dati recenti
     showRegister("chimicoSection");
 })();
 
-// === CARICAMENTO DATI CON RIGIDA PULIZIA DELLE RIGHE VUOTE ===
+// === CARICAMENTO DATI CSV ===
 async function loadFile(url, skipFirstLine) {
     try {
         const response = await fetch(url);
@@ -70,20 +67,11 @@ async function loadFile(url, skipFirstLine) {
             text = lines.join("\n");
         }
 
-        const parsed = Papa.parse(text, { 
+        return Papa.parse(text, { 
             header: true, 
             skipEmptyLines: true,
             delimiter: "," 
         }).data;
-
-        // FILTRO AVANZATO: Rimuove le righe che non hanno una data valida o sono composte solo da virgole
-        return parsed.filter(row => {
-            if (!row["Data"] || row["Data"].trim() === "") return false;
-            
-            // Unisce tutti i valori della riga per verificare se c'è del testo reale inserito
-            const allValues = Object.values(row).join("").replace(/,/g, "").replace(/"/g, "").trim();
-            return allValues.length > 0;
-        });
 
     } catch (e) {
         console.error("Errore nel caricamento file:", e);
@@ -91,7 +79,7 @@ async function loadFile(url, skipFirstLine) {
     }
 }
 
-// === COSTRUZIONE TABELLE HTML INTERE ===
+// === COSTRUZIONE TABELLE HTML ===
 function buildTable(tableId, data, clickableColumns, onHeaderClick) {
     const table = document.getElementById(tableId);
     if (!table || data.length === 0) {
@@ -136,7 +124,7 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
             const cleanHeader = h.trim().toLowerCase();
             let valText = row[h] ? row[h].trim() : "";
 
-            // FORMATTAZIONE DECIMALI: Applica i 2 decimali solo se la cella contiene effettivamente un valore
+            // Formatta a 2 decimali solo se c'è un valore numerico reale
             if (valText !== "" && (cleanHeader === "cl. com" || cleanHeader === "cl. lib" || cleanHeader === "cl. tot" || cleanHeader === "ph")) {
                 const numericValue = parseFloat(valText.replace(/"/g, "").replace(",", ".").trim());
                 if (!isNaN(numericValue)) {
@@ -176,11 +164,10 @@ function colorCell(td, colName, rawValue) {
 
 // === VISUALIZZAZIONE GRAFICO COMPLETO ===
 function showChart(colName, data, filterHour = null) {
-    let chartData = [...data].reverse();
-    let filtered = filterHour ? chartData.filter(r => r.Ora === filterHour) : chartData;
+    let filtered = filterHour ? data.filter(r => r.Ora === filterHour) : data;
     
     if (filtered.length === 0) {
-        filtered = chartData;
+        filtered = data;
     }
 
     const labels = filtered.map(r => r.Data || "");
@@ -236,10 +223,36 @@ function showOverlayChart(title, labels, values) {
     });
 }
 
-// === NAVIGAZIONE INTERFACCIA ===
+// === NAVIGAZIONE INTERFACCIA E INQUADRATURA AUTOMATICA SUI DATI RECENTI ===
 function showRegister(sectionId) {
+    // Nasconde tutte le sezioni
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
-    document.getElementById(sectionId).classList.remove('hidden');
+    
+    // Mostra la sezione selezionata
+    const activeSection = document.getElementById(sectionId);
+    if (!activeSection) return;
+    
+    activeSection.classList.remove('hidden');
+
+    // Trova l'ultima riga compilata con dati reali all'interno della tabella attuale
+    const rows = activeSection.querySelectorAll('tbody tr');
+    let lastFilledRow = null;
+
+    rows.forEach(row => {
+        const cells = Array.from(row.querySelectorAll('td'));
+        // Verifica se le celle dei parametri (escluso Data e Ora) contengono dati scritti
+        const hasData = cells.slice(2).some(cell => cell.innerText.trim() !== "");
+        if (hasData) {
+            lastFilledRow = row;
+        }
+    });
+
+    // Se trova una riga compilata recente, sposta l'inquadratura su di essa
+    if (lastFilledRow) {
+        setTimeout(() => {
+            lastFilledRow.scrollIntoView({ block: 'center', behavior: 'instant' });
+        }, 60);
+    }
 }
 
 function closeOverlay() {
