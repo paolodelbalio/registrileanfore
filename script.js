@@ -39,7 +39,7 @@ let currentChart = null;
     const pulizie = await loadFile(FILES.pulizie, false);
     const manutenzione = await loadFile(FILES.manutenzione, false);
 
-    // Mappatura parametri abilitati al grafico (incluso ora anche "cl. tot")
+    // Parametri abilitati per i pulsanti-grafico (incluso cloro totale)
     const chimicoClickable = ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya", "n.ospiti"];
     const contatoriClickable = ["reintegro (l)", "ricircolo 24h (m³)"];
 
@@ -81,7 +81,7 @@ async function loadFile(url, skipFirstLine) {
     }
 }
 
-// === COSTRUZIONE TABELLE HTML CON PULSANTI DIRETTI ===
+// === COSTRUZIONE TABELLE HTML CON PULSANTI ===
 function buildTable(tableId, data, clickableColumns, onHeaderClick) {
     const table = document.getElementById(tableId);
     if (!table || data.length === 0) {
@@ -91,7 +91,6 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
 
     const headers = Object.keys(data[0]);
     
-    // 1. Creazione dell'Header (Testata)
     const thead = document.createElement("thead");
     const headerRow = document.createElement("tr");
     
@@ -99,43 +98,24 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
         const th = document.createElement("th");
         const cleanHeader = h.trim().toLowerCase();
         
-        // Se la colonna supporta i grafici, inseriamo all'interno un pulsante stilizzato
         if (clickableColumns.includes(cleanHeader)) {
+            // Crea un vero e proprio bottone HTML agganciato alla classe CSS
             const btn = document.createElement("button");
+            btn.className = "table-th-btn";
             btn.innerText = h + " 📊";
-            btn.title = "Clicca per vedere il grafico di andamento";
-            
-            // Stile in linea del pulsante interno per renderlo moderno ed evidente
-            btn.style.width = "100%";
-            btn.style.padding = "6px 10px";
-            btn.style.border = "1px solid #0066cc";
-            btn.style.borderRadius = "4px";
-            btn.style.backgroundColor = "#fff";
-            btn.style.color = "#0066cc";
-            btn.style.fontWeight = "bold";
-            btn.style.cursor = "pointer";
-            btn.style.fontSize = "0.85rem";
-            btn.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)";
-            
-            // Effetto hover semplice al passaggio del mouse
-            btn.onmouseover = () => { btn.style.backgroundColor = "#0066cc"; btn.style.color = "#fff"; };
-            btn.onmouseout = () => { btn.style.backgroundColor = "#fff"; btn.style.color = "#0066cc"; };
+            btn.title = "Clicca per visualizzare il grafico";
             
             btn.addEventListener("click", () => {
                 if (onHeaderClick) onHeaderClick(h);
             });
-            
             th.appendChild(btn);
         } else {
-            // Se non è abilitata per i grafici, mostriamo il testo normale ed eliminiamo il cursore a manina
             th.innerText = h;
-            th.style.cursor = "default";
         }
         headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
 
-    // 2. Creazione del Body (Righe del Registro)
     const tbody = document.createElement("tbody");
     data.forEach((row) => {
         const tr = document.createElement("tr");
@@ -153,7 +133,7 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
     table.appendChild(tbody);
 }
 
-// === COLORAZIONE CELLE (Verde/Rosso) ===
+// === COLORAZIONE CELLE ===
 function colorCell(td, colName, rawValue) {
     if (!LEGAL_RANGES[colName] || !rawValue) return;
     
@@ -190,12 +170,12 @@ function showChart(colName, data, filterHour = null) {
     if (values.some(v => !isNaN(v) && v !== null)) {
         showOverlayChart(colName, labels, values);
     } else {
-        alert(`Impossibile generare il grafico: nessun dato numerico trovato nella colonna "${colName}".`);
+        alert(`Nessun dato valido trovato nella colonna "${colName}".`);
     }
 }
 
 function showOverlayChart(title, labels, values) {
-    document.getElementById("overlayTitle").innerText = "Andamento Parametro: " + title;
+    document.getElementById("overlayTitle").innerText = "Andamento: " + title;
     document.getElementById("chartOverlay").classList.remove("hidden");
 
     const ctx = document.getElementById("overlayCanvas").getContext("2d");

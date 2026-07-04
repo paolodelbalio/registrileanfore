@@ -1,7 +1,6 @@
 /* ========================= */
-/*        BASE LAYOUT        */
+/* BASE LAYOUT        */
 /* ========================= */
-
 body {
     font-family: Arial, sans-serif;
     margin: 0;
@@ -16,9 +15,8 @@ header {
 }
 
 /* ========================= */
-/*      PULSANTI IN ALTO     */
+/* PULSANTI IN ALTO     */
 /* ========================= */
-
 .top-buttons {
     display: flex;
     justify-content: center;
@@ -47,9 +45,8 @@ header {
 }
 
 /* ========================= */
-/*       SEZIONI / VISIBILITÀ */
+/* SEZIONI / VISIBILITÀ */
 /* ========================= */
-
 .hidden {
     display: none;
 }
@@ -58,16 +55,13 @@ header {
     margin: 20px auto;
     max-width: 1200px;
     padding: 10px 16px;
-
-    /* per sticky header tabella */
     overflow-y: auto;
     max-height: 80vh;
 }
 
 /* ========================= */
-/*          TABELLE          */
+/* TABELLE          */
 /* ========================= */
-
 table {
     width: 100%;
     background: white;
@@ -79,25 +73,46 @@ table {
 th, td {
     border: 1px solid #ccc;
     padding: 8px;
+    text-align: center;
 }
 
-/* intestazioni sempre visibili quando si scorre */
+/* Header della tabella pulito senza conflitti */
 th {
     background: #e9f2fb;
-    cursor: pointer;
     position: sticky;
     top: 0;
     z-index: 5;
+    padding: 6px;
 }
 
 tbody tr:nth-child(even) {
     background: #f8fafc;
 }
 
-/* ========================= */
-/*        OVERLAY GRAFICO    */
-/* ========================= */
+/* Stile moderno per i pulsanti dentro la tabella */
+.table-th-btn {
+    width: 100%;
+    min-width: 90px;
+    padding: 6px 8px;
+    border: 1px solid #0066cc;
+    border-radius: 4px;
+    background-color: #ffffff;
+    color: #0066cc;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 0.85rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    transition: all 0.2s ease;
+}
 
+.table-th-btn:hover {
+    background-color: #0066cc;
+    color: #ffffff;
+}
+
+/* ========================= */
+/* OVERLAY GRAFICO    */
+/* ========================= */
 .overlay {
     position: fixed;
     top: 0;
@@ -122,12 +137,10 @@ tbody tr:nth-child(even) {
     width: 90%;
     max-width: 800px;
     box-shadow: 0 0 20px rgba(0,0,0,0.4);
-
     max-height: 90vh;
     overflow-y: auto;
 }
 
-/* titolo del grafico sempre visibile */
 #overlayTitle {
     position: sticky;
     top: 0;
