@@ -10,7 +10,7 @@ const FILES = {
 const LEGAL_RANGES = {
     "ph": [6.5, 7.5],
     "cl. lib": [0.7, 1.5],
-    "cl. tot": [0.7, 1.9], // Inseriti intervalli di colore anche per il cloro totale
+    "cl. tot": [0.7, 1.9],
     "cl. com": [0.0, 0.4],
     "temp": [24.0, 30.0],
     "cya": [0.0, 75.0]
@@ -35,10 +35,16 @@ let currentChart = null;
 // === AVVIO AUTOMATICO ===
 (async function init() {
     console.log("Caricamento dati in corso...");
-    const chimico = await loadFile(FILES.chimico, false);
-    const contatori = await loadFile(FILES.contatori, true); 
-    const pulizie = await loadFile(FILES.pulizie, false);
-    const manutenzione = await loadFile(FILES.manutenzione, false);
+    let chimico = await loadFile(FILES.chimico, false);
+    let contatori = await loadFile(FILES.contatori, true); 
+    let pulizie = await loadFile(FILES.pulizie, false);
+    let manutenzione = await loadFile(FILES.manutenzione, false);
+
+    // INVERSIONE: Mostra prima le righe più recenti (dall'ultima alla prima)
+    if (chimico.length > 0) chimico.reverse();
+    if (contatori.length > 0) contatori.reverse();
+    if (pulizie.length > 0) pulizie.reverse();
+    if (manutenzione.length > 0) manutenzione.reverse();
 
     const chimicoClickable = ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya", "n.ospiti"];
     const contatoriClickable = ["reintegro (l)", "ricircolo 24h (m³)"];
@@ -110,7 +116,7 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
             th.appendChild(btn);
         } else {
             th.innerText = h;
-            th.style.padding = "12px 8px"; // Allineamento perfetto per Data, Ora ecc.
+            th.style.padding = "12px 8px"; 
             th.style.fontWeight = "bold";
             th.style.color = "#333333";
         }
@@ -123,8 +129,19 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
         const tr = document.createElement("tr");
         headers.forEach(h => {
             const td = document.createElement("td");
-            td.innerText = row[h] || "";
-            colorCell(td, h.trim().toLowerCase(), row[h]);
+            const cleanHeader = h.trim().toLowerCase();
+            let valText = row[h] || "";
+
+            // FORMATTAZIONE DECIMALI: Forza a 2 cifre dopo la virgola per i valori numerici
+            if (valText && (cleanHeader === "cl. com" || cleanHeader === "cl. lib" || cleanHeader === "cl. tot" || cleanHeader === "ph")) {
+                const numericValue = parseFloat(valText.replace(/"/g, "").replace(",", ".").trim());
+                if (!isNaN(numericValue)) {
+                    valText = numericValue.toFixed(2).replace(".", ",");
+                }
+            }
+
+            td.innerText = valText;
+            colorCell(td, cleanHeader, row[h]);
             tr.appendChild(td);
         });
         tbody.appendChild(tr);
@@ -155,10 +172,12 @@ function colorCell(td, colName, rawValue) {
 
 // === VISUALIZZAZIONE GRAFICO COMPLETO ===
 function showChart(colName, data, filterHour = null) {
-    let filtered = filterHour ? data.filter(r => r.Ora === filterHour) : data;
+    // Per il grafico ri-ordiniamo cronologicamente dal più vecchio al più recente
+    let chartData = [...data].reverse();
+    let filtered = filterHour ? chartData.filter(r => r.Ora === filterHour) : chartData;
     
     if (filtered.length === 0) {
-        filtered = data;
+        filtered = chartData;
     }
 
     const labels = filtered.map(r => r.Data || "");
@@ -220,7 +239,6 @@ function showRegister(sectionId) {
     document.getElementById(sectionId).classList.remove('hidden');
 }
 
-/* Chiude e distrugge il grafico per liberare memoria */
 function closeOverlay() {
     document.getElementById("chartOverlay").classList.add("hidden");
     if (currentChart) {
