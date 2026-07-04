@@ -19,6 +19,7 @@ const LEGAL_RANGES = {
 const CHART_COLORS = {
     "ph": { border: "#ff5722", background: "rgba(255, 87, 34, 0.2)" },
     "cl. lib": { border: "#00bcd4", background: "rgba(0, 188, 212, 0.2)" },
+    "cl. tot": { border: "#03a9f4", background: "rgba(3, 169, 244, 0.2)" },
     "cl. com": { border: "#9c27b0", background: "rgba(156, 39, 176, 0.2)" },
     "temp": { border: "#4caf50", background: "rgba(76, 175, 80, 0.2)" },
     "cya": { border: "#ff9800", background: "rgba(255, 152, 0, 0.2)" },
@@ -34,12 +35,12 @@ let currentChart = null;
 (async function init() {
     console.log("Caricamento dati in corso...");
     const chimico = await loadFile(FILES.chimico, false);
-    const contatori = await loadFile(FILES.contatori, true); // true = salta la riga del titolo iniziale "Registro Lettura Contatori"
+    const contatori = await loadFile(FILES.contatori, true); 
     const pulizie = await loadFile(FILES.pulizie, false);
     const manutenzione = await loadFile(FILES.manutenzione, false);
 
-    // Parametri abilitati a generare il grafico (controllati in minuscolo)
-    const chimicoClickable = ["ph", "cl. lib", "cl. com", "temp", "cya", "n.ospiti"];
+    // Mappatura parametri abilitati al grafico (incluso ora anche "cl. tot")
+    const chimicoClickable = ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya", "n.ospiti"];
     const contatoriClickable = ["reintegro (l)", "ricircolo 24h (m³)"];
 
     buildTable("chimicoTable", chimico, chimicoClickable, (col) => showChart(col, chimico, "07:00"));
@@ -69,7 +70,6 @@ async function loadFile(url, skipFirstLine) {
             delimiter: "," 
         }).data;
 
-        // Rimuove le righe vuote piene solo di virgole create da LibreOffice
         return parsed.filter(row => {
             const values = Object.values(row).join("").replace(/,/g, "").trim();
             return values.length > 0 && row["Data"] !== undefined;
@@ -81,7 +81,7 @@ async function loadFile(url, skipFirstLine) {
     }
 }
 
-// === COSTRUZIONE TABELLE HTML (VERSIONE AD ALTA COMPATIBILITÀ) ===
+// === COSTRUZIONE TABELLE HTML CON PULSANTI DIRETTI ===
 function buildTable(tableId, data, clickableColumns, onHeaderClick) {
     const table = document.getElementById(tableId);
     if (!table || data.length === 0) {
@@ -97,22 +97,39 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
     
     headers.forEach(h => {
         const th = document.createElement("th");
-        th.innerText = h;
         const cleanHeader = h.trim().toLowerCase();
         
-        // Se la colonna supporta i grafici, la trasformiamo visivamente e operativamente in pulsante
+        // Se la colonna supporta i grafici, inseriamo all'interno un pulsante stilizzato
         if (clickableColumns.includes(cleanHeader)) {
-            th.innerText += " 📊";
-            th.style.cursor = "pointer";
-            th.style.backgroundColor = "#e9f2fb";
-            th.style.color = "#0066cc";
-            th.style.textDecoration = "underline";
-            th.title = "Clicca per visualizzare il grafico di andamento";
+            const btn = document.createElement("button");
+            btn.innerText = h + " 📊";
+            btn.title = "Clicca per vedere il grafico di andamento";
             
-            // Assegnazione protetta del click nativo
-            th.addEventListener("click", () => {
+            // Stile in linea del pulsante interno per renderlo moderno ed evidente
+            btn.style.width = "100%";
+            btn.style.padding = "6px 10px";
+            btn.style.border = "1px solid #0066cc";
+            btn.style.borderRadius = "4px";
+            btn.style.backgroundColor = "#fff";
+            btn.style.color = "#0066cc";
+            btn.style.fontWeight = "bold";
+            btn.style.cursor = "pointer";
+            btn.style.fontSize = "0.85rem";
+            btn.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)";
+            
+            // Effetto hover semplice al passaggio del mouse
+            btn.onmouseover = () => { btn.style.backgroundColor = "#0066cc"; btn.style.color = "#fff"; };
+            btn.onmouseout = () => { btn.style.backgroundColor = "#fff"; btn.style.color = "#0066cc"; };
+            
+            btn.addEventListener("click", () => {
                 if (onHeaderClick) onHeaderClick(h);
             });
+            
+            th.appendChild(btn);
+        } else {
+            // Se non è abilitata per i grafici, mostriamo il testo normale ed eliminiamo il cursore a manina
+            th.innerText = h;
+            th.style.cursor = "default";
         }
         headerRow.appendChild(th);
     });
@@ -131,7 +148,6 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
         tbody.appendChild(tr);
     });
 
-    // 3. Montaggio finale pulito sulla pagina
     table.innerHTML = "";
     table.appendChild(thead);
     table.appendChild(tbody);
