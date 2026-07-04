@@ -36,12 +36,20 @@ let currentChart = null;
 (async function init() {
     console.log("Caricamento dati in corso...");
     
-    // Inietta lo stile modificato per incollare l'intestazione perfettamente sotto il menu
+    // Inietta lo stile per forzare l'ancoraggio millimetrico (con il top negativo sbloccato)
     const style = document.createElement('style');
     style.innerHTML = `
+        table {
+            border-collapse: separate !important; 
+        }
+        thead {
+            position: relative;
+            z-index: 99;
+        }
         thead th {
             position: sticky !important;
-            top: -15px; /* Valore calibrato per agganciarsi al millimetro sotto la barra dei pulsanti blu */
+            position: -webkit-sticky !important; 
+            top: -5px !important; /* Mantiene la tua misura perfetta e calibrata */
             background-color: #ebf3f9 !important; 
             z-index: 99 !important;
             box-shadow: 0 2px 5px rgba(0,0,0,0.15); 
@@ -54,6 +62,7 @@ let currentChart = null;
     let pulizie = await loadFile(FILES.pulizie, false);
     let manutenzione = await loadFile(FILES.manutenzione, false);
 
+    // Parametri abilitati a generare il grafico (in minuscolo)
     const chimicoClickable = ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya", "n.ospiti"];
     const contatoriClickable = ["reintegro (l)", "ricircolo 24h (m³)"];
 
@@ -79,11 +88,17 @@ async function loadFile(url, skipFirstLine) {
             text = lines.join("\n");
         }
 
-        return Papa.parse(text, { 
+        // Rimuove le righe vuote piene solo di virgole create da LibreOffice
+        let parsed = Papa.parse(text, { 
             header: true, 
             skipEmptyLines: true,
             delimiter: "," 
         }).data;
+
+        return parsed.filter(row => {
+            const values = Object.values(row).join("").replace(/,/g, "").trim();
+            return values.length > 0 && row["Data"] !== undefined;
+        });
 
     } catch (e) {
         console.error("Errore nel caricamento file:", e);
@@ -210,14 +225,14 @@ function showOverlayChart(title, labels, values) {
     const key = title.trim().toLowerCase();
     const colors = CHART_COLORS[key] || CHART_COLORS["default"];
 
-    // Rileva automaticamente se il grafico deve essere a barre (per contatori e ospiti)
+    // Rileva se usare il grafico a barre (Contatori e Ospiti) o a linee (Parametri chimici)
     let tipoGrafico = 'line';
     if (key === 'reintegro (l)' || key === 'ricircolo 24h (m³)' || key === 'n.ospiti') {
         tipoGrafico = 'bar';
     }
 
     currentChart = new Chart(ctx, {
-        type: tipoGrafico, // Usa 'bar' o 'line' in base alla colonna cliccata
+        type: tipoGrafico,
         data: {
             labels: labels,
             datasets: [{
@@ -235,7 +250,7 @@ function showOverlayChart(title, labels, values) {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: true } // Forza la partenza da zero, ideale per i grafici a barre
+                y: { beginAtZero: true } // Forza la partenza da 0 per una lettura corretta delle barre
             }
         }
     });
@@ -289,6 +304,7 @@ function showRegister(sectionId) {
     }
 }
 
+// === CHIUSURA OVERLAY ===
 function closeOverlay() {
     document.getElementById("chartOverlay").classList.add("hidden");
     if (currentChart) {
