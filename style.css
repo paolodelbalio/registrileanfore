@@ -1,156 +1,346 @@
-/* ========================= */
-/* BASE LAYOUT               */
-/* ========================= */
-body {
-    font-family: Arial, sans-serif;
+/* ==========================================================================
+   1. IMPOSTAZIONI GLOBALI E STRUTTURA
+   ========================================================================== */
+* {
+    box-sizing: border-box;
     margin: 0;
-    background: #f4f4f4;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f4f7f6;
+    color: #333333;
+    padding: 20px;
+    line-height: 1.5;
 }
 
 header {
-    background: #0066cc;
-    color: white;
-    padding: 20px;
     text-align: center;
+    margin-bottom: 25px;
+    background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
+    color: #ffffff;
+    padding: 30px 20px;
+    border-radius: 6px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
-/* ========================= */
-/* PULSANTI IN ALTO          */
-/* ========================= */
+header h1 {
+    font-size: 2.2rem;
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+/* ==========================================================================
+   2. NAVIGAZIONE E PULSANTI PRINCIPALI
+   ========================================================================== */
 .top-buttons {
     display: flex;
     justify-content: center;
-    gap: 8px;
-    padding: 10px 16px;
-    background: #e9f2fb;
-    border-bottom: 1px solid #d0d7de;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    gap: 15px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
 }
 
 .top-buttons button {
-    padding: 6px 12px;
-    font-size: 0.85rem;
-    border: 1px solid #0066cc;
-    background: #fff;
+    background-color: #ffffff;
     color: #0066cc;
-    border-radius: 6px;
+    border: 2px solid #0066cc;
+    padding: 12px 24px;
+    font-size: 1.05rem;
+    font-weight: bold;
+    border-radius: 4px;
     cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .top-buttons button:hover {
-    background: #0066cc;
-    color: #fff;
+    background-color: #0066cc;
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
-/* ========================= */
-/* SEZIONI / VISIBILITÀ      */
-/* ========================= */
-.hidden {
-    display: none;
+.top-buttons button:active {
+    transform: translateY(0);
 }
 
+/* ==========================================================================
+   3. SEZIONI DEI REGISTRI
+   ========================================================================== */
 .register-section {
-    margin: 20px auto;
-    max-width: 1200px;
-    padding: 10px 16px;
-    overflow-y: auto;
-    max-height: 80vh;
+    background-color: #ffffff;
+    padding: 25px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    margin-bottom: 25px;
+    animation: fadeIn 0.3s ease-in-out;
 }
 
-/* ========================= */
-/* TABELLE                   */
-/* ========================= */
+.register-section h2 {
+    color: #004499;
+    margin-bottom: 20px;
+    font-size: 1.6rem;
+    border-bottom: 2px solid #ebf3f9;
+    padding-bottom: 8px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   4. TABELLE PRINCIPALI DEI DATI (Sticky Header attivo)
+   ========================================================================== */
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    max-height: 65vh;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
 table {
     width: 100%;
-    background: white;
-    border-collapse: collapse;
-    margin-top: 12px;
-    font-size: 0.9rem;
+    border-collapse: separate !important;
+    text-align: left;
+    font-size: 0.95rem;
+}
+
+thead th {
+    position: sticky !important;
+    position: -webkit-sticky !important; 
+    top: -1px !important;
+    background-color: #ebf3f9 !important; 
+    z-index: 10 !important;
+    font-weight: bold;
+    color: #333333;
+    border-bottom: 2px solid #cccccc;
+    box-shadow: 0 2px 3px rgba(0,0,0,0.08);
 }
 
 th, td {
-    border: 1px solid #ccc;
-    padding: 8px;
-    text-align: center;
+    padding: 10px 12px;
+    border-right: 1px solid #e6e6e6;
+    border-bottom: 1px solid #e6e6e6;
+    white-space: nowrap;
 }
 
-th {
-    background: #e9f2fb;
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    padding: 0; /* Rimosso padding per allineare il pulsante a tutta cella */
+th:last-child, td:last-child {
+    border-right: none;
 }
 
 tbody tr:nth-child(even) {
-    background: #f8fafc;
+    background-color: #f9fbfd;
 }
 
-/* Pulsante grafico integrato perfettamente nell'intestazione */
+tbody tr:hover {
+    background-color: #f0f5fa !important;
+}
+
+/* Pulsanti dentro le intestazioni per aprire i grafici */
 .table-th-btn {
-    width: 100%;
-    height: 100%;
-    padding: 12px 8px; /* Stesso identico spessore visivo */
+    background: #0066cc;
+    color: #ffffff;
     border: none;
-    background: transparent;
-    color: #333333;
-    font-family: Arial, sans-serif;
-    font-weight: bold;
+    padding: 6px 12px;
     font-size: 0.9rem;
+    font-weight: bold;
+    border-radius: 4px;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    width: 100%;
+    transition: background 0.15s;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 
-/* Effetto al passaggio del mouse: si evidenzia discretamente */
 .table-th-btn:hover {
-    background-color: #dbeafe;
-    color: #0066cc;
+    background: #004499;
 }
 
-/* ========================= */
-/* OVERLAY GRAFICO           */
-/* ========================= */
+/* ==========================================================================
+   5. NUOVO ASSISTENTE CHIMICO INTELLIGENTE
+   ========================================================================== */
+.card-assistente {
+    background: #ffffff;
+    border-left: 6px solid #0066cc;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    padding: 22px;
+    border-radius: 5px;
+    margin-bottom: 25px;
+    text-align: left;
+}
+
+.card-assistente h3 {
+    margin-top: 0;
+    color: #1a1a1a;
+    font-size: 1.3rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sottotitolo-assistente {
+    color: #666666;
+    font-size: 0.92rem;
+    margin-top: 4px;
+    margin-bottom: 18px;
+}
+
+.tabella-consigli {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 5px;
+}
+
+.tabella-consigli th, .tabella-consigli td {
+    border: 1px solid #e2e8f0;
+    padding: 14px 12px;
+    font-size: 0.95rem;
+    text-align: left;
+    white-space: normal; /* Permette il ritorno a capo nelle spiegazioni */
+}
+
+.tabella-consigli th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+}
+
+/* Badge di allerta per i parametri fuori soglia */
+.badge {
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.badge-pericolo {
+    background-color: #ffeef0;
+    color: #d73a49;
+    border: 1px solid rgba(215, 58, 73, 0.15);
+}
+
+/* Badge ad alto risalto per il quantitativo esatto da pesare */
+.badge-dose {
+    background-color: #e2f3fe;
+    color: #0366d6;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-weight: 800;
+    font-size: 1.05rem;
+    border: 1px solid rgba(3, 102, 214, 0.15);
+    display: inline-block;
+}
+
+.nota-testo {
+    font-size: 0.9rem;
+    color: #4a5568;
+    font-style: italic;
+    line-height: 1.4;
+}
+
+/* Banner di avviso statici dell'assistente */
+.avviso-assistente {
+    padding: 16px 20px;
+    border-radius: 5px;
+    font-size: 1rem;
+    margin: 15px 0;
+    text-align: left;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.avviso-assistente.successo {
+    background-color: #ecfdf5;
+    border-left: 5px solid #10b981;
+    color: #065f46;
+}
+
+.avviso-assistente.info {
+    background-color: #f0fdfa;
+    border-left: 5px solid #06b6d4;
+    color: #155e75;
+}
+
+/* ==========================================================================
+   6. FINESTRA OVERLAY (Grafici popup)
+   ========================================================================== */
 .overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.6);
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 9999;
-}
-
-.overlay.hidden {
-    display: none;
 }
 
 .overlay-content {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    width: 90%;
-    max-width: 800px;
-    box-shadow: 0 0 20px rgba(0,0,0,0.4);
-    max-height: 90vh;
-    overflow-y: auto;
-}
-
-#overlayTitle {
-    position: sticky;
-    top: 0;
-    background: white;
-    padding: 10px 0;
-    z-index: 10000;
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 8px;
+    width: 85%;
+    max-width: 900px;
+    height: 75vh;
+    position: relative;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
 }
 
 .overlay-close {
-    float: right;
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 24px;
     cursor: pointer;
-    font-size: 20px;
-    color: #333;
+    color: #888888;
+    transition: color 0.15s;
+}
+
+.overlay-close:hover {
+    color: #333333;
+}
+
+.overlay-content h3 {
+    margin-bottom: 20px;
+    color: #333333;
+    font-size: 1.4rem;
+    padding-right: 30px;
+}
+
+.overlay-content canvas {
+    flex-grow: 1;
+    width: 100% !important;
+    height: calc(100% - 60px) !important;
+}
+
+/* ==========================================================================
+   7. RESPONSIVITÀ PER DISPOSITIVI MOBILI
+   ========================================================================== */
+@media (max-width: 768px) {
+    body { padding: 10px; }
+    header { padding: 20px 10px; }
+    header h1 { font-size: 1.7rem; }
+    .top-buttons { gap: 8px; }
+    .top-buttons button { padding: 10px 16px; font-size: 0.95rem; width: 100%; }
+    .overlay-content { width: 95%; height: 60vh; padding: 15px; }
+    .tabella-consigli th, .tabella-consigli td { padding: 8px; font-size: 0.85rem; }
+    .badge-dose { font-size: 0.9rem; padding: 4px 8px; }
 }
