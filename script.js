@@ -235,31 +235,31 @@ function caricaTabelle() {
                     if (cleanKey === 'ph') {
                         if (valoreFloat > 7.50 || valoreFloat < 7.20) {
                             cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
-                            if (valoreFloat > 7.50) { cell.style.cursor = "pointer"; cell.onclick = () => mostraDosiInOverlay('pH', valoreFloat, riga); }
+                            if (valoreFloat > 7.50) { cell.style.cursor = "pointer"; cell.onclick = () => muestraDosiInOverlay('pH', valoreFloat, riga); }
                         } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
                     }
                     if (cleanKey === 'cl. lib') {
                         if (valoreFloat < 0.70 || valoreFloat > 2.00) {
                             cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
-                            cell.onclick = () => mostraDosiInOverlay('Cloro', valoreFloat, riga);
+                            cell.onclick = () => muestraDosiInOverlay('Cloro', valoreFloat, riga);
                         } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
                     }
                     if (cleanKey === 'cl. com') {
                         if (valoreFloat > 0.40) {
                             cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
-                            cell.onclick = () => mostraDosiInOverlay('CloroCombinato', valoreFloat, riga);
+                            cell.onclick = () => muestraDosiInOverlay('CloroCombinato', valoreFloat, riga);
                         } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
                     }
                     if (cleanKey === 'temp') {
                         if (valoreFloat < 24.0 || valoreFloat > 30.0) {
                             cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c";
-                            if (valoreFloat > 30.0) { cell.style.cursor = "pointer"; cell.onclick = () => mostraDosiInOverlay('Temperatura', valoreFloat, riga); }
+                            if (valoreFloat > 30.0) { cell.style.cursor = "pointer"; cell.onclick = () => muestraDosiInOverlay('Temperatura', valoreFloat, riga); }
                         } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
                     }
                     if (cleanKey === 'cya') {
                         if (valoreFloat > 60.0) {
                             cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
-                            cell.onclick = () => mostraDosiInOverlay('CYA', valoreFloat, riga);
+                            cell.onclick = () => muestraDosiInOverlay('CYA', valoreFloat, riga);
                         } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
                     }
                     if (cleanKey === 'cl. tot') {
@@ -279,7 +279,6 @@ function apriGrafico(parametro) {
     const canvas = document.getElementById('overlayCanvas');
     const containerDosi = document.getElementById('overlayDosiContent');
 
-    // Forza la visibilità del canvas e nasconde il box delle dosi chimiche
     if (containerDosi) containerDosi.style.display = 'none';
     if (canvas) canvas.style.display = 'block';
 
@@ -308,7 +307,7 @@ function apriGrafico(parametro) {
         mioGrafico.destroy();
     }
 
-    // Configurazione base scale mobili
+    // Configurazione base assi mobili per cellulare
     let opzioniScale = {
         x: { ticks: { font: { size: 10 } } },
         y: { ticks: { font: { size: 10 } } }
@@ -319,12 +318,12 @@ function apriGrafico(parametro) {
         opzioniScale.y.min = 7.0;
         opzioniScale.y.max = 8.0;
     }
-    // 2. SCALA REINTEGRI FINO A 20.000 LITRI CON ACCRESCIMENTI DI 500 LITRI
+    // 2. CORREZIONE SCALA REINTEGRI: TETTO 20.000 LITRI E GRIGLIA AD ACCRESCIMENTI DI 500 LITRI
     else if (cleanParam.includes('reintegro') || cleanParam.includes('reintegrosup')) {
         opzioniScale.y.min = 0;
-        opzioniScale.y.max = 20000;
+        opzioniScale.y.suggestedMax = 20000;
         opzioniScale.y.ticks = {
-            stepSize: 500, // Intervalli bloccati a 500 litri
+            stepSize: 500, // Linee orizzontali ogni 500 litri
             font: { size: 10 }
         };
     }
@@ -340,9 +339,9 @@ function apriGrafico(parametro) {
                 borderColor: '#0284c7',
                 backgroundColor: 'rgba(2, 132, 199, 0.1)',
                 borderWidth: 2,
-                // PALLINI PENSATI PER LO SMARTPHONE
-                pointRadius: 1.5,         // Pallini minuscoli puliti
-                pointHoverRadius: 4,      // Si ingrandiscono al tocco del dito
+                // PALLINI MINUSCOLI PER LO SMARTPHONE
+                pointRadius: 1.5,         
+                pointHoverRadius: 4,      
                 tension: 0.15             
             }]
         },
