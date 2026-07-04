@@ -16,16 +16,16 @@ const PISCINA_CONFIG = {
     acquaReintegro: { temp: 12 } 
 };
 
-// Variabili globali per grafici e registri
+// Variabili globali
 let mioGrafico = null;
 let datiCsvGlobali = []; 
 
-// Mappatura dei file CSV con le rispettive tabelle HTML e i contenitori di sicurezza
+// Mappatura file CSV e relative tabelle HTML
 const REGISTRI_FILES = {
-    chimico: { file: "REGISTRO CHIMICO 2026.csv", tableId: "chimicoTable", containerId: "chimicoSection" },
-    contatori: { file: "REGISTRO CONTATORI 2026.csv", tableId: "contatoriTable", containerId: "contatoriSection" },
-    pulizie: { file: "REGISTRO PULIZIE 2026.csv", tableId: "pulizieTable", containerId: "pulizieSection" },
-    manutenzioni: { file: "REGISTRO MANUTENZIONI 2026.csv", tableId: "manutenzioniTable", containerId: "manutenzioniSection" }
+    chimico: { file: "REGISTRO CHIMICO 2026.csv", tableId: "chimicoTable" },
+    contatori: { file: "REGISTRO CONTATORI 2026.csv", tableId: "contatoriTable" },
+    pulizie: { file: "REGISTRO PULIZIE 2026.csv", tableId: "pulizieTable" },
+    manutenzioni: { file: "REGISTRO MANUTENZIONI 2026.csv", tableId: "manutenzioniTable" }
 };
 
 function getFattoreTemperatura(temp) {
@@ -34,7 +34,7 @@ function getFattoreTemperatura(temp) {
     return 1.30;
 }
 
-// === FUNZIONE INTERATTIVA: CALCOLA E MOSTRA LE DOSI NELL'OVERLAY ===
+// === ASSISTENTE CHIMICO (OVERLAY DOSI) ===
 function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
     const overlay = document.getElementById('chartOverlay');
     const title = document.getElementById('overlayTitle');
@@ -196,7 +196,7 @@ function closeOverlay() {
     if (containerDosi) containerDosi.style.display = 'none';
 }
 
-// === CARICAMENTO DI TUTTI E 4 I REGISTRI CSV ===
+// === CARICAMENTO SICURO DEI FILE CSV ===
 function caricaTuttiIRegistri() {
     Object.keys(REGISTRI_FILES).forEach(chiave => {
         const config = REGISTRI_FILES[chiave];
@@ -207,23 +207,21 @@ function caricaTuttiIRegistri() {
             complete: function(results) {
                 const dati = results.data;
                 if (chiave === 'chimico') {
-                    datiCsvGlobali = dati; // Salviamo i dati chimici per i grafici
+                    datiCsvGlobali = dati; 
                 }
                 popolaTabellaHtml(dati, config.tableId, chiave);
             },
             error: function(err) {
-                console.error(`Impossibile leggere il file ${config.file}:`, err);
-                const table = document.getElementById(config.tableId);
-                if(table) table.innerHTML = `<tr><td style="color:red; padding:15px;">Nessun dato trovato o file ${config.file} mancante.</td></tr>`;
+                console.error("Errore caricamento:", config.file, err);
             }
         });
     });
 }
 
-// === GENERATORE UNIFICATO DELLE TABELLE HTML ===
+// === GENERAZIONE DELLE TABELLE HTML ===
 function popolaTabellaHtml(dati, tableId, tipoRegistro) {
     const table = document.getElementById(tableId);
-    if (!table || dati.length === 0) return;
+    if (!table || !dati || dati.length === 0) return;
     table.innerHTML = "";
 
     let keys = Object.keys(dati[0]);
@@ -233,7 +231,6 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
     keys.forEach(key => {
         let th = document.createElement("th");
         let cleanKey = key.toLowerCase().trim();
-        // Solo nel registro chimico abilitiamo i pulsanti per i grafici
         if (tipoRegistro === 'chimico' && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'n.ospiti', 'cya', 'reintegro', 'reintegrosup'].includes(cleanKey)) {
             th.innerHTML = `<button class="table-th-btn" onclick="apriGrafico('${key}')">${key} 📊</button>`;
         } else {
@@ -251,7 +248,6 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
             let cleanKey = key.toLowerCase().trim();
             let valoreFloat = parseFloat(valoreTesto.replace(',', '.'));
 
-            // Formattazione decimali automatica per i parametri chimici principali
             if (!isNaN(valoreFloat) && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'cya'].includes(cleanKey)) {
                 cell.innerText = valoreFloat.toFixed(2).replace('.', ',');
             } else {
@@ -260,7 +256,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
 
             if (isNaN(valoreFloat) || valoreTesto === "" || tipoRegistro !== 'chimico') return;
             
-            // Logiche di colorazione e click per l'assistente chimico
+            // Colori e trigger assistente chimico
             if (cleanKey === 'ph') {
                 if (valoreFloat > 7.50 || valoreFloat < 7.20) {
                     cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
@@ -299,7 +295,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
     });
 }
 
-// === GENERAZIONE E RISOLUZIONE BUG DI RENDERING GRAFICI ===
+// === GENERAZIONE GRAFICI CORRETTA (SENZA ERRORI DI SCOPE) ===
 function apriGrafico(parametro) {
     const overlay = document.getElementById('chartOverlay');
     const title = document.getElementById('overlayTitle');
@@ -310,8 +306,6 @@ function apriGrafico(parametro) {
     if (canvas) canvas.style.display = 'block';
 
     title.innerText = `Andamento Storico Parametro: ${parametro}`;
-    
-    // Mostriamo prima l'overlay per consentire a Chart.js di calcolare i pixel reali del canvas
     overlay.classList.remove('hidden');
 
     let etichette = [];
@@ -354,11 +348,10 @@ function apriGrafico(parametro) {
         };
     }
 
-    // Forza un reset del canvas cancellando vecchi residui di rendering
-    ctx = canvas.getContext('2d');
+    // DICHIARAZIONE CORRETTA DEL CONTESTO (Risolve il crash totale)
+    let ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Piccolo timeout di sicurezza per allinearsi alle transizioni CSS di Android/iOS
     setTimeout(() => {
         mioGrafico = new Chart(ctx, {
             type: 'line',
@@ -370,8 +363,8 @@ function apriGrafico(parametro) {
                     borderColor: '#0284c7',
                     backgroundColor: 'rgba(2, 132, 199, 0.1)',
                     borderWidth: 2,
-                    pointRadius: 2,         
-                    pointHoverRadius: 5,      
+                    pointRadius: 1.5,         
+                    pointHoverRadius: 4,      
                     tension: 0.15             
                 }]
             },
@@ -384,7 +377,7 @@ function apriGrafico(parametro) {
                 }
             }
         });
-    }, 50);
+    }, 60);
 }
 
 function mostraSezione(sezioneId) {
