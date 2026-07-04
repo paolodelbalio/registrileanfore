@@ -36,20 +36,15 @@ let currentChart = null;
 (async function init() {
     console.log("Caricamento dati in corso...");
     
-    // Inietta lo stile per forzare l'ancoraggio millimetrico (con il top negativo sbloccato)
+    // Inietta lo stile per forzare l'ancoraggio millimetrico delle intestazioni
     const style = document.createElement('style');
     style.innerHTML = `
-        table {
-            border-collapse: separate !important; 
-        }
-        thead {
-            position: relative;
-            z-index: 99;
-        }
+        table { border-collapse: separate !important; }
+        thead { position: relative; z-index: 99; }
         thead th {
             position: sticky !important;
             position: -webkit-sticky !important; 
-            top: -5px !important; /* Mantiene la tua misura perfetta e calibrata */
+            top: -5px !important;
             background-color: #ebf3f9 !important; 
             z-index: 99 !important;
             box-shadow: 0 2px 5px rgba(0,0,0,0.15); 
@@ -57,12 +52,12 @@ let currentChart = null;
     `;
     document.head.appendChild(style);
 
-    let chimico = await loadFile(FILES.chimico, false);
-    let contatori = await loadFile(FILES.contatori, true); 
-    let pulizie = await loadFile(FILES.pulizie, false);
-    let manutenzione = await loadFile(FILES.manutenzione, false);
+    let chimico = await loadFile(FILES.chimico);
+    let contatori = await loadFile(FILES.contatori); 
+    let pulizie = await loadFile(FILES.pulizie);
+    let manutenzione = await loadFile(FILES.manutenzione);
 
-    // Funzione di controllo flessibile per attivare i grafici
+    // Controlli flessibili per l'attivazione dei pulsanti dei grafici
     const isChimicoClickable = (col) => ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya", "n.ospiti", "ospiti"].some(k => col.includes(k));
     const isContatoriClickable = (col) => ["reintegro", "ricircolo"].some(k => col.includes(k));
 
@@ -75,44 +70,78 @@ let currentChart = null;
     showRegister("chimicoSection");
 })();
 
-// === CARICAMENTO DATI CSV ===
-async function loadFile(url, skipFirstLine) {
+// === CARICAMENTO E PARSING INTELLIGENTE DEL CSV ===
+async function loadFile(url) {
     try {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Errore HTTP: ${response.status}`);
         let text = await response.text();
         
-        if (skipFirstLine) {
-            const lines = text.split(/\r?\n/);
-            lines.shift();
-            text = lines.join("\n");
+        // Protezione contro file mancanti (se il server risponde con una pagina HTML)
+        if (text.trim().startsWith("<!DOCTYPE") || text.trim().toLowerCase().includes("<html")) {
+            return { error: "File CSV non trovato sul server. Verifica che il nome del file sia identico e caricato correttamente." };
         }
 
-        let parsed = Papa.parse(text, { 
-            header: true, 
+        // Parsing iniziale in matrice di righe semplici
+        let parsedRaw = Papa.parse(text, { 
+            header: false, 
             skipEmptyLines: true,
             delimiter: "," 
         }).data;
 
-        // Tollera qualsiasi variazione di maiuscole/minuscole o spazi per le righe vuote
-        return parsed.filter(row => {
-            const keys = Object.keys(row);
-            if(keys.length === 0) return false;
-            
+        if (parsedRaw.length === 0) return [];
+
+        // Ricerca intelligente della riga di intestazione reale
+        let headerIndex = 0;
+        for (let i = 0; i < parsedRaw.length; i++) {
+            const rowCleaned = parsedRaw[i].map(cell => cell ? cell.trim().toLowerCase() : "");
+            // Se la riga contiene parole chiave storiche dei registri, è la nostra intestazione
+            if (rowCleaned.includes("data") || rowCleaned.includes("ph") || rowCleaned.includes("intervento") || rowCleaned.includes("contatore")) {
+                headerIndex = i;
+                break;
+            }
+        }
+
+        // Estrazione di chiavi e righe di dati
+        const headers = parsedRaw[headerIndex].map(h => h ? h.trim() : "");
+        const dataRows = parsedRaw.slice(headerIndex + 1);
+
+        // Trasformazione in array di oggetti strutturati
+        let finalData = dataRows.map(row => {
+            let obj = {};
+            headers.forEach((h, idx) => {
+                if (h !== "") {
+                    obj[h] = row[idx] !== undefined ? row[idx].trim() : "";
+                }
+            });
+            return obj;
+        });
+
+        // Pulisce le righe interamente vuote
+        return finalData.filter(row => {
+            if (Object.keys(row).length === 0) return false;
             const totalContent = Object.values(row).join("").replace(/,/g, "").trim();
             return totalContent.length > 0;
         });
 
     } catch (e) {
         console.error("Errore nel caricamento file:", e);
-        return [];
+        return { error: `Impossibile caricare il file (${e.message})` };
     }
 }
 
 // === COSTRUZIONE TABELLE HTML ===
 function buildTable(tableId, data, checkClickable, onHeaderClick) {
     const table = document.getElementById(tableId);
-    if (!table || data.length === 0) {
+    if (!table) return;
+
+    // Se l'oggetto contiene una stringa di errore (es. File non trovato o Errore HTML)
+    if (data && data.error) {
+        table.innerHTML = `<tr><td style='padding:25px; text-align:center; color:#d93025; font-weight:bold; background:#feeaea;'>⚠️ ${data.error}</td></tr>`;
+        return;
+    }
+
+    if (!data || data.length === 0) {
         table.innerHTML = "<tr><td style='padding:20px; text-align:center;'>Nessun dato disponibile nel file CSV.</td></tr>";
         return;
     }
@@ -177,7 +206,6 @@ function buildTable(tableId, data, checkClickable, onHeaderClick) {
 function colorCell(td, colName, rawValue) {
     if (!rawValue || rawValue.trim() === "") return;
     
-    // Trova la regola di corrispondenza parziale per i limiti di legge
     const matchingKey = Object.keys(LEGAL_RANGES).find(k => colName.includes(k));
     if (!matchingKey) return;
 
@@ -197,11 +225,10 @@ function colorCell(td, colName, rawValue) {
 
 // === VISUALIZZAZIONE GRAFICO COMPLETO ===
 function showChart(colName, data, filterHour = null) {
+    if (data.error || data.length === 0) return;
+
     let filtered = filterHour ? data.filter(r => r.Ora === filterHour) : data;
-    
-    if (filtered.length === 0) {
-        filtered = data;
-    }
+    if (filtered.length === 0) filtered = data;
 
     const dataKey = Object.keys(data[0]).find(k => k.toLowerCase().trim() === "data") || "Data";
 
@@ -226,18 +253,12 @@ function showOverlayChart(title, labels, values) {
     document.getElementById("chartOverlay").classList.remove("hidden");
 
     const ctx = document.getElementById("overlayCanvas").getContext("2d");
-
-    if (currentChart) {
-        currentChart.destroy();
-    }
+    if (currentChart) currentChart.destroy();
 
     const key = title.trim().toLowerCase();
-    
-    // Trova il colore corretto usando una corrispondenza parziale
     const colorKey = Object.keys(CHART_COLORS).find(k => key.includes(k)) || "default";
     const colors = CHART_COLORS[colorKey];
 
-    // Forza il grafico a barre se la colonna riguarda contatori o ospiti
     let tipoGrafico = 'line';
     if (key.includes('reintegro') || key.includes('ricircolo') || key.includes('ospiti')) {
         tipoGrafico = 'bar';
@@ -261,9 +282,7 @@ function showOverlayChart(title, labels, values) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: {
-                y: { beginAtZero: true }
-            }
+            scales: { y: { beginAtZero: true } }
         }
     });
 }
@@ -299,9 +318,7 @@ function showRegister(sectionId) {
         rows.forEach((row, index) => {
             const cells = Array.from(row.querySelectorAll('td'));
             const hasData = cells.slice(2).some(cell => cell.innerText.trim() !== "" && cell.innerText.trim() !== "0,00");
-            if (hasData) {
-                lastFilledRowIndex = index;
-            }
+            if (hasData) lastFilledRowIndex = index;
         });
         
         if (lastFilledRowIndex !== -1 && rows[lastFilledRowIndex + 1]) {
