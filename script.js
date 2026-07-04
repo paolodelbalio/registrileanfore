@@ -6,10 +6,11 @@ const FILES = {
     manutenzione: "REGISTRO MANUTENZIONE 2026.csv?t=" + new Date().getTime()
 };
 
-// === LIMITI DI LEGGE PER COLORE CELLE ===
+// === LIMITI DI LEGGE ESTRATTI E CORRETTI (Per colorare le celle) ===
 const LEGAL_RANGES = {
     "ph": [6.5, 7.5],
     "cl. lib": [0.7, 1.5],
+    "cl. tot": [0.7, 1.9], // Inseriti intervalli di colore anche per il cloro totale
     "cl. com": [0.0, 0.4],
     "temp": [24.0, 30.0],
     "cya": [0.0, 75.0]
@@ -39,7 +40,6 @@ let currentChart = null;
     const pulizie = await loadFile(FILES.pulizie, false);
     const manutenzione = await loadFile(FILES.manutenzione, false);
 
-    // Parametri abilitati per i pulsanti-grafico (incluso cloro totale)
     const chimicoClickable = ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya", "n.ospiti"];
     const contatoriClickable = ["reintegro (l)", "ricircolo 24h (m³)"];
 
@@ -81,7 +81,7 @@ async function loadFile(url, skipFirstLine) {
     }
 }
 
-// === COSTRUZIONE TABELLE HTML CON PULSANTI ===
+// === COSTRUZIONE TABELLE HTML INTERE ===
 function buildTable(tableId, data, clickableColumns, onHeaderClick) {
     const table = document.getElementById(tableId);
     if (!table || data.length === 0) {
@@ -99,7 +99,6 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
         const cleanHeader = h.trim().toLowerCase();
         
         if (clickableColumns.includes(cleanHeader)) {
-            // Crea un vero e proprio bottone HTML agganciato alla classe CSS
             const btn = document.createElement("button");
             btn.className = "table-th-btn";
             btn.innerText = h + " 📊";
@@ -111,6 +110,9 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
             th.appendChild(btn);
         } else {
             th.innerText = h;
+            th.style.padding = "12px 8px"; // Allineamento perfetto per Data, Ora ecc.
+            th.style.fontWeight = "bold";
+            th.style.color = "#333333";
         }
         headerRow.appendChild(th);
     });
@@ -133,7 +135,7 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
     table.appendChild(tbody);
 }
 
-// === COLORAZIONE CELLE ===
+// === COLORAZIONE CELLE CONDIZIONALE ===
 function colorCell(td, colName, rawValue) {
     if (!LEGAL_RANGES[colName] || !rawValue) return;
     
@@ -170,7 +172,7 @@ function showChart(colName, data, filterHour = null) {
     if (values.some(v => !isNaN(v) && v !== null)) {
         showOverlayChart(colName, labels, values);
     } else {
-        alert(`Nessun dato valido trovato nella colonna "${colName}".`);
+        alert(`Nessun dato numerico valido trovato nella colonna "${colName}".`);
     }
 }
 
@@ -218,6 +220,7 @@ function showRegister(sectionId) {
     document.getElementById(sectionId).classList.remove('hidden');
 }
 
+/* Chiude e distrugge il grafico per liberare memoria */
 function closeOverlay() {
     document.getElementById("chartOverlay").classList.add("hidden");
     if (currentChart) {

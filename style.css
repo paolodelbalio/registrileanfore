@@ -1,5 +1,5 @@
 /* ========================= */
-/* BASE LAYOUT        */
+/* BASE LAYOUT               */
 /* ========================= */
 body {
     font-family: Arial, sans-serif;
@@ -15,7 +15,7 @@ header {
 }
 
 /* ========================= */
-/* PULSANTI IN ALTO     */
+/* PULSANTI IN ALTO          */
 /* ========================= */
 .top-buttons {
     display: flex;
@@ -45,7 +45,7 @@ header {
 }
 
 /* ========================= */
-/* SEZIONI / VISIBILITÀ */
+/* SEZIONI / VISIBILITÀ      */
 /* ========================= */
 .hidden {
     display: none;
@@ -60,7 +60,7 @@ header {
 }
 
 /* ========================= */
-/* TABELLE          */
+/* TABELLE                   */
 /* ========================= */
 table {
     width: 100%;
@@ -76,42 +76,41 @@ th, td {
     text-align: center;
 }
 
-/* Header della tabella pulito senza conflitti */
 th {
     background: #e9f2fb;
     position: sticky;
     top: 0;
     z-index: 5;
-    padding: 6px;
+    padding: 0; /* Rimosso padding per allineare il pulsante a tutta cella */
 }
 
 tbody tr:nth-child(even) {
     background: #f8fafc;
 }
 
-/* Stile moderno per i pulsanti dentro la tabella */
+/* Pulsante grafico integrato perfettamente nell'intestazione */
 .table-th-btn {
     width: 100%;
-    min-width: 90px;
-    padding: 6px 8px;
-    border: 1px solid #0066cc;
-    border-radius: 4px;
-    background-color: #ffffff;
-    color: #0066cc;
+    height: 100%;
+    padding: 12px 8px; /* Stesso identico spessore visivo */
+    border: none;
+    background: transparent;
+    color: #333333;
+    font-family: Arial, sans-serif;
     font-weight: bold;
+    font-size: 0.9rem;
     cursor: pointer;
-    font-size: 0.85rem;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease;
 }
 
+/* Effetto al passaggio del mouse: si evidenzia discretamente */
 .table-th-btn:hover {
-    background-color: #0066cc;
-    color: #ffffff;
+    background-color: #dbeafe;
+    color: #0066cc;
 }
 
 /* ========================= */
-/* OVERLAY GRAFICO    */
+/* OVERLAY GRAFICO           */
 /* ========================= */
 .overlay {
     position: fixed;
