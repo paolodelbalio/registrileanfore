@@ -40,7 +40,7 @@ let currentChart = null;
     let pulizie = await loadFile(FILES.pulizie, false);
     let manutenzione = await loadFile(FILES.manutenzione, false);
 
-    // INVERSIONE: Mostra prima le righe più recenti (dall'ultima alla prima)
+    // INVERSIONE: Mostra prima le righe più recenti (solo se contengono dati reali)
     if (chimico.length > 0) chimico.reverse();
     if (contatori.length > 0) contatori.reverse();
     if (pulizie.length > 0) pulizie.reverse();
@@ -57,7 +57,7 @@ let currentChart = null;
     showRegister("chimicoSection");
 })();
 
-// === CARICAMENTO DATI CON PULIZIA DI SICUREZZA ===
+// === CARICAMENTO DATI CON RIGIDA PULIZIA DELLE RIGHE VUOTE ===
 async function loadFile(url, skipFirstLine) {
     try {
         const response = await fetch(url);
@@ -76,9 +76,13 @@ async function loadFile(url, skipFirstLine) {
             delimiter: "," 
         }).data;
 
+        // FILTRO AVANZATO: Rimuove le righe che non hanno una data valida o sono composte solo da virgole
         return parsed.filter(row => {
-            const values = Object.values(row).join("").replace(/,/g, "").trim();
-            return values.length > 0 && row["Data"] !== undefined;
+            if (!row["Data"] || row["Data"].trim() === "") return false;
+            
+            // Unisce tutti i valori della riga per verificare se c'è del testo reale inserito
+            const allValues = Object.values(row).join("").replace(/,/g, "").replace(/"/g, "").trim();
+            return allValues.length > 0;
         });
 
     } catch (e) {
@@ -130,10 +134,10 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
         headers.forEach(h => {
             const td = document.createElement("td");
             const cleanHeader = h.trim().toLowerCase();
-            let valText = row[h] || "";
+            let valText = row[h] ? row[h].trim() : "";
 
-            // FORMATTAZIONE DECIMALI: Forza a 2 cifre dopo la virgola per i valori numerici
-            if (valText && (cleanHeader === "cl. com" || cleanHeader === "cl. lib" || cleanHeader === "cl. tot" || cleanHeader === "ph")) {
+            // FORMATTAZIONE DECIMALI: Applica i 2 decimali solo se la cella contiene effettivamente un valore
+            if (valText !== "" && (cleanHeader === "cl. com" || cleanHeader === "cl. lib" || cleanHeader === "cl. tot" || cleanHeader === "ph")) {
                 const numericValue = parseFloat(valText.replace(/"/g, "").replace(",", ".").trim());
                 if (!isNaN(numericValue)) {
                     valText = numericValue.toFixed(2).replace(".", ",");
@@ -154,7 +158,7 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
 
 // === COLORAZIONE CELLE CONDIZIONALE ===
 function colorCell(td, colName, rawValue) {
-    if (!LEGAL_RANGES[colName] || !rawValue) return;
+    if (!LEGAL_RANGES[colName] || !rawValue || rawValue.trim() === "") return;
     
     const cleanValue = rawValue.replace(/"/g, "").replace(",", ".").trim();
     const value = parseFloat(cleanValue);
@@ -172,7 +176,6 @@ function colorCell(td, colName, rawValue) {
 
 // === VISUALIZZAZIONE GRAFICO COMPLETO ===
 function showChart(colName, data, filterHour = null) {
-    // Per il grafico ri-ordiniamo cronologicamente dal più vecchio al più recente
     let chartData = [...data].reverse();
     let filtered = filterHour ? chartData.filter(r => r.Ora === filterHour) : chartData;
     
@@ -183,7 +186,7 @@ function showChart(colName, data, filterHour = null) {
     const labels = filtered.map(r => r.Data || "");
     const values = filtered.map(r => {
         const val = r[colName];
-        if (!val) return null;
+        if (!val || val.trim() === "") return null;
         const cleanVal = val.replace(/"/g, "").replace(",", ".").trim();
         return parseFloat(cleanVal);
     });
