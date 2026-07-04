@@ -41,7 +41,7 @@ let currentChart = null;
     style.innerHTML = `
         thead th {
             position: sticky !important;
-            top: 40px; /* Valore calibrato per agganciarsi al millimetro sotto la barra dei pulsanti blu */
+            top: 10px; /* Valore calibrato per agganciarsi al millimetro sotto la barra dei pulsanti blu */
             background-color: #ebf3f9 !important; 
             z-index: 99 !important;
             box-shadow: 0 2px 5px rgba(0,0,0,0.15); 
