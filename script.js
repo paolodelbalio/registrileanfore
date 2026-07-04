@@ -201,32 +201,30 @@ function closeOverlay() {
     if (containerDosi) containerDosi.style.display = 'none';
 }
 
-// === CARICAMENTO INTELLIGENTE DEI FILE CSV (Ignora le righe di intestazione descrittive) ===
+// === CARICAMENTO INTELLIGENTE DEI FILE CSV ===
 function caricaTuttiIRegistri() {
     Object.keys(REGISTRI_FILES).forEach(chiave => {
         const config = REGISTRI_FILES[chiave];
         Papa.parse(config.file, {
             download: true,
-            header: false, // Leggiamo come array di array per trovare la vera riga di intestazione
+            header: false,
             skipEmptyLines: 'greedy',
             complete: function(results) {
                 let righe = results.data;
                 if (!righe || righe.length === 0) return;
                 
-                // Cerca dinamicamente la riga che contiene la parola "Data" come prima colonna
                 let indexHeader = righe.findIndex(r => r && r[0] && r[0].trim().toLowerCase() === 'data');
                 if (indexHeader === -1) {
-                    indexHeader = 0; // Se non la trova, assume sia la prima
+                    indexHeader = 0;
                 }
                 
                 let headers = righe[indexHeader].map(h => h ? h.trim() : "");
                 
-                // Convertiamo le righe successive in oggetti chiave/valore puliti
                 let datiTrasformati = [];
                 for (let i = indexHeader + 1; i < righe.length; i++) {
                     let rigaCorrente = righe[i];
                     if (!rigaCorrente || rigaCorrente.length === 0 || rigaCorrente.every(c => !c || c.trim() === "")) {
-                        continue; // Salta righe vuote
+                        continue;
                     }
                     
                     let obj = {};
@@ -238,7 +236,6 @@ function caricaTuttiIRegistri() {
                     datiTrasformati.push(obj);
                 }
                 
-                // Salvataggio globale nello stato
                 datiRegistriGlobali[chiave] = datiTrasformati;
                 popolaTabellaHtml(datiTrasformati, config.tableId, chiave);
             },
@@ -263,7 +260,6 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
         let th = document.createElement("th");
         let cleanKey = key.toLowerCase().trim();
         
-        // Definiamo quali colonne meritano un grafico interattivo
         let daGraficare = false;
         if (tipoRegistro === 'chimico' && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'n.ospiti', 'cya'].includes(cleanKey)) {
             daGraficare = true;
@@ -296,7 +292,6 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
 
             if (isNaN(valoreFloat) || valoreTesto === "" || tipoRegistro !== 'chimico') return;
             
-            // Regole di evidenziazione per il registro chimico
             if (cleanKey === 'ph') {
                 if (valoreFloat > 7.50 || valoreFloat < 7.20) {
                     cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
@@ -335,7 +330,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
     });
 }
 
-// === GENERAZIONE DEI GRAFICI STORICI DINAMICI ===
+// === GENERAZIONE DEI GRAFICI STORICI DINAMICI (LINEE O BARRE) ===
 function apriGrafico(parametro, tipoRegistro) {
     if (!tipoRegistro) tipoRegistro = 'chimico';
     const overlay = document.getElementById('chartOverlay');
@@ -372,6 +367,13 @@ function apriGrafico(parametro, tipoRegistro) {
         mioGrafico.destroy();
     }
 
+    // === SELEZIONE DINAMICA DEL TIPO DI GRAFICO ===
+    // Se è il numero degli ospiti o un parametro che contiene "reintegro", diventa un grafico a barre
+    let tipoGrafico = 'line';
+    if (cleanParam === 'n.ospiti' || cleanParam.includes('reintegro')) {
+        tipoGrafico = 'bar';
+    }
+
     let opzioniScale = {
         x: { ticks: { font: { size: 10 } } },
         y: { ticks: { font: { size: 10 } } }
@@ -394,16 +396,16 @@ function apriGrafico(parametro, tipoRegistro) {
 
     setTimeout(() => {
         mioGrafico = new Chart(ctx, {
-            type: 'line',
+            type: tipoGrafico, // Usa 'bar' per ospiti/reintegri e 'line' per il resto
             data: {
                 labels: etichette,
                 datasets: [{
                     label: parametro,
                     data: valori,
                     borderColor: '#0284c7',
-                    backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                    backgroundColor: tipoGrafico === 'bar' ? 'rgba(2, 132, 199, 0.7)' : 'rgba(2, 132, 199, 0.1)',
                     borderWidth: 2,
-                    pointRadius: 2,         
+                    pointRadius: tipoGrafico === 'bar' ? 0 : 2,         
                     pointHoverRadius: 5,      
                     tension: 0.15             
                 }]
@@ -420,13 +422,16 @@ function apriGrafico(parametro, tipoRegistro) {
     }, 60);
 }
 
-function mostraSezione(sezioneId) {
+function montreSezione(sezioneId) {
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
     const sez = document.getElementById(sezioneId);
     if (sez) sez.classList.remove('hidden');
 }
 
+// Alias per correggere eventuale typo interno alla chiamata dei button
+window.mostraSezione = montreSezione;
+
 window.onload = function() {
     caricaTuttiIRegistri();
-    mostraSezione('chimicoSection');
+    montreSezione('chimicoSection');
 };
