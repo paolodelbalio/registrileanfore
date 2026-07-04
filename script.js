@@ -1,19 +1,26 @@
 // === CONFIGURAZIONE PARAMETRI PISCINA (Volume Vasca: 92 m³) ===
 const PISCINA_CONFIG = {
-    target: { ph: 7.30, cloro: 1.5 },
+    volume: 92, // Metri cubi vasca
+    target: { 
+        ph: 7.30, 
+        cloro: 1.5,
+        cya: 30,    // Valore ottimale di stabilizzante
+        temp: 27    // Temperatura ideale comfort bagnanti
+    },
     prodotti: {
-        phMeno: { nome: "pH- (Acido Sec)", dosePerCentesimo: 9.2 },          // 9.2g per 0.01 pH per 92mc
-        cloroCa: { nome: "Cloro Granulare (Ipoclorito)", dosePerPpm: 1.84 }, // 1.84g per 0.01 ppm per 92mc
-        waterStop: { nome: "Water Stop (Abbattitore)", dosePerPpm: 2.76 }   // 2.76g per 0.01 ppm per 92mc
-    }
+        phMeno: { nome: "pH- (Acido Sec)", dosePerCentesimo: 9.2 },          
+        cloroCa: { nome: "Cloro Granulare (Ipoclorito)", dosePerPpm: 1.84 }, 
+        cloroShock: { nome: "Cloro Shock Granulare", doseShockPerMc: 15 },    // 15g per mc per superclorazione d'urto
+        waterStop: { nome: "Water Stop (Abbattitore)", dosePerPpm: 2.76 }   
+    },
+    acquaReintegro: { temp: 12 } // Temperatura dell'acqua fresca immessa (comunicata dall'utente)
 };
 
-// Funzione ausiliaria per la compensazione termica del cloro
+// Funzione ausiliaria per la compensazione termica del cloro standard
 function getFattoreTemperatura(temp) {
     if (isNaN(temp) || temp <= 28) return 1.0;
-    if (temp <= 30) return 1.15; // +15%
-    if (temp <= 32) return 1.30; // +30%
-    return 1.45;                 // +45%
+    if (temp <= 30) return 1.15;
+    return 1.30;
 }
 
 // === FUNZIONE INTERATTIVA: CALCOLA E MOSTRA LE DOSI NELL'OVERLAY AL CLIC ===
@@ -40,9 +47,9 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
     const tempKey = keys.find(k => k.toLowerCase().includes('temp'));
     const tempAttuale = tempKey ? parseFloat(String(rigaDati[tempKey]).replace(',', '.')) : NaN;
     
-    const fattoreTemp = getFattoreTemperatura(tempAttuale);
     let consiglio = null;
 
+    // --- CASE 1: pH ALTO ---
     if (parametro === 'pH' && valoreAttuale > 7.5) {
         title.innerText = `🧪 Assistente Chimico - Correzione pH (${dataRilevamento} ore ${oraRilevamento})`;
         const deltaPh = valoreAttuale - PISCINA_CONFIG.target.ph;
@@ -58,9 +65,11 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
             nota: "Sciogliere la polvere in un secchio d'acqua pulita e versare uniformemente in vasca davanti alle bocchette con filtrazione attiva."
         };
     } 
+    // --- CASE 2: CLORO LIBERO BASSO ---
     else if (parametro === 'Cloro' && valoreAttuale < 0.7) {
         title.innerText = `🧪 Assistente Chimico - Dosaggio Cloro (${dataRilevamento} ore ${oraRilevamento})`;
         const deltaCloro = PISCINA_CONFIG.target.cloro - valoreAttuale;
+        const fattoreTemp = getFattoreTemperatura(tempAttuale);
         let doseBase = deltaCloro * 100 * PISCINA_CONFIG.prodotti.cloroCa.dosePerPpm;
         let doseCorretta = Math.round(doseBase * fattoreTemp);
 
@@ -78,6 +87,7 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
             nota: `Dosaggio rapido granulare.${notaTemp} Aggiungere direttamente negli skimmer o premiscelare in un secchio.`
         };
     } 
+    // --- CASE 3: CLORO LIBERO ALTO ---
     else if (parametro === 'Cloro' && valoreAttuale > 2.0) {
         title.innerText = `🧪 Assistente Chimico - Abbattimento Cloro (${dataRilevamento} ore ${oraRilevamento})`;
         const deltaCloro = valoreAttuale - 1.5;
@@ -92,20 +102,70 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
             nota: "Utilizzare solo se è necessario riaprire immediatamente la vasca ai bagnanti, altrimenti l'azione del sole lo consumerà in modo naturale."
         };
     }
+    // --- CASE 4: CLORO COMBINATO ALTO (TRATTAMENTO SHOCK) ---
+    else if (parametro === 'CloroCombinato' && valoreAttuale > 0.40) {
+        title.innerText = `🚨 Assistente Chimico - TRATTAMENTO SHOCK (${dataRilevamento} ore ${oraRilevamento})`;
+        const doseShockTotale = PISCINA_CONFIG.volume * PISCINA_CONFIG.prodotti.cloroShock.doseShockPerMc;
+
+        consiglio = {
+            parametro: "Cloro Combinato (Clorammine)",
+            stato: `Fuori Legge (${valoreAttuale.toFixed(2)} ppm)`,
+            azione: `Eseguire iperclorazione shock d'urto per distruggere le clorammine accumulate e sanificare la vasca`,
+            prodotto: PISCINA_CONFIG.prodotti.cloroShock.nome,
+            quantita: `${(doseShockTotale / 1000).toFixed(2)} kg`,
+            nota: "Eseguire il trattamento TASSATIVAMENTE a vasca vuota (assenza di bagnanti), preferibilmente al tramonto. Lasciare la filtrazione accesa H24. Attendere il rientro dei parametri normali prima di riaprire."
+        };
+    }
+    // --- CASE 5: ACIDO CIANURICO ALTO (REINTEGRO PER DILUIZIONE) ---
+    else if (parametro === 'CYA' && valoreAttuale > 50) {
+        title.innerText = `💧 Assistente Chimico - Diluizione Stabilizzante (${dataRilevamento})`;
+        // Formula per determinare la percentuale e i mc di acqua da cambiare per arrivare al target di 30 ppm
+        const frazioneRimante = PISCINA_CONFIG.target.cya / valoreAttuale;
+        const percentualeDaScaricare = (1 - frazioneRimante) * 100;
+        const mcDaScaricare = PISCINA_CONFIG.volume * (1 - frazioneRimante);
+
+        consiglio = {
+            parametro: "Acido Cianurico (CYA)",
+            stato: `Eccessivo (${valoreAttuale.toFixed(0)} ppm)`,
+            azione: `Sostituire il ${percentualeDaScaricare.toFixed(0)}% dell'acqua totale per diluire lo stabilizzante e sbloccare l'azione del cloro`,
+            prodotto: "Reintegro Acqua Nuova (Acquedotto / Pozzo)",
+            quantita: `Scaricare ${mcDaScaricare.toFixed(1)} m³ di acqua`,
+            nota: `Effettuare uno scarico parziale di circa ${mcDaScaricare.toFixed(1)} metri cubi (pari a circa ${(mcDaScaricare * 1000).toLocaleString('it-IT')} litri) e ripristinare il livello della piscina con acqua nuova priva di acido cianurico.`
+        };
+    }
+    // --- CASE 6: TEMPERATURA ACQUA TROPPO ALTA (ABBASSAMENTO TERMICO) ---
+    else if (parametro === 'Temperatura' && valoreAttuale > 30) {
+        title.innerText = `❄️ Assistente Chimico - Raffreddamento Vasca (${dataRilevamento} ore ${oraRilevamento})`;
+        
+        const tempTarget = PISCINA_CONFIG.target.temp;
+        const tempImmissione = PISCINA_CONFIG.acquaReintegro.temp; // 12°C
+        
+        // Formula calorimetrica: Mc_Nuova = Volume_Vasca * (T_Attuale - T_Target) / (T_Target - T_Immissione)
+        const mcFredda = PISCINA_CONFIG.volume * (valoreAttuale - tempTarget) / (tempTarget - tempImmissione);
+
+        consiglio = {
+            parametro: "Temperatura Acqua",
+            stato: `Elevata (${valoreAttuale.toFixed(1)}°C)`,
+            azione: `Immettere acqua fredda a ${tempImmissione}°C per abbassare la temperatura al target ideale di ${tempTarget}°C`,
+            prodotto: "Reintegro Termico Rapido (Acqua a 12°C)",
+            quantita: `Immettere ${mcFredda.toFixed(1)} m³ di acqua fresca`,
+            nota: `Attivare lo scarico e inserire simultaneamente circa ${mcFredda.toFixed(1)} metri cubi di acqua fresca dall'acquedotto per rinfrescare il volume totale e inibire la proliferazione batterica.`
+        };
+    }
 
     if (!consiglio) return;
 
     containerDosi.innerHTML = `
         <div class="card-assistente" style="border-left: 6px solid #d73a49; margin-top: 10px;">
-            <p class="sottotitolo-assistente">Calcolo automatico istantaneo tarato per il volume vasca di <strong>92 m³</strong>.</p>
+            <p class="sottotitolo-assistente">Calcolo automatico di intervento tarato per la cubatura di <strong>92 m³</strong>.</p>
             <table class="tabella-consigli">
                 <thead>
                     <tr>
                         <th>Parametro</th>
                         <th>Stato Rilevato</th>
                         <th>Obiettivo Tecnico</th>
-                        <th>Prodotto da Usare</th>
-                        <th>Dose Esatta</th>
+                        <th>Azione / Prodotto</th>
+                        <th>Dose / Volume Richiesto</th>
                         <th>Istruzioni Applicazione</th>
                     </tr>
                 </thead>
@@ -115,8 +175,8 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
                         <td><span class="badge badge-pericolo" style="background-color: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${consiglio.stato}</span></td>
                         <td>${consiglio.azione}</td>
                         <td><em>${consiglio.prodotto}</em></td>
-                        <td><span class="badge-dose">${consiglio.quantita}</span></td>
-                        <td class="nota-testo">${consiglio.nota}</td>
+                        <td><span class="badge-dose" style="background-color: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${consiglio.quantita}</span></td>
+                        <td class="nota-testo" style="font-size: 0.85rem; color: #4b5563;">${consiglio.nota}</td>
                     </tr>
                 </tbody>
             </table>
@@ -136,7 +196,7 @@ function closeOverlay() {
     if (containerDosi) containerDosi.style.display = 'none';
 }
 
-// === LETTURA E COSTRUZIONE DELLA TABELLA DATI CON COLORI E FORMATTAZIONE BLINDATA ===
+// === LETTURA E COSTRUZIONE DELLA TABELLA DATI CON INTERATTIVITÀ TOTALE ===
 function caricaTabelle() {
     Papa.parse("REGISTRO CHIMICO 2026.csv", {
         download: true,
@@ -171,26 +231,22 @@ function caricaTabelle() {
                     let valoreTesto = riga[key] ? riga[key].trim() : "";
                     let cleanKey = key.toLowerCase().trim();
 
-                    // Convertiamo in numero puro per i controlli matematici
                     let valoreFloat = parseFloat(valoreTesto.replace(',', '.'));
 
-                    // 1. FORMATTAZIONE DEL TESTO VISIVO (Arrotondamento a 2 decimali stabili)
+                    // Formattazione decimali visivi coerenti
                     if (!isNaN(valoreFloat) && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'cya'].includes(cleanKey)) {
                         cell.innerText = valoreFloat.toFixed(2).replace('.', ',');
                     } else {
                         cell.innerText = valoreTesto;
                     }
 
-                    // Se la cella è vuota o non è un numero, non applichiamo stili chimici
                     if (isNaN(valoreFloat) || valoreTesto === "") return;
 
-                    // 2. ELABORAZIONE E APPLICAZIONE DEI COLORI (Forzati via codice in linea per evitare conflitti CSS)
-                    
-                    // CONTROLLO pH
+                    // --- 1. GESTIONE PULSANTE / CLIC pH ---
                     if (cleanKey === 'ph') {
                         if (valoreFloat > 7.50 || valoreFloat < 7.20) {
-                            cell.style.backgroundColor = "#fee2e2"; // Rosso morbido
-                            cell.style.color = "#b91c1c";           // Testo rosso scuro
+                            cell.style.backgroundColor = "#fee2e2"; 
+                            cell.style.color = "#b91c1c";
                             cell.style.fontWeight = "bold";
                             if (valoreFloat > 7.50) {
                                 cell.style.cursor = "pointer";
@@ -198,65 +254,76 @@ function caricaTabelle() {
                                 cell.onclick = () => mostraDosiInOverlay('pH', valoreFloat, riga);
                             }
                         } else {
-                            cell.style.backgroundColor = "#ecfdf5"; // Verde ottimale
-                            cell.style.color = "#047857";           // Testo verde scuro
-                        }
-                    }
-
-                    // CONTROLLO CLORO LIBERO
-                    if (cleanKey === 'cl. lib') {
-                        if (valoreFloat < 0.70 || valoreFloat > 2.00) {
-                            cell.style.backgroundColor = "#fee2e2"; // Rosso morbido
-                            cell.style.color = "#b91c1c";
-                            cell.style.fontWeight = "bold";
-                            cell.style.cursor = "pointer";
-                            cell.title = "Clicca per calcolare il dosaggio del Cloro";
-                            cell.onclick = () => mostraDosiInOverlay('Cloro', valoreFloat, riga);
-                        } else {
-                            cell.style.backgroundColor = "#ecfdf5"; // Verde ottimale
+                            cell.style.backgroundColor = "#ecfdf5"; 
                             cell.style.color = "#047857";
                         }
                     }
 
-                    // CONTROLLO CLORO TOTALE (Segui il Cloro Libero)
-                    if (cleanKey === 'cl. tot') {
-                        if (valoreFloat < 0.70 || valoreFloat > 2.40) {
-                            cell.style.backgroundColor = "#fee2e2";
+                    // --- 2. GESTIONE PULSANTE / CLIC CLORO LIBERO ---
+                    if (cleanKey === 'cl. lib') {
+                        if (valoreFloat < 0.70 || valoreFloat > 2.00) {
+                            cell.style.backgroundColor = "#fee2e2"; 
                             cell.style.color = "#b91c1c";
+                            cell.style.fontWeight = "bold";
+                            cell.style.cursor = "pointer";
+                            cell.title = "Clicca per calcolare la dose o l'abbattitore di Cloro";
+                            cell.onclick = () => mostraDosiInOverlay('Cloro', valoreFloat, riga);
                         } else {
-                            cell.style.backgroundColor = "#ecfdf5";
+                            cell.style.backgroundColor = "#ecfdf5"; 
+                            cell.style.color = "#047857";
                         }
                     }
 
-                    // CONTROLLO CLORO COMBINATO (Fuori soglia se > 0.40)
+                    // --- 3. GESTIONE PULSANTE / CLIC CLORO COMBINATO (TRATTAMENTO SHOCK CRITICO) ---
                     if (cleanKey === 'cl. com') {
                         if (valoreFloat > 0.40) {
                             cell.style.backgroundColor = "#fee2e2";
                             cell.style.color = "#b91c1c";
                             cell.style.fontWeight = "bold";
+                            cell.style.cursor = "pointer";
+                            cell.title = "Clicca per calcolare il Cloro per il Trattamento Shock!";
+                            cell.onclick = () => mostraDosiInOverlay('CloroCombinato', valoreFloat, riga);
                         } else {
                             cell.style.backgroundColor = "#ecfdf5";
                             cell.style.color = "#047857";
                         }
                     }
 
-                    // CONTROLLO TEMPERATURA (Ideale tra 24 e 30 gradi)
+                    // --- 4. GESTIONE PULSANTE / CLIC TEMPERATURA (REINTEGRO 12°C) ---
                     if (cleanKey === 'temp') {
                         if (valoreFloat < 24.0 || valoreFloat > 30.0) {
                             cell.style.backgroundColor = "#fee2e2";
                             cell.style.color = "#b91c1c";
+                            if (valoreFloat > 30.0) {
+                                cell.style.cursor = "pointer";
+                                cell.title = "Clicca per calcolare i mc di reintegro freddo (12°C)";
+                                cell.onclick = () => mostraDosiInOverlay('Temperatura', valoreFloat, riga);
+                            }
                         } else {
                             cell.style.backgroundColor = "#ecfdf5";
                             cell.style.color = "#047857";
                         }
                     }
 
-                    // CONTROLLO ACIDO CIANURICO / STABILIZZANTE (Fuori soglia se > 50)
+                    // --- 5. GESTIONE PULSANTE / CLIC ACIDO CIANURICO CYA (REINTEGRO DILUIZIONE) ---
                     if (cleanKey === 'cya') {
                         if (valoreFloat > 50.0) {
                             cell.style.backgroundColor = "#fee2e2";
                             cell.style.color = "#b91c1c";
                             cell.style.fontWeight = "bold";
+                            cell.style.cursor = "pointer";
+                            cell.title = "Clicca per calcolare quanti mc scaricare per abbassare il cianurico";
+                            cell.onclick = () => mostraDosiInOverlay('CYA', valoreFloat, riga);
+                        } else {
+                            cell.style.backgroundColor = "#ecfdf5";
+                        }
+                    }
+
+                    // Cloro Totale (estetica passiva)
+                    if (cleanKey === 'cl. tot') {
+                        if (valoreFloat < 0.70 || valoreFloat > 2.40) {
+                            cell.style.backgroundColor = "#fee2e2";
+                            cell.style.color = "#b91c1c";
                         } else {
                             cell.style.backgroundColor = "#ecfdf5";
                         }
