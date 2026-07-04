@@ -36,7 +36,6 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
     const dataRilevamento = rigaDati["Data"] || rigaDati["data"] || "Rilevamento";
     const oraRilevamento = rigaDati["Ora"] || rigaDati["ora"] || "";
     
-    // Cerchiamo la chiave della temperatura in modo sicuro
     const keys = Object.keys(rigaDati);
     const tempKey = keys.find(k => k.toLowerCase().includes('temp'));
     const tempAttuale = tempKey ? parseFloat(String(rigaDati[tempKey]).replace(',', '.')) : NaN;
@@ -113,7 +112,7 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
                 <tbody>
                     <tr>
                         <td><strong>${consiglio.parametro}</strong></td>
-                        <td><span class="badge badge-pericolo">${consiglio.stato}</span></td>
+                        <td><span class="badge badge-pericolo" style="background-color: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${consiglio.stato}</span></td>
                         <td>${consiglio.azione}</td>
                         <td><em>${consiglio.prodotto}</em></td>
                         <td><span class="badge-dose">${consiglio.quantita}</span></td>
@@ -137,7 +136,7 @@ function closeOverlay() {
     if (containerDosi) containerDosi.style.display = 'none';
 }
 
-// === LETTURA E COSTRUZIONE VISIVA DELLE TABELLE CON ARROTONDAMENTO BLINDATO ===
+// === LETTURA E COSTRUZIONE DELLA TABELLA DATI CON COLORI E FORMATTAZIONE BLINDATA ===
 function caricaTabelle() {
     Papa.parse("REGISTRO CHIMICO 2026.csv", {
         download: true,
@@ -172,43 +171,96 @@ function caricaTabelle() {
                     let valoreTesto = riga[key] ? riga[key].trim() : "";
                     let cleanKey = key.toLowerCase().trim();
 
+                    // Convertiamo in numero puro per i controlli matematici
                     let valoreFloat = parseFloat(valoreTesto.replace(',', '.'));
 
-                    // 1. CORREZIONE ARROTONDAMENTO: Se è un numero ed è una colonna chimica, forziamo massimo 2 decimali
+                    // 1. FORMATTAZIONE DEL TESTO VISIVO (Arrotondamento a 2 decimali stabili)
                     if (!isNaN(valoreFloat) && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'cya'].includes(cleanKey)) {
                         cell.innerText = valoreFloat.toFixed(2).replace('.', ',');
                     } else {
                         cell.innerText = valoreTesto;
                     }
 
-                    // 2. RIPRISTINO COLORI E GESTIONE DEL REFRESH BLINDATO
-                    if (cleanKey === 'ph' && !isNaN(valoreFloat)) {
+                    // Se la cella è vuota o non è un numero, non applichiamo stili chimici
+                    if (isNaN(valoreFloat) || valoreTesto === "") return;
+
+                    // 2. ELABORAZIONE E APPLICAZIONE DEI COLORI (Forzati via codice in linea per evitare conflitti CSS)
+                    
+                    // CONTROLLO pH
+                    if (cleanKey === 'ph') {
                         if (valoreFloat > 7.50 || valoreFloat < 7.20) {
-                            cell.className = "badge-pericolo";
+                            cell.style.backgroundColor = "#fee2e2"; // Rosso morbido
+                            cell.style.color = "#b91c1c";           // Testo rosso scuro
+                            cell.style.fontWeight = "bold";
                             if (valoreFloat > 7.50) {
                                 cell.style.cursor = "pointer";
                                 cell.title = "Clicca per calcolare la dose di pH-";
                                 cell.onclick = () => mostraDosiInOverlay('pH', valoreFloat, riga);
                             }
                         } else {
-                            cell.style.backgroundColor = "#ecfdf5";
+                            cell.style.backgroundColor = "#ecfdf5"; // Verde ottimale
+                            cell.style.color = "#047857";           // Testo verde scuro
                         }
                     }
 
-                    if (cleanKey === 'cl. lib' && !isNaN(valoreFloat)) {
+                    // CONTROLLO CLORO LIBERO
+                    if (cleanKey === 'cl. lib') {
                         if (valoreFloat < 0.70 || valoreFloat > 2.00) {
-                            cell.className = "badge-pericolo";
+                            cell.style.backgroundColor = "#fee2e2"; // Rosso morbido
+                            cell.style.color = "#b91c1c";
+                            cell.style.fontWeight = "bold";
                             cell.style.cursor = "pointer";
                             cell.title = "Clicca per calcolare il dosaggio del Cloro";
                             cell.onclick = () => mostraDosiInOverlay('Cloro', valoreFloat, riga);
+                        } else {
+                            cell.style.backgroundColor = "#ecfdf5"; // Verde ottimale
+                            cell.style.color = "#047857";
+                        }
+                    }
+
+                    // CONTROLLO CLORO TOTALE (Segui il Cloro Libero)
+                    if (cleanKey === 'cl. tot') {
+                        if (valoreFloat < 0.70 || valoreFloat > 2.40) {
+                            cell.style.backgroundColor = "#fee2e2";
+                            cell.style.color = "#b91c1c";
                         } else {
                             cell.style.backgroundColor = "#ecfdf5";
                         }
                     }
 
-                    if (cleanKey === 'cl. com' && valoreFloat > 0.40) cell.className = "badge-pericolo";
-                    if (cleanKey === 'temp' && (valoreFloat < 24 || valoreFloat > 30)) cell.className = "badge-pericolo";
-                    if (cleanKey === 'cya' && valoreFloat > 50) cell.className = "badge-pericolo";
+                    // CONTROLLO CLORO COMBINATO (Fuori soglia se > 0.40)
+                    if (cleanKey === 'cl. com') {
+                        if (valoreFloat > 0.40) {
+                            cell.style.backgroundColor = "#fee2e2";
+                            cell.style.color = "#b91c1c";
+                            cell.style.fontWeight = "bold";
+                        } else {
+                            cell.style.backgroundColor = "#ecfdf5";
+                            cell.style.color = "#047857";
+                        }
+                    }
+
+                    // CONTROLLO TEMPERATURA (Ideale tra 24 e 30 gradi)
+                    if (cleanKey === 'temp') {
+                        if (valoreFloat < 24.0 || valoreFloat > 30.0) {
+                            cell.style.backgroundColor = "#fee2e2";
+                            cell.style.color = "#b91c1c";
+                        } else {
+                            cell.style.backgroundColor = "#ecfdf5";
+                            cell.style.color = "#047857";
+                        }
+                    }
+
+                    // CONTROLLO ACIDO CIANURICO / STABILIZZANTE (Fuori soglia se > 50)
+                    if (cleanKey === 'cya') {
+                        if (valoreFloat > 50.0) {
+                            cell.style.backgroundColor = "#fee2e2";
+                            cell.style.color = "#b91c1c";
+                            cell.style.fontWeight = "bold";
+                        } else {
+                            cell.style.backgroundColor = "#ecfdf5";
+                        }
+                    }
                 });
             });
         }
@@ -218,7 +270,7 @@ function caricaTabelle() {
 function mostraSezione(sezioneId) {
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
     const sez = document.getElementById(sezioneId);
-    if (sez) sez.classList.remove('hidden');
+    if (sez) sez.className = 'register-section';
 }
 
 window.onload = function() {
