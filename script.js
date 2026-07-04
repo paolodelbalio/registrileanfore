@@ -25,8 +25,8 @@ const CHART_COLORS = {
     "temp": { border: "#4caf50", background: "rgba(76, 175, 80, 0.2)" },
     "cya": { border: "#ff9800", background: "rgba(255, 152, 0, 0.2)" },
     "n.ospiti": { border: "#e91e63", background: "rgba(233, 30, 99, 0.2)" },
-    "reintegro (l)": { border: "#2196f3", background: "rgba(33, 150, 243, 0.2)" },
-    "ricircolo 24h (m³)": { border: "#3f51b5", background: "rgba(63, 81, 181, 0.2)" },
+    "reintegro": { border: "#2196f3", background: "rgba(33, 150, 243, 0.2)" },
+    "ricircolo": { border: "#3f51b5", background: "rgba(63, 81, 181, 0.2)" },
     "default": { border: "#0066cc", background: "rgba(0, 102, 204, 0.2)" }
 };
 
@@ -62,14 +62,14 @@ let currentChart = null;
     let pulizie = await loadFile(FILES.pulizie, false);
     let manutenzione = await loadFile(FILES.manutenzione, false);
 
-    // Parametri abilitati a generare il grafico (in minuscolo)
-    const chimicoClickable = ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya", "n.ospiti"];
-    const contatoriClickable = ["reintegro (l)", "ricircolo 24h (m³)"];
+    // Funzione di controllo flessibile per attivare i grafici
+    const isChimicoClickable = (col) => ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya", "n.ospiti", "ospiti"].some(k => col.includes(k));
+    const isContatoriClickable = (col) => ["reintegro", "ricircolo"].some(k => col.includes(k));
 
-    buildTable("chimicoTable", chimico, chimicoClickable, (col) => showChart(col, chimico, "07:00"));
-    buildTable("contatoriTable", contatori, contatoriClickable, (col) => showChart(col, contatori));
-    buildTable("pulizieTable", pulizie, [], null);
-    buildTable("manutenzioneTable", manutenzione, [], null);
+    buildTable("chimicoTable", chimico, isChimicoClickable, (col) => showChart(col, chimico, "07:00"));
+    buildTable("contatoriTable", contatori, isContatoriClickable, (col) => showChart(col, contatori));
+    buildTable("pulizieTable", pulizie, () => false, null);
+    buildTable("manutenzioneTable", manutenzione, () => false, null);
 
     // Mostra il registro chimico all'avvio
     showRegister("chimicoSection");
@@ -88,16 +88,19 @@ async function loadFile(url, skipFirstLine) {
             text = lines.join("\n");
         }
 
-        // Rimuove le righe vuote piene solo di virgole create da LibreOffice
         let parsed = Papa.parse(text, { 
             header: true, 
             skipEmptyLines: true,
             delimiter: "," 
         }).data;
 
+        // Tollera qualsiasi variazione di maiuscole/minuscole o spazi per le righe vuote
         return parsed.filter(row => {
-            const values = Object.values(row).join("").replace(/,/g, "").trim();
-            return values.length > 0 && row["Data"] !== undefined;
+            const keys = Object.keys(row);
+            if(keys.length === 0) return false;
+            
+            const totalContent = Object.values(row).join("").replace(/,/g, "").trim();
+            return totalContent.length > 0;
         });
 
     } catch (e) {
@@ -107,10 +110,10 @@ async function loadFile(url, skipFirstLine) {
 }
 
 // === COSTRUZIONE TABELLE HTML ===
-function buildTable(tableId, data, clickableColumns, onHeaderClick) {
+function buildTable(tableId, data, checkClickable, onHeaderClick) {
     const table = document.getElementById(tableId);
     if (!table || data.length === 0) {
-        table.innerHTML = "<tr><td>Nessun dato disponibile nel file CSV.</td></tr>";
+        table.innerHTML = "<tr><td style='padding:20px; text-align:center;'>Nessun dato disponibile nel file CSV.</td></tr>";
         return;
     }
 
@@ -123,7 +126,7 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
         const th = document.createElement("th");
         const cleanHeader = h.trim().toLowerCase();
         
-        if (clickableColumns.includes(cleanHeader)) {
+        if (checkClickable(cleanHeader)) {
             const btn = document.createElement("button");
             btn.className = "table-th-btn";
             btn.innerText = h + " 📊";
@@ -151,7 +154,7 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
             const cleanHeader = h.trim().toLowerCase();
             let valText = row[h] ? row[h].trim() : "";
 
-            if (valText !== "" && (cleanHeader === "cl. com" || cleanHeader === "cl. lib" || cleanHeader === "cl. tot" || cleanHeader === "ph")) {
+            if (valText !== "" && (cleanHeader.includes("cl. com") || cleanHeader.includes("cl. lib") || cleanHeader.includes("cl. tot") || cleanHeader === "ph")) {
                 const numericValue = parseFloat(valText.replace(/"/g, "").replace(",", ".").trim());
                 if (!isNaN(numericValue)) {
                     valText = numericValue.toFixed(2).replace(".", ",");
@@ -172,13 +175,17 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
 
 // === COLORAZIONE CELLE CONDIZIONALE ===
 function colorCell(td, colName, rawValue) {
-    if (!LEGAL_RANGES[colName] || !rawValue || rawValue.trim() === "") return;
+    if (!rawValue || rawValue.trim() === "") return;
     
+    // Trova la regola di corrispondenza parziale per i limiti di legge
+    const matchingKey = Object.keys(LEGAL_RANGES).find(k => colName.includes(k));
+    if (!matchingKey) return;
+
     const cleanValue = rawValue.replace(/"/g, "").replace(",", ".").trim();
     const value = parseFloat(cleanValue);
     if (isNaN(value)) return;
     
-    const [min, max] = LEGAL_RANGES[colName];
+    const [min, max] = LEGAL_RANGES[matchingKey];
     if (value < min || value > max) {
         td.style.backgroundColor = "rgba(255, 0, 0, 0.35)";
         td.style.color = "#721c24";
@@ -196,7 +203,9 @@ function showChart(colName, data, filterHour = null) {
         filtered = data;
     }
 
-    const labels = filtered.map(r => r.Data || "");
+    const dataKey = Object.keys(data[0]).find(k => k.toLowerCase().trim() === "data") || "Data";
+
+    const labels = filtered.map(r => r[dataKey] || "");
     const values = filtered.map(r => {
         const val = r[colName];
         if (!val || val.trim() === "") return null;
@@ -223,11 +232,14 @@ function showOverlayChart(title, labels, values) {
     }
 
     const key = title.trim().toLowerCase();
-    const colors = CHART_COLORS[key] || CHART_COLORS["default"];
+    
+    // Trova il colore corretto usando una corrispondenza parziale
+    const colorKey = Object.keys(CHART_COLORS).find(k => key.includes(k)) || "default";
+    const colors = CHART_COLORS[colorKey];
 
-    // Rileva se usare il grafico a barre (Contatori e Ospiti) o a linee (Parametri chimici)
+    // Forza il grafico a barre se la colonna riguarda contatori o ospiti
     let tipoGrafico = 'line';
-    if (key === 'reintegro (l)' || key === 'ricircolo 24h (m³)' || key === 'n.ospiti') {
+    if (key.includes('reintegro') || key.includes('ricircolo') || key.includes('ospiti')) {
         tipoGrafico = 'bar';
     }
 
@@ -250,7 +262,7 @@ function showOverlayChart(title, labels, values) {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: true } // Forza la partenza da 0 per una lettura corretta delle barre
+                y: { beginAtZero: true }
             }
         }
     });
