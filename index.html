@@ -4,55 +4,57 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Piscina 2026</title>
-
     <link rel="stylesheet" href="style.css">
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
-
 <body>
+
     <header>
         <h1>Dashboard Piscina 2026</h1>
-        <p>Analisi automatica dei registri</p>
+        <p>Analisi automatica e diagnostica interattiva dei registri di vasca</p>
     </header>
 
-    <nav class="top-buttons">
-        <button onclick="showRegister('chimicoSection')">Chimico</button>
-        <button onclick="showRegister('contatoriSection')">Contatori</button>
-        <button onclick="showRegister('pulizieSection')">Pulizie</button>
-        <button onclick="showRegister('manutenzioneSection')">Manutenzioni</button>
-    </nav>
+    <div class="top-buttons">
+        <button onclick="mostraSezione('chimicoSection')">Chimico</button>
+        <button onclick="mostraSezione('contatoriSection')">Contatori</button>
+        <button onclick="mostraSezione('pulizieSection')">Pulizie</button>
+        <button onclick="mostraSezione('manutenzioniSection')">Manutenzioni</button>
+    </div>
 
-    <section id="chimicoSection" class="register-section hidden">
+    <section id="chimicoSection" class="register-section">
         <h2>Registro Chimico</h2>
-        
-        <div id="assistente-chimico-container" style="margin: 20px 0;"></div>
-        
-        <table id="chimicoTable"></table>
+        <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">
+            💡 <em>Suggerimento: Le celle evidenziate in rosso indicano parametri fuori soglia. Clicca direttamente sopra le celle rosse di <strong>pH</strong> o <strong>Cl. Lib</strong> per aprire l'assistente di dosaggio dei prodotti.</em>
+        </p>
+        <div class="table-wrapper">
+            <table id="chimicoTable">
+                </table>
+        </div>
     </section>
 
     <section id="contatoriSection" class="register-section hidden">
         <h2>Registro Contatori</h2>
-        <table id="contatoriTable"></table>
+        <p>Sezione contatori in attesa di caricamento dati...</p>
     </section>
 
     <section id="pulizieSection" class="register-section hidden">
         <h2>Registro Pulizie</h2>
-        <table id="pulizieTable"></table>
+        <p>Sezione pulizie e igienizzazione in attesa di caricamento dati...</p>
     </section>
 
-    <section id="manutenzioneSection" class="register-section hidden">
-        <h2>Registro Manutenzione</h2>
-        <table id="manutenzioneTable"></table>
+    <section id="manutenzioniSection" class="register-section hidden">
+        <h2>Registro Manutenzioni</h2>
+        <p>Sezione interventi tecnici e manutenzione in attesa di caricamento dati...</p>
     </section>
 
     <div id="chartOverlay" class="overlay hidden">
         <div class="overlay-content">
             <span class="overlay-close" onclick="closeOverlay()">✖</span>
             <h3 id="overlayTitle"></h3>
+            
             <canvas id="overlayCanvas"></canvas>
-        </div>
+            
+            </div>
     </div>
 
     <script src="script.js"></script>
