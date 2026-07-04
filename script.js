@@ -20,12 +20,12 @@ const PISCINA_CONFIG = {
 let mioGrafico = null;
 let datiCsvGlobali = []; 
 
-// Mappatura file CSV e relative tabelle HTML
+// Mappatura file CSV con i nomi ESATTI dal tuo screenshot e relative tabelle HTML
 const REGISTRI_FILES = {
     chimico: { file: "REGISTRO CHIMICO 2026.csv", tableId: "chimicoTable" },
     contatori: { file: "REGISTRO CONTATORI 2026.csv", tableId: "contatoriTable" },
-    pulizie: { file: "REGISTRO PULIZIE 2026.csv", tableId: "pulizieTable" },
-    manutenzioni: { file: "REGISTRO MANUTENZIONI 2026.csv", tableId: "manutenzioniTable" }
+    pulizie: { file: "REGISTRO IGIENIZZAZIONE E PULIZIE 2026.csv", tableId: "pulizieTable" },
+    manutenzioni: { file: "REGISTRO INTERVENTI E MANUTENZIONI 2026.csv", tableId: "manutenzioniTable" }
 };
 
 function getFattoreTemperatura(temp) {
@@ -343,7 +343,7 @@ function apriGrafico(parametro) {
         opzioniScale.y.min = 0;
         opzioniScale.y.suggestedMax = 20000;
         opzioniScale.y.ticks = {
-            stepSize: 500, // Griglia bloccata ogni 500 litri
+            stepSize: 500,
             font: { size: 10 }
         };
     }
@@ -379,13 +379,17 @@ function apriGrafico(parametro) {
     }, 60);
 }
 
-function mostraSezione(sezioneId) {
+function montreSezione(sezioneId) {
+    // Questa funzione gestisce lo switch corretto tra le sezioni
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
     const sez = document.getElementById(sezioneId);
-    if (sez) sez.className = 'register-section';
+    if (sez) sez.classList.remove('hidden');
 }
+
+// Rinominiamo internamente per sicurezza
+window.mostraSezione = montreSezione;
 
 window.onload = function() {
     caricaTuttiIRegistri();
-    mostraSezione('chimicoSection');
+    window.mostraSezione('chimicoSection');
 };
