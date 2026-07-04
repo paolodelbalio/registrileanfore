@@ -36,15 +36,15 @@ let currentChart = null;
 (async function init() {
     console.log("Caricamento dati in corso...");
     
-    // Inietta dinamicamente lo stile per bloccare le intestazioni delle tabelle sotto la barra menu
+    // Inietta lo stile corretto eliminando il gap vuoto superiore durante lo scorrimento
     const style = document.createElement('style');
     style.innerHTML = `
         thead th {
             position: sticky !important;
-            top: 45px; /* Si ancora perfettamente sotto la barra dei pulsanti dei registri */
-            background-color: #ebf3f9 !important; /* Mantiene lo sfondo colorato coprente durante lo scorrimento */
+            top: 0px; /* Si ancora perfettamente al bordo superiore senza lasciare spazi vuoti */
+            background-color: #ebf3f9 !important; 
             z-index: 99 !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Crea una leggera ombreggiatura di distacco */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15); 
         }
     `;
     document.head.appendChild(style);
@@ -235,7 +235,7 @@ function showOverlayChart(title, labels, values) {
     });
 }
 
-// === NAVIGAZIONE INTERFACCIA E INQUADRATURA SULLA DATA ODIERNA / COMPILAZIONE ===
+// === NAVIGAZIONE INTERFACCIA E INQUADRATURA AUTOMATICA ===
 function showRegister(sectionId) {
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
     
@@ -247,7 +247,6 @@ function showRegister(sectionId) {
     const rows = activeSection.querySelectorAll('tbody tr');
     let targetRow = null;
 
-    // 1. STRATEGIA PRINCIPALE: Trova la riga che corrisponde alla data di oggi
     const today = new Date();
     const giorni = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
     const mesi = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
@@ -262,7 +261,6 @@ function showRegister(sectionId) {
         }
     }
 
-    // 2. STRATEGIA DI RISERVA: Se oggi non è nel CSV, inquadra la prima riga vuota subito sotto l'ultimo dato inserito
     if (!targetRow) {
         let lastFilledRowIndex = -1;
         rows.forEach((row, index) => {
@@ -278,7 +276,6 @@ function showRegister(sectionId) {
         }
     }
 
-    // Esegue lo scorrimento fluido mettendo la riga al centro dello schermo
     if (targetRow) {
         setTimeout(() => {
             targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
