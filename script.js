@@ -1,22 +1,22 @@
-// === CONFIGURAZIONE PARAMETRI PISCINA (Volume Vasca: 92 m³) ===
+// === CONFIGURAZIONE PARAMETRI PISCINA (Volume Vasca: 92 m³ - Configurazione Toscana) ===
 const PISCINA_CONFIG = {
     volume: 92, // Metri cubi vasca
     target: { 
         ph: 7.30, 
         cloro: 1.5,
-        cya: 30,    // Valore ottimale di stabilizzante
-        temp: 27    // Temperatura ideale comfort bagnanti
+        cya: 30,    // Target ottimale di mantenimento
+        temp: 27    
     },
     prodotti: {
         phMeno: { nome: "pH- (Acido Sec)", dosePerCentesimo: 9.2 },          
         cloroCa: { nome: "Cloro Granulare (Ipoclorito)", dosePerPpm: 1.84 }, 
-        cloroShock: { nome: "Cloro Shock Granulare", doseShockPerMc: 15 },    // 15g per mc per superclorazione d'urto
+        cloroShock: { nome: "Cloro Shock Granulare", doseShockPerMc: 15 },    
         waterStop: { nome: "Water Stop (Abbattitore)", dosePerPpm: 2.76 }   
     },
-    acquaReintegro: { temp: 12 } // Temperatura dell'acqua fresca immessa (comunicata dall'utente)
+    acquaReintegro: { temp: 12 } 
 };
 
-// Funzione ausiliaria per la compensazione termica del cloro standard
+// Funzione ausiliaria per la compensazione termica del cloro
 function getFattoreTemperatura(temp) {
     if (isNaN(temp) || temp <= 28) return 1.0;
     if (temp <= 30) return 1.15;
@@ -116,31 +116,29 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
             nota: "Eseguire il trattamento TASSATIVAMENTE a vasca vuota (assenza di bagnanti), preferibilmente al tramonto. Lasciare la filtrazione accesa H24. Attendere il rientro dei parametri normali prima di riaprire."
         };
     }
-    // --- CASE 5: ACIDO CIANURICO ALTO (REINTEGRO PER DILUIZIONE) ---
-    else if (parametro === 'CYA' && valoreAttuale > 50) {
+    // --- CASE 5: ACIDO CIANURICO ALTO (SOGLIA TOSCANA: > 75 ppm) ---
+    else if (parametro === 'CYA' && valoreAttuale > 75) {
         title.innerText = `💧 Assistente Chimico - Diluizione Stabilizzante (${dataRilevamento})`;
-        // Formula per determinare la percentuale e i mc di acqua da cambiare per arrivare al target di 30 ppm
         const frazioneRimante = PISCINA_CONFIG.target.cya / valoreAttuale;
         const percentualeDaScaricare = (1 - frazioneRimante) * 100;
         const mcDaScaricare = PISCINA_CONFIG.volume * (1 - frazioneRimante);
 
         consiglio = {
             parametro: "Acido Cianurico (CYA)",
-            stato: `Eccessivo (${valoreAttuale.toFixed(0)} ppm)`,
-            azione: `Sostituire il ${percentualeDaScaricare.toFixed(0)}% dell'acqua totale per diluire lo stabilizzante e sbloccare l'azione del cloro`,
-            prodotto: "Reintegro Acqua Nuova (Acquedotto / Pozzo)",
+            stato: `Fuori Norma Toscana (${valoreAttuale.toFixed(0)} ppm)`,
+            azione: `Sostituire il ${percentualeDaScaricare.toFixed(0)}% dell'acqua per scendere sotto il limite regionale (75 ppm) e sbloccare l'azione del cloro`,
+            prodotto: "Reintegro Acqua Nuova (Pozzo / Acquedotto)",
             quantita: `Scaricare ${mcDaScaricare.toFixed(1)} m³ di acqua`,
-            nota: `Effettuare uno scarico parziale di circa ${mcDaScaricare.toFixed(1)} metri cubi (pari a circa ${(mcDaScaricare * 1000).toLocaleString('it-IT')} litri) e ripristinare il livello della piscina con acqua nuova priva di acido cianurico.`
+            nota: `Effettuare uno scarico parziale di circa ${mcDaScaricare.toFixed(1)} metri cubi (pari a ${(mcDaScaricare * 1000).toLocaleString('it-IT')} litri) e ripristinare il livello della piscina con acqua nuova per azzerare il cianurico in eccesso.`
         };
     }
-    // --- CASE 6: TEMPERATURA ACQUA TROPPO ALTA (ABBASSAMENTO TERMICO) ---
+    // --- CASE 6: TEMPERATURA ACQUA TROPPO ALTA ---
     else if (parametro === 'Temperatura' && valoreAttuale > 30) {
         title.innerText = `❄️ Assistente Chimico - Raffreddamento Vasca (${dataRilevamento} ore ${oraRilevamento})`;
         
         const tempTarget = PISCINA_CONFIG.target.temp;
         const tempImmissione = PISCINA_CONFIG.acquaReintegro.temp; // 12°C
         
-        // Formula calorimetrica: Mc_Nuova = Volume_Vasca * (T_Attuale - T_Target) / (T_Target - T_Immissione)
         const mcFredda = PISCINA_CONFIG.volume * (valoreAttuale - tempTarget) / (tempTarget - tempImmissione);
 
         consiglio = {
@@ -196,7 +194,7 @@ function closeOverlay() {
     if (containerDosi) containerDosi.style.display = 'none';
 }
 
-// === LETTURA E COSTRUZIONE DELLA TABELLA DATI CON INTERATTIVITÀ TOTALE ===
+// === LETTURA E COSTRUZIONE DELLA TABELLA DATI CON COLORI AGGIORNATI ===
 function caricaTabelle() {
     Papa.parse("REGISTRO CHIMICO 2026.csv", {
         download: true,
@@ -233,7 +231,6 @@ function caricaTabelle() {
 
                     let valoreFloat = parseFloat(valoreTesto.replace(',', '.'));
 
-                    // Formattazione decimali visivi coerenti
                     if (!isNaN(valoreFloat) && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'cya'].includes(cleanKey)) {
                         cell.innerText = valoreFloat.toFixed(2).replace('.', ',');
                     } else {
@@ -241,8 +238,8 @@ function caricaTabelle() {
                     }
 
                     if (isNaN(valoreFloat) || valoreTesto === "") return;
-
-                    // --- 1. GESTIONE PULSANTE / CLIC pH ---
+                    
+                    // --- 1. pH ---
                     if (cleanKey === 'ph') {
                         if (valoreFloat > 7.50 || valoreFloat < 7.20) {
                             cell.style.backgroundColor = "#fee2e2"; 
@@ -259,14 +256,14 @@ function caricaTabelle() {
                         }
                     }
 
-                    // --- 2. GESTIONE PULSANTE / CLIC CLORO LIBERO ---
+                    // --- 2. CLORO LIBERO ---
                     if (cleanKey === 'cl. lib') {
                         if (valoreFloat < 0.70 || valoreFloat > 2.00) {
                             cell.style.backgroundColor = "#fee2e2"; 
                             cell.style.color = "#b91c1c";
                             cell.style.fontWeight = "bold";
                             cell.style.cursor = "pointer";
-                            cell.title = "Clicca per calcolare la dose o l'abbattitore di Cloro";
+                            cell.title = "Clicca per calcolare il dosaggio del Cloro";
                             cell.onclick = () => mostraDosiInOverlay('Cloro', valoreFloat, riga);
                         } else {
                             cell.style.backgroundColor = "#ecfdf5"; 
@@ -274,14 +271,14 @@ function caricaTabelle() {
                         }
                     }
 
-                    // --- 3. GESTIONE PULSANTE / CLIC CLORO COMBINATO (TRATTAMENTO SHOCK CRITICO) ---
+                    // --- 3. CLORO COMBINATO ---
                     if (cleanKey === 'cl. com') {
                         if (valoreFloat > 0.40) {
                             cell.style.backgroundColor = "#fee2e2";
                             cell.style.color = "#b91c1c";
                             cell.style.fontWeight = "bold";
                             cell.style.cursor = "pointer";
-                            cell.title = "Clicca per calcolare il Cloro per il Trattamento Shock!";
+                            cell.title = "Clicca per il Trattamento Shock!";
                             cell.onclick = () => mostraDosiInOverlay('CloroCombinato', valoreFloat, riga);
                         } else {
                             cell.style.backgroundColor = "#ecfdf5";
@@ -289,14 +286,14 @@ function caricaTabelle() {
                         }
                     }
 
-                    // --- 4. GESTIONE PULSANTE / CLIC TEMPERATURA (REINTEGRO 12°C) ---
+                    // --- 4. TEMPERATURA ---
                     if (cleanKey === 'temp') {
                         if (valoreFloat < 24.0 || valoreFloat > 30.0) {
                             cell.style.backgroundColor = "#fee2e2";
                             cell.style.color = "#b91c1c";
                             if (valoreFloat > 30.0) {
                                 cell.style.cursor = "pointer";
-                                cell.title = "Clicca per calcolare i mc di reintegro freddo (12°C)";
+                                cell.title = "Clicca per il calcolo del reintegro freddo a 12°C";
                                 cell.onclick = () => mostraDosiInOverlay('Temperatura', valoreFloat, riga);
                             }
                         } else {
@@ -305,17 +302,18 @@ function caricaTabelle() {
                         }
                     }
 
-                    // --- 5. GESTIONE PULSANTE / CLIC ACIDO CIANURICO CYA (REINTEGRO DILUIZIONE) ---
+                    // --- 5. ACIDO CIANURICO SOGLIA ADATTATA PER LA TOSCANA (75 ppm) ---
                     if (cleanKey === 'cya') {
-                        if (valoreFloat > 50.0) {
+                        if (valoreFloat > 75.0) {
                             cell.style.backgroundColor = "#fee2e2";
                             cell.style.color = "#b91c1c";
                             cell.style.fontWeight = "bold";
                             cell.style.cursor = "pointer";
-                            cell.title = "Clicca per calcolare quanti mc scaricare per abbassare il cianurico";
+                            cell.title = "Clicca per calcolare lo scarico dell'acqua";
                             cell.onclick = () => mostraDosiInOverlay('CYA', valoreFloat, riga);
                         } else {
                             cell.style.backgroundColor = "#ecfdf5";
+                            cell.style.color = "#047857";
                         }
                     }
 
