@@ -295,7 +295,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
     });
 }
 
-// === GENERAZIONE GRAFICI CORRETTA (SENZA ERRORI DI SCOPE) ===
+// === GENERAZIONE GRAFICI ===
 function apriGrafico(parametro) {
     const overlay = document.getElementById('chartOverlay');
     const title = document.getElementById('overlayTitle');
@@ -343,12 +343,11 @@ function apriGrafico(parametro) {
         opzioniScale.y.min = 0;
         opzioniScale.y.suggestedMax = 20000;
         opzioniScale.y.ticks = {
-            stepSize: 500,
+            stepSize: 500, // Griglia bloccata ogni 500 litri
             font: { size: 10 }
         };
     }
 
-    // DICHIARAZIONE CORRETTA DEL CONTESTO (Risolve il crash totale)
     let ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
