@@ -38,7 +38,7 @@ let currentChart = null;
     const pulizie = await loadFile(FILES.pulizie, false);
     const manutenzione = await loadFile(FILES.manutenzione, false);
 
-    // Mappatura dei parametri interattivi abilitati al grafico
+    // Parametri abilitati a generare il grafico (controllati in minuscolo)
     const chimicoClickable = ["ph", "cl. lib", "cl. com", "temp", "cya", "n.ospiti"];
     const contatoriClickable = ["reintegro (l)", "ricircolo 24h (m³)"];
 
@@ -69,7 +69,7 @@ async function loadFile(url, skipFirstLine) {
             delimiter: "," 
         }).data;
 
-        // Rimuove le righe vuote di LibreOffice piene solo di virgole
+        // Rimuove le righe vuote piene solo di virgole create da LibreOffice
         return parsed.filter(row => {
             const values = Object.values(row).join("").replace(/,/g, "").trim();
             return values.length > 0 && row["Data"] !== undefined;
@@ -81,30 +81,35 @@ async function loadFile(url, skipFirstLine) {
     }
 }
 
-// === COSTRUZIONE TABELLE HTML (VERSIONE NATIVA AD ELEVATA COMPATIBILITÀ) ===
+// === COSTRUZIONE TABELLE HTML (VERSIONE AD ALTA COMPATIBILITÀ) ===
 function buildTable(tableId, data, clickableColumns, onHeaderClick) {
     const table = document.getElementById(tableId);
     if (!table || data.length === 0) {
-        table.innerHTML = "<tr><td>Nessun dato disponibile. Controlla il file CSV.</td></tr>";
+        table.innerHTML = "<tr><td>Nessun dato disponibile nel file CSV.</td></tr>";
         return;
     }
 
     const headers = Object.keys(data[0]);
     
-    // 1. Costruzione dell'Header (Testata)
+    // 1. Creazione dell'Header (Testata)
     const thead = document.createElement("thead");
     const headerRow = document.createElement("tr");
     
     headers.forEach(h => {
         const th = document.createElement("th");
         th.innerText = h;
-        th.title = "Clicca per vedere il grafico";
         const cleanHeader = h.trim().toLowerCase();
         
-        // Se la colonna deve generare un grafico, assegna classe ed evento protetto
+        // Se la colonna supporta i grafici, la trasformiamo visivamente e operativamente in pulsante
         if (clickableColumns.includes(cleanHeader)) {
-            th.classList.add("clickable-header");
             th.innerText += " 📊";
+            th.style.cursor = "pointer";
+            th.style.backgroundColor = "#e9f2fb";
+            th.style.color = "#0066cc";
+            th.style.textDecoration = "underline";
+            th.title = "Clicca per visualizzare il grafico di andamento";
+            
+            // Assegnazione protetta del click nativo
             th.addEventListener("click", () => {
                 if (onHeaderClick) onHeaderClick(h);
             });
@@ -113,7 +118,7 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
     });
     thead.appendChild(headerRow);
 
-    // 2. Costruzione del Body (Righe del Registro)
+    // 2. Creazione del Body (Righe del Registro)
     const tbody = document.createElement("tbody");
     data.forEach((row) => {
         const tr = document.createElement("tr");
@@ -126,7 +131,7 @@ function buildTable(tableId, data, clickableColumns, onHeaderClick) {
         tbody.appendChild(tr);
     });
 
-    // 3. Pulisce la vecchia tabella e inserisce la struttura sicura nel DOM
+    // 3. Montaggio finale pulito sulla pagina
     table.innerHTML = "";
     table.appendChild(thead);
     table.appendChild(tbody);
@@ -150,9 +155,8 @@ function colorCell(td, colName, rawValue) {
     }
 }
 
-// === VISUALIZZAZIONE GRAFICO ===
+// === VISUALIZZAZIONE GRAFICO COMPLETO ===
 function showChart(colName, data, filterHour = null) {
-    // Filtro orario se applicato (es. 07:00 per il registro chimico)
     let filtered = filterHour ? data.filter(r => r.Ora === filterHour) : data;
     
     if (filtered.length === 0) {
@@ -170,12 +174,12 @@ function showChart(colName, data, filterHour = null) {
     if (values.some(v => !isNaN(v) && v !== null)) {
         showOverlayChart(colName, labels, values);
     } else {
-        alert(`Nessun valore numerico valido trovato nella colonna "${colName}".`);
+        alert(`Impossibile generare il grafico: nessun dato numerico trovato nella colonna "${colName}".`);
     }
 }
 
 function showOverlayChart(title, labels, values) {
-    document.getElementById("overlayTitle").innerText = "Andamento: " + title;
+    document.getElementById("overlayTitle").innerText = "Andamento Parametro: " + title;
     document.getElementById("chartOverlay").classList.remove("hidden");
 
     const ctx = document.getElementById("overlayCanvas").getContext("2d");
