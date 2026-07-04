@@ -3,7 +3,7 @@ const FILES = {
     chimico: "REGISTRO CHIMICO 2026.csv?t=" + new Date().getTime(),
     contatori: "REGISTRO CONTATORI.csv?t=" + new Date().getTime(),
     pulizie: "REGISTRO PULIZIE PISCINA 2026.csv?t=" + new Date().getTime(),
-    manutenzione: "REGISTRO MANUTENZIONE 2026.csv?t=" + new Date().getTime()
+   manutenzione: "REGISTRO MANUTENZIONE INTERVENTI .csv?t=" + new Date().getTime()
 };
 
 // === LIMITI DI LEGGE (Per colorare le celle) ===
