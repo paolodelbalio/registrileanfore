@@ -7,7 +7,6 @@
 
     <link rel="stylesheet" href="style.css">
 
-    <!-- Librerie -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
@@ -18,7 +17,6 @@
         <p>Analisi automatica dei registri</p>
     </header>
 
-    <!-- Pulsanti principali -->
     <nav class="top-buttons">
         <button onclick="showRegister('chimicoSection')">Chimico</button>
         <button onclick="showRegister('contatoriSection')">Contatori</button>
@@ -26,31 +24,29 @@
         <button onclick="showRegister('manutenzioneSection')">Manutenzioni</button>
     </nav>
 
-    <!-- SEZIONE CHIMICO -->
     <section id="chimicoSection" class="register-section hidden">
         <h2>Registro Chimico</h2>
+        
+        <div id="assistente-chimico-container" style="margin: 20px 0;"></div>
+        
         <table id="chimicoTable"></table>
     </section>
 
-    <!-- SEZIONE CONTATORI -->
     <section id="contatoriSection" class="register-section hidden">
         <h2>Registro Contatori</h2>
         <table id="contatoriTable"></table>
     </section>
 
-    <!-- SEZIONE PULIZIE -->
     <section id="pulizieSection" class="register-section hidden">
         <h2>Registro Pulizie</h2>
         <table id="pulizieTable"></table>
     </section>
 
-    <!-- SEZIONE MANUTENZIONE -->
     <section id="manutenzioneSection" class="register-section hidden">
         <h2>Registro Manutenzione</h2>
         <table id="manutenzioneTable"></table>
     </section>
 
-    <!-- OVERLAY GRAFICO -->
     <div id="chartOverlay" class="overlay hidden">
         <div class="overlay-content">
             <span class="overlay-close" onclick="closeOverlay()">✖</span>
