@@ -3,7 +3,7 @@ const PISCINA_CONFIG = {
     volume: 92, 
     target: { 
         ph: 7.30, 
-        cloro: 1.5,
+        cloro: 1.1,  // <--- AGGIORNATO: Quota ideale a 1,1 ppm
         cya: 55,    
         temp: 27    
     },
@@ -121,13 +121,13 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
     } 
     else if (parametro === 'CloroLibero' && valoreAttuale > 2.0) {
         title.innerText = `🧪 Assistente Chimico - Abbattimento Cloro (${dataRilevamento} ore ${oraRilevamento})`;
-        const deltaCloro = valoreAttuale - 1.5;
+        const deltaCloro = valoreAttuale - PISCINA_CONFIG.target.cloro; // Calcolato su target dinamico
         const doseTotale = Math.round(deltaCloro * 100 * PISCINA_CONFIG.prodotti.waterStop.dosePerPpm);
 
         consiglio = {
             parametro: "Cloro Libero",
             stato: `Alto (${valoreAttuale.toFixed(2)} ppm)`,
-            azione: `Abbassare di ${deltaCloro.toFixed(2)} ppm per riportare l'acqua in equilibrio`,
+            azione: `Abbassare di ${deltaCloro.toFixed(2)} ppm per riportare l'acqua in equilibrio a ${PISCINA_CONFIG.target.cloro} ppm`,
             prodotto: PISCINA_CONFIG.prodotti.waterStop.nome,
             quantita: `${doseTotale} grammi`,
             nota: "Utilizzare solo se necessario riaprire subito la vasca, altrimenti la radiazione solare UV lo abbatterà naturalmente."
@@ -149,7 +149,7 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
     else if (parametro === 'CYA' && valoreAttuale > 60) {
         title.innerText = `💧 Assistente Chimico - Diluizione Preventiva Stabilizzante (${dataRilevamento})`;
         const targetSicurezzaCya = PISCINA_CONFIG.target.cya; 
-        const frazioneRimanente = targetSicurezzaCya / valoreAttuale;
+        const frazioneRimanente = targetSicurezzaCya / valoreActual;
         const percentualeDaScaricare = (1 - frazioneRimanente) * 100;
         const mcDaScaricare = PISCINA_CONFIG.volume * (1 - frazioneRimanente);
 
@@ -310,7 +310,6 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
 
             if (isNaN(valoreFloat) || valoreTesto === "" || tipoRegistro !== 'chimico') return;
             
-            // Gestione allineata ai nomi di colonna estesi o abbreviati del CSV
             if (cleanKey === 'ph') {
                 if (valoreFloat > 7.50 || valoreFloat < 7.20) {
                     cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
