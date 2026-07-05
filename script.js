@@ -200,7 +200,7 @@ function closeOverlay() {
     
     if (overlay) overlay.classList.add('hidden');
     if (canvas) canvas.style.display = 'block';
-    if (containerDosi) document.getElementById('overlayDosiContent').style.display = 'none';
+    if (containerDosi) containerDosi.style.display = 'none';
 }
 
 // === CARICAMENTO CSV ===
@@ -248,7 +248,6 @@ function caricaTuttiIRegistri() {
         promesseCaricamento.push(p);
     });
 
-    // Avvio iniziale sul registro chimico
     Promise.all(promesseCaricamento).then(() => {
         setTimeout(() => {
             eseguiScrollAlDatoOggi('chimico');
@@ -273,24 +272,23 @@ function eseguiScrollAlDatoOggi(tipoRegistro) {
     for (let i = righe.length - 1; i >= 0; i--) {
         let celle = righe[i].querySelectorAll('td');
         
-        // Verifica se almeno una cella (esclusa la data alla cella [0] e l'ora alla cella [1]) contiene dati reali scritti
         let rigaContieneDatiReali = false;
+        // Salta data [0] e ora [1] se presenti, guarda il resto delle colonne compilate
         for (let j = 2; j < celle.length; j++) {
-            let contenuto Cella = celle[j].innerText.trim();
-            // Considera valido se non è vuoto e se non è semplicemente uno zero solitario di default
+            let contenutoCella = celle[j].innerText.trim();
             if (contenutoCella !== "" && contenutoCella !== "0" && contenutoCella !== "0,00") {
                 rigaContieneDatiReali = true;
                 break;
             }
         }
 
-        if (rigaContieneDatiReales) {
+        if (rigaContieneDatiReali) {
             ultimaRigaConDati = righe[i];
             break;
         }
     }
 
-    // Se non ha trovato nulla con criteri stringenti, prende l'ultima riga compilata generica che ha almeno qualcosa scritto oltre alla data
+    // Se non ha trovato nulla con criteri selettivi, prova una ricerca generica di testo
     if (!ultimaRigaConDati) {
         for (let i = righe.length - 1; i >= 0; i--) {
             let celle = righe[i].querySelectorAll('td');
@@ -301,7 +299,7 @@ function eseguiScrollAlDatoOggi(tipoRegistro) {
         }
     }
 
-    // Se trova l'ultima riga compie lo scroll centrato fluidamente, altrimenti va a fine tabella
+    // Se trova l'ultima riga fa lo scroll centrato su quella riga, altrimenti va alla fine
     if (ultimaRigaConDati) {
         ultimaRigaConDati.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
@@ -479,8 +477,8 @@ function apriGrafico(parametro, tipoRegistro) {
     }, 60);
 }
 
-// === GESTIONE VISIBILITÀ SEZIONI CON RENDERING SICURO ===
-function montreSezione(sezioneId) {
+// === GESTIONE VISIBILITÀ SEZIONI CON SCROLL COERENTE ===
+function mostraSezione(sezioneId) {
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
     const sez = document.getElementById(sezioneId);
     if (sez) {
@@ -488,17 +486,16 @@ function montreSezione(sezioneId) {
         
         let tipoReg = sezioneId.replace('Section', '');
         
-        // Un timeout di 100ms assicura che il browser visualizzi la tabella a schermo intero
-        // prima di calcolare l'altezza geometrica dello scroll, facendolo funzionare ovunque!
         setTimeout(() => { 
             eseguiScrollAlDatoOggi(tipoReg); 
         }, 100);
     }
 }
 
-window.mostraSezione = montreSezione;
+// Assicura l'esposizione globale delle funzioni necessarie ad index.html
+window.mostraSezione = mostraSezione;
 
 window.onload = function() {
     caricaTuttiIRegistri();
-    montreSezione('chimicoSection');
+    mostraSezione('chimicoSection');
 };
