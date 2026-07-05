@@ -201,56 +201,85 @@ function closeOverlay() {
     
     if (overlay) overlay.classList.add('hidden');
     if (canvas) canvas.style.display = 'block';
-    if (containerDosi) containerDosi.style.display = 'none';
+    if (containerDosi) document.getElementById('overlayDosiContent').style.display = 'none';
 }
 
 // === CARICAMENTO CSV ===
 function caricaTuttiIRegistri() {
+    let promesseCaricamento = [];
+
     Object.keys(REGISTRI_FILES).forEach(chiave => {
         const config = REGISTRI_FILES[chiave];
-        Papa.parse(config.file, {
-            download: true,
-            header: false,
-            skipEmptyLines: 'greedy',
-            complete: function(results) {
-                let righe = results.data;
-                if (!righe || righe.length === 0) return;
-                
-                let indexHeader = righe.findIndex(r => r && r[0] && r[0].trim().toLowerCase() === 'data');
-                if (indexHeader === -1) {
-                    indexHeader = 0;
-                }
-                
-                let headers = righe[indexHeader].map(h => h ? h.trim() : "");
-                
-                let datiTrasformati = [];
-                for (let i = indexHeader + 1; i < righe.length; i++) {
-                    let rigaCorrente = righe[i];
-                    if (!rigaCorrente || rigaCorrente.length === 0 || rigaCorrente.every(c => !c || c.trim() === "")) {
-                        continue;
+        
+        let p = new Promise((resolve) => {
+            Papa.parse(config.file, {
+                download: true,
+                header: false,
+                skipEmptyLines: 'greedy',
+                complete: function(results) {
+                    let righe = results.data;
+                    if (!righe || righe.length === 0) { resolve(); return; }
+                    
+                    let indexHeader = righe.findIndex(r => r && r[0] && r[0].trim().toLowerCase() === 'data');
+                    if (indexHeader === -1) indexHeader = 0;
+                    
+                    let headers = righe[indexHeader].map(h => h ? h.trim() : "");
+                    
+                    let datiTrasformati = [];
+                    for (let i = indexHeader + 1; i < righe.length; i++) {
+                        let rigaCorrente = righe[i];
+                        if (!rigaCorrente || rigaCorrente.length === 0 || rigaCorrente.every(c => !c || c.trim() === "")) {
+                            continue;
+                        }
+                        
+                        let obj = {};
+                        headers.forEach((h, idx) => {
+                            if (h !== "") obj[h] = rigaCorrente[idx] ? rigaCorrente[idx].trim() : "";
+                        });
+                        datiTrasformati.push(obj);
                     }
                     
-                    let obj = {};
-                    headers.forEach((h, idx) => {
-                        if (h !== "") {
-                            obj[h] = rigaCorrente[idx] ? rigaCorrente[idx].trim() : "";
-                        }
-                    });
-                    datiTrasformati.push(obj);
-                }
-                
-                datiRegistriGlobali[chiave] = datiTrasformati;
-                
-                // AGGIORNAMENTO: Mandiamo alla tabella i dati invertiti (le giornate recenti in cima)
-                // Usiamo una copia ([...datiTrasformati]) per evitare di invertire anche l'ordine dei grafici storico!
-                let datiTabellaVisuale = [...datiTrasformati].reverse();
-                popolaTabellaHtml(datiTabellaVisuale, config.tableId, chiave);
-            },
-            error: function(err) {
-                console.error("Errore caricamento per il file:", config.file, err);
-            }
+                    datiRegistriGlobali[chiave] = datiTrasformati;
+                    popolaTabellaHtml(datiTrasformati, config.tableId, chiave);
+                    resolve();
+                },
+                error: function() { resolve(); }
+            });
         });
+        promesseCaricamento.push(p);
     });
+
+    // Quando tutti i file CSV sono stati letti e le tabelle create, esegui lo scroll automatico
+    Promise.all(promesseCaricamento).then(() => {
+        setTimeout(() => {
+            eseguiScrollAlDatoOggi();
+        }, 300);
+    });
+}
+
+// === FUNZIONE DI SCROLL AUTOMATICO ALL'ULTIMA RIGA COMPILATA ===
+function eseguiScrollAlDatoOggi() {
+    const tabellaChimica = document.getElementById('chimicoTable');
+    if (!tabellaChimica) return;
+
+    const righe = tabellaChimica.querySelectorAll('tbody tr');
+    let ultimaRigaConDati = null;
+
+    // Trova l'ultima riga che ha almeno un valore inserito (es. il pH compilato)
+    for (let i = righe.length - 1; i >= 0; i--) {
+        let celle = righe[i].querySelectorAll('td');
+        if (celle.length > 2 && celle[2].innerText.trim() !== "") { 
+            ultimaRigaConDati = righe[i];
+            break;
+        }
+    }
+
+    // Se la trova scivola lì, altrimenti va a fondo pagina
+    if (ultimaRigaConDati) {
+        ultimaRigaConDati.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
 }
 
 // === GENERAZIONE DELLE TABELLE HTML ===
@@ -426,7 +455,11 @@ function apriGrafico(parametro, tipoRegistro) {
 function montreSezione(sezioneId) {
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
     const sez = document.getElementById(sezioneId);
-    if (sez) sez.classList.remove('hidden');
+    if (sez) {
+        sez.classList.remove('hidden');
+        // Se cambi scheda, esegui lo scroll anche sulla tabella selezionata
+        setTimeout(() => { eseguiScrollAlDatoOggi(); }, 50);
+    }
 }
 
 window.mostraSezione = montreSezione;
