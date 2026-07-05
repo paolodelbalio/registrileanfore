@@ -39,7 +39,7 @@ function getFattoreTemperatura(temp) {
     return 1.30;
 }
 
-// === ASSISTENTE CHIMICO (OVERLAY DOSI) ===
+// === ASSISTENTE CHIMICO (OVERLAY DOSI COINVOLGENDO I CONTATORI) ===
 function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
     const overlay = document.getElementById('chartOverlay');
     const title = document.getElementById('overlayTitle');
@@ -63,13 +63,31 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
     const tempKey = keys.find(k => k.toLowerCase().includes('temp'));
     const tempAttuale = tempKey ? parseFloat(String(rigaDati[tempKey]).replace(',', '.')) : NaN;
     
+    // Rilevamento dinamico dell'ultimo reintegro dal registro contatori integrato nel web
+    let reintegroLitri = 0;
+    if (datiRegistriGlobali.contatori && datiRegistriGlobali.contatori.length > 0) {
+        const ultimaRigaContatori = datiRegistriGlobali.contatori[datiRegistriGlobali.contatori.length - 1];
+        for (let k in ultimaRigaContatori) {
+            if (k.toLowerCase().includes('reintegro') || k.toLowerCase().includes('litri')) {
+                let valReint = parseFloat(String(ultimaRigaContatori[k]).replace(',', '.'));
+                if (!isNaN(valReint)) reintegroLitri = valReint;
+            }
+        }
+    }
+
     let consiglio = null;
 
     if (parametro === 'pH' && valoreAttuale > 7.5) {
         title.innerText = `🧪 Assistente Chimico - Correzione pH (${dataRilevamento} ore ${oraRilevamento})`;
         const deltaPh = valoreAttuale - PISCINA_CONFIG.target.ph;
         const puntiCentesimi = Math.round(deltaPh * 100);
-        const doseTotale = Math.round(puntiCentesimi * PISCINA_CONFIG.prodotti.phMeno.dosePerCentesimo);
+        let doseTotale = Math.round(puntiCentesimi * PISCINA_CONFIG.prodotti.phMeno.dosePerCentesimo);
+        
+        let notaModulazione = "Sciogliere la polvere in un secchio d'acqua pulita e versare uniformemente davanti alle bocchette.";
+        if (reintegroLitri > 1000) {
+            doseTotale = Math.round(doseTotale * 0.90); // Sconto prudenziale 10% se c'è stata forte diluizione
+            notaModulazione = `⚠️ Dose ridotta del 10% per effetto diluizione causato da recente reintegro di ${reintegroLitri.toLocaleString('it-IT')}L. ` + notaModulazione;
+        }
         
         consiglio = {
             parametro: "pH",
@@ -77,19 +95,19 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
             azione: `Abbassare di ${deltaPh.toFixed(2)} unità per rientrare al valore ottimale di ${PISCINA_CONFIG.target.ph}`,
             prodotto: PISCINA_CONFIG.prodotti.phMeno.nome,
             quantita: `${(doseTotale / 1000).toFixed(2)} kg`,
-            nota: "Sciogliere la polvere in un secchio d'acqua pulita e versare uniformemente in vasca davanti alle bocchette."
+            nota: notaModulazione
         };
     } 
-    else if (parametro === 'Cloro' && valoreAttuale < 0.7) {
+    else if (parametro === 'CloroLibero' && valoreAttuale < 0.7) {
         title.innerText = `🧪 Assistente Chimico - Dosaggio Cloro (${dataRilevamento} ore ${oraRilevamento})`;
         const deltaCloro = PISCINA_CONFIG.target.cloro - valoreAttuale;
         const fattoreTemp = getFattoreTemperatura(tempAttuale);
         let doseBase = deltaCloro * 100 * PISCINA_CONFIG.prodotti.cloroCa.dosePerPpm;
         let doseCorretta = Math.round(doseBase * fattoreTemp);
 
-        let notaTemp = "";
+        let notaTemp = `Dosaggio rapido granulare. Aggiungere negli skimmer o premiscelare.`;
         if (fattoreTemp > 1.0 && !isNaN(tempAttuale)) {
-            notaTemp = ` (Aumentato del ${Math.round((fattoreTemp - 1) * 100)}% per evaporazione causata da ${tempAttuale}°C dell'acqua).`;
+            notaTemp += ` (Aumentato del ${Math.round((fattoreTemp - 1) * 100)}% per accelerazione termica a ${tempAttuale}°C).`;
         }
 
         consiglio = {
@@ -98,10 +116,10 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
             azione: `Aumentare di ${deltaCloro.toFixed(2)} ppm per raggiungere la quota ideale di ${PISCINA_CONFIG.target.cloro} ppm`,
             prodotto: PISCINA_CONFIG.prodotti.cloroCa.nome,
             quantita: `${doseCorretta} grammi`,
-            nota: `Dosaggio rapido granulare.${notaTemp} Aggiungere negli skimmer o premiscelare.`
+            nota: notaTemp
         };
     } 
-    else if (parametro === 'Cloro' && valoreAttuale > 2.0) {
+    else if (parametro === 'CloroLibero' && valoreAttuale > 2.0) {
         title.innerText = `🧪 Assistente Chimico - Abbattimento Cloro (${dataRilevamento} ore ${oraRilevamento})`;
         const deltaCloro = valoreAttuale - 1.5;
         const doseTotale = Math.round(deltaCloro * 100 * PISCINA_CONFIG.prodotti.waterStop.dosePerPpm);
@@ -112,7 +130,7 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
             azione: `Abbassare di ${deltaCloro.toFixed(2)} ppm per riportare l'acqua in equilibrio`,
             prodotto: PISCINA_CONFIG.prodotti.waterStop.nome,
             quantita: `${doseTotale} grammi`,
-            nota: "Utilizzare solo se necessario riaprire subito la vasca, altrimenti il sole lo consumerà in modo naturale."
+            nota: "Utilizzare solo se necessario riaprire subito la vasca, altrimenti la radiazione solare UV lo abbatterà naturalmente."
         };
     }
     else if (parametro === 'CloroCombinato' && valoreAttuale > 0.40) {
@@ -125,7 +143,7 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
             azione: `Eseguire iperclorazione shock d'urto per distruggere le clorammine accumulate`,
             prodotto: PISCINA_CONFIG.prodotti.cloroShock.nome,
             quantita: `${(doseShockTotale / 1000).toFixed(2)} kg`,
-            nota: "TASSATIVAMENTE a vasca vuota (assenza di bagnanti), preferibilmente al tramonto. Filtrazione accesa H24."
+            nota: "TASSATIVAMENTE a vasca vuota (assenza di bagnanti), preferibilmente al tramonto. Lasciare la filtrazione accesa H24."
         };
     }
     else if (parametro === 'CYA' && valoreAttuale > 60) {
@@ -201,7 +219,7 @@ function closeOverlay() {
     if (containerDosi) containerDosi.style.display = 'none';
 }
 
-// === CARICAMENTO INTELLIGENTE DEI FILE CSV ===
+// === CARICAMENTO CSV ===
 function caricaTuttiIRegistri() {
     Object.keys(REGISTRI_FILES).forEach(chiave => {
         const config = REGISTRI_FILES[chiave];
@@ -246,7 +264,7 @@ function caricaTuttiIRegistri() {
     });
 }
 
-// === GENERAZIONE DELLE TABELLE HTML CON PULSANTI GRAFICI ===
+// === GENERAZIONE DELLE TABELLE HTML ===
 function popolaTabellaHtml(dati, tableId, tipoRegistro) {
     const table = document.getElementById(tableId);
     if (!table || !dati || dati.length === 0) return;
@@ -261,7 +279,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
         let cleanKey = key.toLowerCase().trim();
         
         let daGraficare = false;
-        if (tipoRegistro === 'chimico' && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'n.ospiti', 'cya'].includes(cleanKey)) {
+        if (tipoRegistro === 'chimico' && ['ph', 'cloro libero', 'cloro totale', 'cloro combinato', 'temperatura vasca', 'n.ospiti', 'cya', 'cl. lib', 'cl. tot', 'cl. com', 'temp'].includes(cleanKey)) {
             daGraficare = true;
         } else if (tipoRegistro === 'contatori' && (cleanKey.includes('reintegro') || cleanKey.includes('ricircolo'))) {
             daGraficare = true;
@@ -284,7 +302,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
             let cleanKey = key.toLowerCase().trim();
             let valoreFloat = parseFloat(valoreTesto.replace(',', '.'));
 
-            if (!isNaN(valoreFloat) && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'cya'].includes(cleanKey)) {
+            if (!isNaN(valoreFloat) && ['ph', 'cloro libero', 'cloro totale', 'cloro combinato', 'temperatura vasca', 'cya', 'cl. lib', 'cl. tot', 'cl. com', 'temp'].includes(cleanKey)) {
                 cell.innerText = valoreFloat.toFixed(2).replace('.', ',');
             } else {
                 cell.innerText = valoreTesto;
@@ -292,25 +310,26 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
 
             if (isNaN(valoreFloat) || valoreTesto === "" || tipoRegistro !== 'chimico') return;
             
+            // Gestione allineata ai nomi di colonna estesi o abbreviati del CSV
             if (cleanKey === 'ph') {
                 if (valoreFloat > 7.50 || valoreFloat < 7.20) {
                     cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
                     if (valoreFloat > 7.50) { cell.style.cursor = "pointer"; cell.onclick = () => mostraDosiInOverlay('pH', valoreFloat, riga); }
                 } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
             }
-            if (cleanKey === 'cl. lib') {
+            if (cleanKey === 'cloro libero' || cleanKey === 'cl. lib') {
                 if (valoreFloat < 0.70 || valoreFloat > 2.00) {
                     cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
-                    cell.onclick = () => mostraDosiInOverlay('Cloro', valoreFloat, riga);
+                    cell.onclick = () => mostraDosiInOverlay('CloroLibero', valoreFloat, riga);
                 } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
             }
-            if (cleanKey === 'cl. com') {
+            if (cleanKey === 'cloro combinato' || cleanKey === 'cl. com') {
                 if (valoreFloat > 0.40) {
                     cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
                     cell.onclick = () => mostraDosiInOverlay('CloroCombinato', valoreFloat, riga);
                 } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
             }
-            if (cleanKey === 'temp') {
+            if (cleanKey === 'temperatura vasca' || cleanKey === 'temp') {
                 if (valoreFloat < 24.0 || valoreFloat > 30.0) {
                     cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c";
                     if (valoreFloat > 30.0) { cell.style.cursor = "pointer"; cell.onclick = () => mostraDosiInOverlay('Temperatura', valoreFloat, riga); }
@@ -322,15 +341,11 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
                     cell.onclick = () => mostraDosiInOverlay('CYA', valoreFloat, riga);
                 } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
             }
-            if (cleanKey === 'cl. tot') {
-                if (valoreFloat < 0.70 || valoreFloat > 2.40) { cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; } 
-                else { cell.style.backgroundColor = "#ecfdf5"; }
-            }
         });
     });
 }
 
-// === GENERAZIONE DEI GRAFICI STORICI DINAMICI (LINEE O BARRE) ===
+// === GENERAZIONE DEI GRAFICI HISTORICAL ===
 function apriGrafico(parametro, tipoRegistro) {
     if (!tipoRegistro) tipoRegistro = 'chimico';
     const overlay = document.getElementById('chartOverlay');
@@ -367,8 +382,6 @@ function apriGrafico(parametro, tipoRegistro) {
         mioGrafico.destroy();
     }
 
-    // === SELEZIONE DINAMICA DEL TIPO DI GRAFICO ===
-    // Se è il numero degli ospiti o un parametro che contiene "reintegro", diventa un grafico a barre
     let tipoGrafico = 'line';
     if (cleanParam === 'n.ospiti' || cleanParam.includes('reintegro')) {
         tipoGrafico = 'bar';
@@ -386,7 +399,7 @@ function apriGrafico(parametro, tipoRegistro) {
     else if (cleanParam.includes('reintegro')) {
         opzioniScale.y.min = 0;
         opzioniScale.y.ticks = {
-            stepSize: 500, // Griglia bloccata ogni 500 litri per i contatori
+            stepSize: 500,
             font: { size: 10 }
         };
     }
@@ -396,7 +409,7 @@ function apriGrafico(parametro, tipoRegistro) {
 
     setTimeout(() => {
         mioGrafico = new Chart(ctx, {
-            type: tipoGrafico, // Usa 'bar' per ospiti/reintegri e 'line' per il resto
+            type: tipoGrafico,
             data: {
                 labels: etichette,
                 datasets: [{
@@ -428,7 +441,6 @@ function montreSezione(sezioneId) {
     if (sez) sez.classList.remove('hidden');
 }
 
-// Alias per correggere eventuale typo interno alla chiamata dei button
 window.mostraSezione = montreSezione;
 
 window.onload = function() {
