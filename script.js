@@ -63,7 +63,6 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
     const tempKey = keys.find(k => k.toLowerCase().includes('temp'));
     const tempAttuale = tempKey ? parseFloat(String(rigaDati[tempKey]).replace(',', '.')) : NaN;
     
-    // Rilevamento dinamico dell'ultimo reintegro dal registro contatori integrato nel web
     let reintegroLitri = 0;
     if (datiRegistriGlobali.contatori && datiRegistriGlobali.contatori.length > 0) {
         const ultimaRigaContatori = datiRegistriGlobali.contatori[datiRegistriGlobali.contatori.length - 1];
@@ -249,7 +248,7 @@ function caricaTuttiIRegistri() {
         promesseCaricamento.push(p);
     });
 
-    // All'avvio iniziale si focalizza sulla sezione predefinita (Chimico)
+    // Avvio iniziale sul registro chimico
     Promise.all(promesseCaricamento).then(() => {
         setTimeout(() => {
             eseguiScrollAlDatoOggi('chimico');
@@ -257,7 +256,7 @@ function caricaTuttiIRegistri() {
     });
 }
 
-// === FUNZIONE DI SCROLL DINAMICA PER TUTTI I REGISTRI ===
+// === FUNZIONE DI SCROLL DINAMICA UNIVERSALE PER TUTTI I REGISTRI ===
 function eseguiScrollAlDatoOggi(tipoRegistro) {
     const config = REGISTRI_FILES[tipoRegistro];
     if (!config) return;
@@ -266,26 +265,47 @@ function eseguiScrollAlDatoOggi(tipoRegistro) {
     if (!tabellaTarget) return;
 
     const righe = tabellaTarget.querySelectorAll('tbody tr');
+    if (righe.length === 0) return;
+
     let ultimaRigaConDati = null;
 
-    // Scansiona dal basso verso l'alto per beccare l'ultima giornata compilata davvero
+    // Scansiona dal basso verso l'alto
     for (let i = righe.length - 1; i >= 0; i--) {
         let celle = righe[i].querySelectorAll('td');
-        if (celle.length > 2) {
-            // Controlla se la terza o la quarta cella hanno un valore (indice di compilazione effettiva)
-            let haDatiCompilati = celle[2].innerText.trim() !== "" || celle[3].innerText.trim() !== "";
-            if (haDatiCompilati) {
+        
+        // Verifica se almeno una cella (esclusa la data alla cella [0] e l'ora alla cella [1]) contiene dati reali scritti
+        let rigaContieneDatiReali = false;
+        for (let j = 2; j < celle.length; j++) {
+            let contenuto Cella = celle[j].innerText.trim();
+            // Considera valido se non è vuoto e se non è semplicemente uno zero solitario di default
+            if (contenutoCella !== "" && contenutoCella !== "0" && contenutoCella !== "0,00") {
+                rigaContieneDatiReali = true;
+                break;
+            }
+        }
+
+        if (rigaContieneDatiReales) {
+            ultimaRigaConDati = righe[i];
+            break;
+        }
+    }
+
+    // Se non ha trovato nulla con criteri stringenti, prende l'ultima riga compilata generica che ha almeno qualcosa scritto oltre alla data
+    if (!ultimaRigaConDati) {
+        for (let i = righe.length - 1; i >= 0; i--) {
+            let celle = righe[i].querySelectorAll('td');
+            if (celle.length > 2 && (celle[2].innerText.trim() !== "" || (celle[3] && celle[3].innerText.trim() !== ""))) {
                 ultimaRigaConDati = righe[i];
                 break;
             }
         }
     }
 
-    // Se trova l'ultima riga scritta la centra fluidamente a schermo, altrimenti va in fondo
+    // Se trova l'ultima riga compie lo scroll centrato fluidamente, altrimenti va a fine tabella
     if (ultimaRigaConDati) {
         ultimaRigaConDati.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        tabellaTarget.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
 }
 
@@ -459,20 +479,20 @@ function apriGrafico(parametro, tipoRegistro) {
     }, 60);
 }
 
-// === GESTIONE VISIBILITÀ SEZIONI CON SCROLL AUTOMATICO AGGIORNATO ===
+// === GESTIONE VISIBILITÀ SEZIONI CON RENDERING SICURO ===
 function montreSezione(sezioneId) {
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
     const sez = document.getElementById(sezioneId);
     if (sez) {
         sez.classList.remove('hidden');
         
-        // Estrapola il nome del registro dall'ID della sezione (es: 'chimicoSection' -> 'chimico')
         let tipoReg = sezioneId.replace('Section', '');
         
-        // Esegue lo scroll mirato sulla tabella appena aperta
+        // Un timeout di 100ms assicura che il browser visualizzi la tabella a schermo intero
+        // prima di calcolare l'altezza geometrica dello scroll, facendolo funzionare ovunque!
         setTimeout(() => { 
             eseguiScrollAlDatoOggi(tipoReg); 
-        }, 60);
+        }, 100);
     }
 }
 
