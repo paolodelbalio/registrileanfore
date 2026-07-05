@@ -3,7 +3,7 @@ const PISCINA_CONFIG = {
     volume: 92, 
     target: { 
         ph: 7.30, 
-        cloro: 1.1,  // <--- AGGIORNATO: Quota ideale a 1,1 ppm
+        cloro: 1.1,  // Quota ideale a 1,1 ppm
         cya: 55,    
         temp: 27    
     },
@@ -85,7 +85,7 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
         
         let notaModulazione = "Sciogliere la polvere in un secchio d'acqua pulita e versare uniformemente davanti alle bocchette.";
         if (reintegroLitri > 1000) {
-            doseTotale = Math.round(doseTotale * 0.90); // Sconto prudenziale 10% se c'è stata forte diluizione
+            doseTotale = Math.round(doseTotale * 0.90);
             notaModulazione = `⚠️ Dose ridotta del 10% per effetto diluizione causato da recente reintegro di ${reintegroLitri.toLocaleString('it-IT')}L. ` + notaModulazione;
         }
         
@@ -121,7 +121,7 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
     } 
     else if (parametro === 'CloroLibero' && valoreAttuale > 2.0) {
         title.innerText = `🧪 Assistente Chimico - Abbattimento Cloro (${dataRilevamento} ore ${oraRilevamento})`;
-        const deltaCloro = valoreAttuale - PISCINA_CONFIG.target.cloro; // Calcolato su target dinamico
+        const deltaCloro = valoreAttuale - PISCINA_CONFIG.target.cloro;
         const doseTotale = Math.round(deltaCloro * 100 * PISCINA_CONFIG.prodotti.waterStop.dosePerPpm);
 
         consiglio = {
@@ -149,7 +149,7 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
     else if (parametro === 'CYA' && valoreAttuale > 60) {
         title.innerText = `💧 Assistente Chimico - Diluizione Preventiva Stabilizzante (${dataRilevamento})`;
         const targetSicurezzaCya = PISCINA_CONFIG.target.cya; 
-        const frazioneRimanente = targetSicurezzaCya / valoreActual;
+        const frazioneRimanente = targetSicurezzaCya / valoreAttuale;
         const percentualeDaScaricare = (1 - frazioneRimanente) * 100;
         const mcDaScaricare = PISCINA_CONFIG.volume * (1 - frazioneRimanente);
 
@@ -160,21 +160,6 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
             prodotto: "Reintegro Acqua Nuova (Pozzo / Acquedotto)",
             quantita: `Scaricare ${mcDaScaricare.toFixed(1)} m³ di acqua`,
             nota: `Effettuare uno scarico parziale controllato di ${mcDaScaricare.toFixed(1)} m³ (circa ${(Math.round(mcDaScaricare * 1000)).toLocaleString('it-IT')} litri) e ripristinare il livello.`
-        };
-    }
-    else if (parametro === 'Temperatura' && valoreAttuale > 30) {
-        title.innerText = `❄️ Assistente Chimico - Raffreddamento Vasca (${dataRilevamento} ore ${oraRilevamento})`;
-        const tempTarget = PISCINA_CONFIG.target.temp;
-        const tempImmissione = PISCINA_CONFIG.acquaReintegro.temp; 
-        const mcFredda = PISCINA_CONFIG.volume * (valoreAttuale - tempTarget) / (tempTarget - tempImmissione);
-
-        consiglio = {
-            parametro: "Temperatura Acqua",
-            stato: `Elevata (${valoreAttuale.toFixed(1)}°C)`,
-            azione: `Immettere acqua fredda a ${tempImmissione}°C per abbassare la temperatura a ${tempTarget}°C`,
-            prodotto: "Reintegro Termico Rapido (Acqua a 12°C)",
-            quantita: `Immettere ${mcFredda.toFixed(1)} m³ di acqua fresca`,
-            nota: `Attivare lo scarico e inserire simultaneamente circa ${mcFredda.toFixed(1)} m³ di acqua fredda.`
         };
     }
 
@@ -255,7 +240,11 @@ function caricaTuttiIRegistri() {
                 }
                 
                 datiRegistriGlobali[chiave] = datiTrasformati;
-                popolaTabellaHtml(datiTrasformati, config.tableId, chiave);
+                
+                // AGGIORNAMENTO: Mandiamo alla tabella i dati invertiti (le giornate recenti in cima)
+                // Usiamo una copia ([...datiTrasformati]) per evitare di invertire anche l'ordine dei grafici storico!
+                let datiTabellaVisuale = [...datiTrasformati].reverse();
+                popolaTabellaHtml(datiTabellaVisuale, config.tableId, chiave);
             },
             error: function(err) {
                 console.error("Errore caricamento per il file:", config.file, err);
