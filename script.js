@@ -248,11 +248,8 @@ function caricaTuttiIRegistri() {
         promesseCaricamento.push(p);
     });
 
-    Promise.all(promesseCaricamento).then(() => {
-        setTimeout(() => {
-            eseguiScrollAlDatoOggi('chimico');
-        }, 300);
-    });
+    // Rimosso lo scroll automatico all'avvio: la pagina resta ferma
+    Promise.all(promesseCaricamento);
 }
 
 // === FUNZIONE DI SCROLL DINAMICA UNIVERSALE PER TUTTI I REGISTRI ===
@@ -268,12 +265,10 @@ function eseguiScrollAlDatoOggi(tipoRegistro) {
 
     let ultimaRigaConDati = null;
 
-    // Scansiona dal basso verso l'alto
     for (let i = righe.length - 1; i >= 0; i--) {
         let celle = righe[i].querySelectorAll('td');
         
         let rigaContieneDatiReali = false;
-        // Salta data [0] e ora [1] se presenti, guarda il resto delle colonne compilate
         for (let j = 2; j < celle.length; j++) {
             let contenutoCella = celle[j].innerText.trim();
             if (contenutoCella !== "" && contenutoCella !== "0" && contenutoCella !== "0,00") {
@@ -288,7 +283,6 @@ function eseguiScrollAlDatoOggi(tipoRegistro) {
         }
     }
 
-    // Se non ha trovato nulla con criteri selettivi, prova una ricerca generica di testo
     if (!ultimaRigaConDati) {
         for (let i = righe.length - 1; i >= 0; i--) {
             let celle = righe[i].querySelectorAll('td');
@@ -299,7 +293,6 @@ function eseguiScrollAlDatoOggi(tipoRegistro) {
         }
     }
 
-    // Se trova l'ultima riga fa lo scroll centrato su quella riga, altrimenti va alla fine
     if (ultimaRigaConDati) {
         ultimaRigaConDati.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
@@ -497,5 +490,5 @@ window.mostraSezione = mostraSezione;
 
 window.onload = function() {
     caricaTuttiIRegistri();
-    mostraSezione('chimicoSection');
+    // Non mostra più 'chimicoSection' di default per lasciare la visuale ferma all'avvio
 };
