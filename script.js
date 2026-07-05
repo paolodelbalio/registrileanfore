@@ -249,32 +249,39 @@ function caricaTuttiIRegistri() {
         promesseCaricamento.push(p);
     });
 
-    // Quando tutti i file CSV sono stati letti e le tabelle create, esegui lo scroll automatico
+    // All'avvio iniziale si focalizza sulla sezione predefinita (Chimico)
     Promise.all(promesseCaricamento).then(() => {
         setTimeout(() => {
-            eseguiScrollAlDatoOggi();
+            eseguiScrollAlDatoOggi('chimico');
         }, 300);
     });
 }
 
-// === FUNZIONE DI SCROLL AUTOMATICO ALL'ULTIMA RIGA COMPILATA ===
-function eseguiScrollAlDatoOggi() {
-    const tabellaChimica = document.getElementById('chimicoTable');
-    if (!tabellaChimica) return;
+// === FUNZIONE DI SCROLL DINAMICA PER TUTTI I REGISTRI ===
+function eseguiScrollAlDatoOggi(tipoRegistro) {
+    const config = REGISTRI_FILES[tipoRegistro];
+    if (!config) return;
 
-    const righe = tabellaChimica.querySelectorAll('tbody tr');
+    const tabellaTarget = document.getElementById(config.tableId);
+    if (!tabellaTarget) return;
+
+    const righe = tabellaTarget.querySelectorAll('tbody tr');
     let ultimaRigaConDati = null;
 
-    // Trova l'ultima riga che ha almeno un valore inserito (es. il pH compilato)
+    // Scansiona dal basso verso l'alto per beccare l'ultima giornata compilata davvero
     for (let i = righe.length - 1; i >= 0; i--) {
         let celle = righe[i].querySelectorAll('td');
-        if (celle.length > 2 && celle[2].innerText.trim() !== "") { 
-            ultimaRigaConDati = righe[i];
-            break;
+        if (celle.length > 2) {
+            // Controlla se la terza o la quarta cella hanno un valore (indice di compilazione effettiva)
+            let haDatiCompilati = celle[2].innerText.trim() !== "" || celle[3].innerText.trim() !== "";
+            if (haDatiCompilati) {
+                ultimaRigaConDati = righe[i];
+                break;
+            }
         }
     }
 
-    // Se la trova scivola lì, altrimenti va a fondo pagina
+    // Se trova l'ultima riga scritta la centra fluidamente a schermo, altrimenti va in fondo
     if (ultimaRigaConDati) {
         ultimaRigaConDati.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
@@ -452,13 +459,20 @@ function apriGrafico(parametro, tipoRegistro) {
     }, 60);
 }
 
+// === GESTIONE VISIBILITÀ SEZIONI CON SCROLL AUTOMATICO AGGIORNATO ===
 function montreSezione(sezioneId) {
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
     const sez = document.getElementById(sezioneId);
     if (sez) {
         sez.classList.remove('hidden');
-        // Se cambi scheda, esegui lo scroll anche sulla tabella selezionata
-        setTimeout(() => { eseguiScrollAlDatoOggi(); }, 50);
+        
+        // Estrapola il nome del registro dall'ID della sezione (es: 'chimicoSection' -> 'chimico')
+        let tipoReg = sezioneId.replace('Section', '');
+        
+        // Esegue lo scroll mirato sulla tabella appena aperta
+        setTimeout(() => { 
+            eseguiScrollAlDatoOggi(tipoReg); 
+        }, 60);
     }
 }
 
