@@ -76,7 +76,7 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
 
     let consiglio = null;
 
-    if (parametro === 'pH' && valoreActual > 7.5) {
+    if (parametro === 'pH' && valoreAttuale > 7.5) {
         title.innerText = `🧪 Assistente Chimico - Correzione pH (${dataRilevamento} ore ${oraRilevamento})`;
         const deltaPh = valoreAttuale - PISCINA_CONFIG.target.ph;
         const puntiCentesimi = Math.round(deltaPh * 100);
@@ -104,7 +104,7 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
         let doseBase = deltaCloro * 100 * PISCINA_CONFIG.prodotti.cloroCa.dosePerPpm;
         let doseCorretta = Math.round(doseBase * fattoreTemp);
 
-        let notaTemp = `Dosaggio rapido granulare. Aggiungere negli skimmer o premiscelare.`;
+        let notaTemp = `Dosaggio rapido granulare. Aggiungere negli skimmer or premiscelare.`;
         if (fattoreTemp > 1.0 && !isNaN(tempAttuale)) {
             notaTemp += ` (Aumentato del ${Math.round((fattoreTemp - 1) * 100)}% per accelerazione termica a ${tempAttuale}°C).`;
         }
@@ -399,7 +399,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
     });
 }
 
-// === GENERAZIONE DEI GRAFICI HISTORICAL (30 GIORNI CON BANDE COLORATE SULLO SFONDO) ===
+// === GENERAZIONE DEI GRAFICI HISTORICAL (60 GIORNI CON BANDE COLORATE SULLO SFONDO) ===
 function apriGrafico(parametro, tipoRegistro) {
     if (!tipoRegistro) tipoRegistro = 'chimico';
     const overlay = document.getElementById('chartOverlay');
@@ -410,7 +410,7 @@ function apriGrafico(parametro, tipoRegistro) {
     if (containerDosi) containerDosi.style.display = 'none';
     if (canvas) canvas.style.display = 'block';
 
-    title.innerText = `Andamento Storico Parametro (Ultimi 30 Record): ${parametro}`;
+    title.innerText = `Andamento Storico Parametro (Ultimi 60 Record): ${parametro}`;
     overlay.classList.remove('hidden');
 
     let etichetteTutte = [];
@@ -432,9 +432,9 @@ function apriGrafico(parametro, tipoRegistro) {
         }
     });
 
-    // Filtro rigoroso: visualizza solo gli ultimi 30 record cronologici
-    let etichette = etichetteTutte.slice(-30);
-    let valori = valoriTutti.slice(-30);
+    // === FILTRO DEI 60 RECORD STORICI ===
+    let etichette = etichetteTutte.slice(-60);
+    let valori = valoriTutti.slice(-60);
 
     if (mioGrafico) {
         mioGrafico.destroy();
@@ -457,8 +457,7 @@ function apriGrafico(parametro, tipoRegistro) {
         opzioniScale.y.min = 0.0;
         opzioniScale.y.max = 2.5;
     } else if (['cloro combinato', 'cl. com'].includes(cleanParam)) {
-        opzioniScale.y.min = 0.0;
-        opzioniScale.y.max = 0.8;
+        // Rimosso min/max fissi per evitare l'effetto piatto: l'asse Y ora è AUTOMATICO e zoomato sui dati reali
     } else if (cleanParam === 'cya') {
         opzioniScale.y.min = 0;
         opzioniScale.y.max = 100;
@@ -466,7 +465,7 @@ function apriGrafico(parametro, tipoRegistro) {
         opzioniScale.y.min = 0;
     }
 
-    // Costruzione delle Bande Colorate interne al Grafico (Target ideali vs Limiti di legge)
+    // Costruzione delle Bande Colorate interne al Grafico
     const pluginSfondoFasce = {
         id: 'customCanvasBackgroundColor',
         beforeDraw: (chart) => {
@@ -484,30 +483,29 @@ function apriGrafico(parametro, tipoRegistro) {
                 }
             }
 
-            // Bande di sfondo dettagliate per l'analisi grafica
             if (['cloro libero', 'cloro totale', 'cl. lib', 'cl. tot'].includes(cleanParam)) {
-                disegnaBanda(0.0, 0.7, 'rgba(239, 68, 68, 0.12)');   // Rosso fuori legge (Basso)
-                disegnaBanda(0.7, 0.9, 'rgba(254, 240, 138, 0.35)');  // Giallo attenzione (Basso)
-                disegnaBanda(0.9, 1.2, 'rgba(16, 185, 129, 0.22)');  // VERDE FASCIA IDEALE (0.9 - 1.2)
-                disegnaBanda(1.2, 2.0, 'rgba(254, 240, 138, 0.35)');  // Giallo attenzione (Alto)
-                disegnaBanda(2.0, 5.0, 'rgba(239, 68, 68, 0.12)');   // Rosso fuori legge (Alto)
+                disegnaBanda(0.0, 0.7, 'rgba(239, 68, 68, 0.12)');   
+                disegnaBanda(0.7, 0.9, 'rgba(254, 240, 138, 0.35)');  
+                disegnaBanda(0.9, 1.2, 'rgba(16, 185, 129, 0.22)');  
+                disegnaBanda(1.2, 2.0, 'rgba(254, 240, 138, 0.35)');  
+                disegnaBanda(2.0, 5.0, 'rgba(239, 68, 68, 0.12)');   
             } 
             else if (cleanParam === 'ph') {
-                disegnaBanda(5.0, 6.5, 'rgba(239, 68, 68, 0.12)');   // Rosso fuori legge
-                disegnaBanda(6.5, 7.1, 'rgba(254, 240, 138, 0.35)');  // Giallo attenzione
-                disegnaBanda(7.1, 7.3, 'rgba(16, 185, 129, 0.22)');  // VERDE FASCIA IDEALE (7.1 - 7.3)
-                disegnaBanda(7.3, 7.5, 'rgba(254, 240, 138, 0.35)');  // Giallo attenzione
-                disegnaBanda(7.5, 9.0, 'rgba(239, 68, 68, 0.12)');   // Rosso fuori legge
+                disegnaBanda(5.0, 6.5, 'rgba(239, 68, 68, 0.12)');   
+                disegnaBanda(6.5, 7.1, 'rgba(254, 240, 138, 0.35)');  
+                disegnaBanda(7.1, 7.3, 'rgba(16, 185, 129, 0.22)');  
+                disegnaBanda(7.3, 7.5, 'rgba(254, 240, 138, 0.35)');  
+                disegnaBanda(7.5, 9.0, 'rgba(239, 68, 68, 0.12)');   
             } 
             else if (['cloro combinato', 'cl. com'].includes(cleanParam)) {
-                disegnaBanda(0.0, 0.2, 'rgba(16, 185, 129, 0.22)');  // VERDE IDEALE (0.0 - 0.2)
-                disegnaBanda(0.2, 0.4, 'rgba(254, 240, 138, 0.35)');  // Giallo attenzione (Fino a 0.4)
-                disegnaBanda(0.4, 2.0, 'rgba(239, 68, 68, 0.12)');   // Rosso fuori legge (Sopra 0.4)
+                disegnaBanda(0.0, 0.2, 'rgba(16, 185, 129, 0.22)');  
+                disegnaBanda(0.2, 0.4, 'rgba(254, 240, 138, 0.35)');  
+                disegnaBanda(0.4, 5.0, 'rgba(239, 68, 68, 0.12)');   
             } 
             else if (cleanParam === 'cya') {
-                disegnaBanda(0, 50, 'rgba(16, 185, 129, 0.22)');     // VERDE IDEALE (0 - 50)
-                disegnaBanda(50, 75, 'rgba(254, 240, 138, 0.35)');    // Giallo attenzione (Fino a 75)
-                disegnaBanda(75, 200, 'rgba(239, 68, 68, 0.12)');    // Rosso fuori legge (Sopra 75)
+                disegnaBanda(0, 50, 'rgba(16, 185, 129, 0.22)');     
+                disegnaBanda(50, 75, 'rgba(254, 240, 138, 0.35)');    
+                disegnaBanda(75, 200, 'rgba(239, 68, 68, 0.12)');    
             }
 
             ctx.restore();
@@ -525,7 +523,7 @@ function apriGrafico(parametro, tipoRegistro) {
                 datasets: [{
                     label: parametro,
                     data: valori,
-                    borderColor: '#1e293b', // Linea scura nitida per contrastare lo sfondo in trasparenza
+                    borderColor: '#1e293b', 
                     backgroundColor: tipoGrafico === 'bar' ? 'rgba(2, 132, 199, 0.8)' : '#1e293b',
                     borderWidth: 3,
                     pointRadius: tipoGrafico === 'bar' ? 0 : 4,         
