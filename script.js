@@ -207,7 +207,7 @@ function caricaTuttiIRegistri() {
         const config = REGISTRI_FILES[chiave];
         Papa.parse(config.file, {
             download: true,
-            header: true, // Usiamo true così associa i dati direttamente ai nomi colonna corretti
+            header: true, 
             skipEmptyLines: 'greedy',
             complete: function(results) {
                 let datiLetti = results.data;
@@ -217,16 +217,14 @@ function caricaTuttiIRegistri() {
                 let ultimaDataValida = "";
 
                 datiLetti.forEach(riga => {
-                    // Controlla se la riga è completamente vuota
                     let valori = Object.values(riga).map(v => v ? v.trim() : "");
                     if (valori.every(v => v === "")) return;
 
-                    // Gestione data per le righe delle 21:00 che non hanno la data ripetuta
                     let dataCorrente = riga["Data"] ? riga["Data"].trim() : "";
                     if (dataCorrente !== "") {
                         ultimaDataValida = dataCorrente;
                     } else if (dataCorrente === "" && riga["Ora"] && riga["Ora"].trim() === "21:00") {
-                        riga["Data"] = ultimaDataValida; // Eredita la data del mattino
+                        riga["Data"] = ultimaDataValida; 
                     }
 
                     datiTrasformati.push(riga);
@@ -234,7 +232,6 @@ function caricaTuttiIRegistri() {
                 
                 datiRegistriGlobali[chiave] = datiTrasformati;
                 
-                // Estrae le intestazioni reali per rigenerare la tabella corretta
                 let headers = Object.keys(datiLetti[0]).map(h => h ? h.trim() : "");
                 popolaTabellaHtml(datiTrasformati, config.tableId, chiave, headers);
             },
@@ -245,7 +242,7 @@ function caricaTuttiIRegistri() {
     });
 }
 
-// === GENERAZIONE DELLE TABELLE HTML CON FUNZIONE SCROLL INTEGRATA ===
+// === GENERAZIONE DELLE TABELLE HTML CON COLORAZIONE COMPLETA ===
 function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     const table = document.getElementById(tableId);
     if (!table || !dati || dati.length === 0) return;
@@ -304,6 +301,12 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
                     cell.onclick = () => mostraDosiInOverlay('Cloro', valoreFloat, riga);
                 } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
             }
+            // RISOLTO: Colorazione condizionale per la colonna Cl. Tot.
+            if (cleanKey === 'cl. tot') {
+                if (valoreFloat > 2.40 || valoreFloat < 0.90) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
             if (cleanKey === 'cl. com') {
                 if (valoreFloat > 0.40) {
                     cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
@@ -326,7 +329,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     });
 }
 
-// === GENERAZIONE DEI GRAFICI STORICI DINAMICI DIRETTI DA CHIAVE ===
+// === GENERAZIONE DEI GRAFICI STORICI DINAMICI DIRETTI DA CHIAVE ED ATTIVAZIONE SCROLL ===
 function apriGrafico(parametro, tipoRegistro) {
     if (!tipoRegistro) tipoRegistro = 'chimico';
     const overlay = document.getElementById('chartOverlay');
@@ -340,28 +343,27 @@ function apriGrafico(parametro, tipoRegistro) {
     title.innerText = `Andamento Storico Parametro: ${parametro}`;
     overlay.classList.remove('hidden');
 
-    let etichetteTutte = [];
-    let valoriTutti = [];
+    let etichette = [];
+    let valori = [];
     let cleanParam = parametro.toLowerCase().trim(); 
     let datiDaUsare = datiRegistriGlobali[tipoRegistro] || [];
 
+    // RISOLTO: Normalizzazione chiavi per trovare corrispondenza esatta con Cl. Com. o Cl. Lib
     datiDaUsare.forEach(riga => {
         let dataStr = riga["Data"] || riga["data"] || "";
         let oraStr = riga["Ora"] || riga["ora"] || "";
-        let valStr = riga[parametro] || "";
+        
+        let chiaveTrovata = Object.keys(riga).find(k => k.toLowerCase().trim() === cleanParam);
+        let valStr = chiaveTrovata ? riga[chiaveTrovata] : "";
         
         if (valStr !== "" && valStr !== undefined) {
-            let valFloat = parseFloat(valStr.replace(',', '.'));
+            let valFloat = parseFloat(String(valStr).replace(',', '.'));
             if (!isNaN(valFloat)) {
-                etichetteTutte.push(`${dataStr} ${oraStr}`.trim());
-                valoriTutti.push(valFloat);
+                etichette.push(`${dataStr} ${oraStr}`.trim());
+                valori.push(valFloat);
             }
         }
     });
-
-    // Filtra gli ultimi 60 record per permettere lo scorrimento fluido sull'asse X
-    let etichette = etichetteTutte.slice(-60);
-    let valori = valoriTutti.slice(-60);
 
     if (mioGrafico) {
         mioGrafico.destroy();
@@ -372,8 +374,15 @@ function apriGrafico(parametro, tipoRegistro) {
         tipoGrafico = 'bar';
     }
 
+    // RISOLTO FUNZIONE SCROLL: Manteniamo tutti i record nel dataset e visualizziamo un intervallo (finestra mobile)
+    let maxVisualizzati = 30;
+    let indexMin = Math.max(0, etichette.length - maxVisualizzati);
+    let indexMax = etichette.length - 1;
+
     let opzioniScale = {
         x: { 
+            min: etichette[indexMin], // Imposta la vista di partenza sugli ultimi 30 record
+            max: etichette[indexMax],
             ticks: { 
                 font: { size: 10 },
                 maxRotation: 45,
@@ -385,7 +394,6 @@ function apriGrafico(parametro, tipoRegistro) {
         }
     };
 
-    // Blocco e calibrazione scale grafiche basate sui parametri reali
     if (cleanParam === 'ph') {
         opzioniScale.y.min = 6.5;
         opzioniScale.y.max = 8.5;
@@ -394,16 +402,16 @@ function apriGrafico(parametro, tipoRegistro) {
         opzioniScale.y.max = 4.0;
     } else if (['cloro combinato', 'cloro com', 'cl. com'].includes(cleanParam)) { 
         opzioniScale.y.min = 0.0;
-        opzioniScale.y.max = 0.6; // Scala proporzionata e focalizzata per il Cloro Combinato
+        opzioniScale.y.max = 0.8; 
     } else if (cleanParam === 'cya') {
         opzioniScale.y.min = 0;
-        opzioniScale.y.max = 100;
+        opzioniScale.y.max = 120;
     } else if (cleanParam === 'temp') {
         opzioniScale.y.min = 10;
         opzioniScale.y.max = 35;
     }
 
-    // Disegno dinamico degli sfondi colorati a zone
+    // DISCETTAZIONE SFONDI: Plugin di disegno fasce aggiornato per includere anche CYA
     const pluginSfondoFasce = {
         id: 'customCanvasBackgroundColor',
         beforeDraw: (chart) => {
@@ -434,7 +442,12 @@ function apriGrafico(parametro, tipoRegistro) {
             else if (['cloro combinato', 'cloro com', 'cl. com'].includes(cleanParam)) {
                 disegnaBanda(0.0, 0.2, 'rgba(16, 185, 129, 0.15)');  
                 disegnaBanda(0.2, 0.4, 'rgba(254, 240, 138, 0.25)'); 
-                disegnaBanda(0.4, 0.6, 'rgba(239, 68, 68, 0.12)');   
+                disegnaBanda(0.4, 0.8, 'rgba(239, 68, 68, 0.12)');   
+            }
+            // RISOLTO: Aggiunta fasce colorate per lo sfondo dell'Acido Cianurico (CYA)
+            else if (cleanParam === 'cya') {
+                disegnaBanda(0, 60, 'rgba(16, 185, 129, 0.15)');
+                disegnaBanda(60, 120, 'rgba(239, 68, 68, 0.1)');
             }
             ctx.restore();
         }
