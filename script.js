@@ -46,8 +46,8 @@ function caricaTuttiIRegistri() {
                 
                 datiRegistriGlobali[chiave] = datiTrasformati;
                 
-                // CORREZIONE CRASH: Trova la prima riga valida del CSV per estrarre le intestazioni corrette
-                let rigaValida PerHeaders = datiLetti.find(riga => {
+                // PROTEZIONE ANTICRASH: Cerca la prima riga reale che contiene dati per leggere le intestazioni
+                let rigaValidaPerHeaders = datiLetti.find(riga => {
                     let valori = Object.values(riga).map(v => v ? v.trim() : "");
                     return !valori.every(v => v === "");
                 }) || datiLetti[0];
