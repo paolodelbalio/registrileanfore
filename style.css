@@ -13,7 +13,7 @@ body {
     color: #333333;
     padding: 20px;
     line-height: 1.5;
-    overflow-y: auto; /* Garantisce che lo scorrimento verticale generale sia sempre attivo */
+    overflow-y: auto;
 }
 
 header {
@@ -69,7 +69,7 @@ header p {
 }
 
 /* ==========================================================================
-   3. SEZIONI E TABELLE (Risolto Scroll Laterale e Verticale)
+   3. SEZIONI E TABELLE
    ========================================================================== */
 .register-section {
     background-color: #ffffff;
@@ -89,7 +89,7 @@ header p {
 
 .table-wrapper {
     width: 100%;
-    overflow-x: auto; /* Consente lo scroll orizzontale su tabelle larghe */
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     border: 1px solid #e2e8f0;
     border-radius: 4px;
@@ -137,7 +137,7 @@ tr:hover td {
 }
 
 /* ==========================================================================
-   4. FINESTRE OVERLAY E DI TRATTAMENTO (Ripristinato stile pulito Foto 1)
+   4. FINESTRE OVERLAY (GRAFICI E CONSIGLI FOTO 1)
    ========================================================================== */
 .overlay {
     position: fixed;
@@ -152,7 +152,6 @@ tr:hover td {
     align-items: center;
 }
 
-/* Contenitore per il grafico storico */
 .overlay-content {
     background-color: #ffffff;
     padding: 30px;
@@ -191,35 +190,37 @@ tr:hover td {
     height: calc(100% - 60px) !important;
 }
 
-/* STRUTTURA ESATTA DELLO SCREENSHOT 1: Rettangolo bianco, pulito e distanziato */
+/* BLINDATO: Stile minimale, pulito e arioso della Foto 1 */
 .dosage-card {
-    background: #ffffff;
-    padding: 35px; /* Spazio interno ampio per allontanare i testi dai bordi */
-    border-radius: 8px;
-    box-shadow: 0 5px 25px rgba(0,0,0,0.15);
-    width: 90%;
-    max-width: 520px;
-    position: relative;
-    text-align: left;
-    line-height: 1.6;
+    background: #ffffff !important;
+    padding: 30px 35px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 25px rgba(0,0,0,0.15) !important;
+    width: 90% !important;
+    max-width: 480px !important;
+    position: relative !important;
+    text-align: left !important;
+    box-sizing: border-box !important;
 }
 
 .dosage-title {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: #000000;
-    margin-bottom: 20px; /* Separazione netta dal testo */
+    font-size: 1.35rem !important;
+    font-weight: bold !important;
+    color: #000000 !important;
+    margin-bottom: 18px !important;
+    display: block !important;
 }
 
 .dosage-card p {
-    font-size: 1rem;
-    color: #333333;
-    margin-bottom: 15px; /* Margini tra i paragrafi ben definiti */
+    font-size: 0.98rem !important;
+    color: #333333 !important;
+    margin-bottom: 14px !important;
+    line-height: 1.45 !important;
 }
 
 .dosage-card strong {
-    color: #000000;
-    font-weight: 700;
+    color: #000000 !important;
+    font-weight: 700 !important;
 }
 
 /* Utility */
