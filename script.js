@@ -29,7 +29,6 @@ function caricaTuttiIRegistri() {
                 let righeGrezze = results.data;
                 if (!righeGrezze || righeGrezze.length === 0) return;
                 
-                // Individua l'intestazione esatta pulendo i metadati descrittivi iniziali di LibreOffice
                 let indiceHeader = 0;
                 for (let i = 0; i < righeGrezze.length; i++) {
                     let celleSottoEsame = righeGrezze[i].map(v => v ? v.toLowerCase().trim() : "");
@@ -43,11 +42,9 @@ function caricaTuttiIRegistri() {
                 let datiFiltrati = [];
                 let ultimaDataValida = "";
 
-                // Estrai i dati reali posizionati sotto l'intestazione scoperta
                 for (let i = indiceHeader + 1; i < righeGrezze.length; i++) {
                     let rigaCorrente = righeGrezze[i];
                     
-                    // Allinea la riga alla lunghezza corretta delle intestazioni
                     while(rigaCorrente.length < headers.length) {
                         rigaCorrente.push("");
                     }
@@ -166,7 +163,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     });
 }
 
-// === AGGIORNATO: ASSISTENTE DOSAGGI INTERATTIVO CON STILE AVANZATO DI IERI ===
+// === STRUTTURA ED ESTETICA CORRETTA PER I DOSAGGI (STILE SCREENSHOT) ===
 function calcolaDosaggio(parametro, valoreCorrente) {
     const modal = document.getElementById('dosageModal');
     const content = document.getElementById('dosageContent');
@@ -177,28 +174,19 @@ function calcolaDosaggio(parametro, valoreCorrente) {
             let delta = valoreCorrente - 7.30; 
             let doseKg = ((delta * 10 * 10 * VOL_PISCINA) / 1000).toFixed(2);
             markup = `
-                <div class="dosage-title">Correzione Valore pH</div>
-                <div class="dosage-badge">VALORE ALTO: ${valoreCorrente.toFixed(2).replace('.', ',')}</div>
-                <p>Il pH rilevato è fuori norma. Per stabilizzare l'acqua e ottimizzare l'azione del cloro libero, è necessario abbassarlo al valore target ideale.</p>
-                <div class="dosage-box-alert">
-                    <p style="margin:0; font-size:0.9rem; color:#475569;">Dose consigliata per ${VOL_PISCINA} m³ (Target 7,30):</p>
-                    <div class="dosage-value-highlight">${doseKg.replace('.', ',')} Kg</div>
-                    <p style="margin:5px 0 0 0; color:#b91c1c; font-weight:600;">di pH MINUS (Correttore Acido Secco)</p>
-                </div>
-                <p style="font-size:0.85rem; color:#64748b;"><em>Versare il prodotto lentamente negli skimmer o diluirlo preventivamente in un secchio d'acqua distribuendolo uniformemente davanti alle bocchette di mandata.</em></p>
+                <div class="dosage-title">Consigli di Trattamento</div>
+                <p>Il valore del pH è alto (<strong>${valoreCorrente.toFixed(2).replace('.', ',')}</strong>).</p>
+                <p>Per abbassarlo al valore ideale di 7,30 inserire:</p>
+                <p>👉 <strong>${doseKg.replace('.', ',')} Kg</strong> di <strong>pH MINUS</strong>.</p>
             `;
         } else if (valoreCorrente < 7.20) {
             let delta = 7.30 - valoreCorrente;
             let doseKg = ((delta * 10 * 10 * VOL_PISCINA) / 1000).toFixed(2);
             markup = `
-                <div class="dosage-title">Correzione Valore pH</div>
-                <div class="dosage-badge" style="background-color:#dbeafe; color:#1e40af;">VALORE BASSO: ${valoreCorrente.toFixed(2).replace('.', ',')}</div>
-                <p>Il pH della vasca è troppo basso, rischiando di corrodere le parti metalliche o irritare la pelle.</p>
-                <div class="dosage-box-alert" style="background-color:#eff6ff; border-left-color:#3b82f6;">
-                    <p style="margin:0; font-size:0.9rem; color:#475569;">Dose consigliata per ${VOL_PISCINA} m³ (Target 7,30):</p>
-                    <div class="dosage-value-highlight" style="color:#2563eb;">${doseKg.replace('.', ',')} Kg</div>
-                    <p style="margin:5px 0 0 0; color:#1e40af; font-weight:600;">di pH PLUS (Incrementatore Alcalino)</p>
-                </div>
+                <div class="dosage-title">Consigli di Trattamento</div>
+                <p>Il valore del pH è basso (<strong>${valoreCorrente.toFixed(2).replace('.', ',')}</strong>).</p>
+                <p>Per alzarlo al valore ideale di 7,30 inserire:</p>
+                <p>👉 <strong>${doseKg.replace('.', ',')} Kg</strong> di <strong>pH PLUS</strong>.</p>
             `;
         }
     } 
@@ -208,48 +196,31 @@ function calcolaDosaggio(parametro, valoreCorrente) {
             let doseGrammi = delta * 1.5 * VOL_PISCINA;
             let doseKg = (doseGrammi / 1000).toFixed(2);
             markup = `
-                <div class="dosage-title">Integrazione Cloro Libero</div>
-                <div class="dosage-badge" style="background-color:#fef3c7; color:#92400e;">LIVELLO INSUFFICIENTE: ${valoreCorrente.toFixed(2).replace('.', ',')} ppm</div>
-                <p>Il livello di disinfettante attivo è sceso sotto la soglia di sicurezza normativa. È necessario un ripristino immediato.</p>
-                <div class="dosage-box-alert" style="background-color:#fffbeb; border-left-color:#f59e0b;">
-                    <p style="margin:0; font-size:0.9rem; color:#475569;">Dose per ${VOL_PISCINA} m³ per raggiungere il target ottimale (1,10 ppm):</p>
-                    <div class="dosage-value-highlight" style="color:#d97706;">${doseGrammi.toFixed(0)} g (${doseKg.replace('.', ',')} Kg)</div>
-                    <p style="margin:5px 0 0 0; color:#92400e; font-weight:600;">di IPOCLORITO DI CALCIO granulare</p>
-                </div>
-                <p style="font-size:0.85rem; color:#64748b;"><em>Nota: Si utilizza esclusivamente ipoclorito di calcio puro per non incrementare ulteriormente l'acido cianurico stabilizzante.</em></p>
+                <div class="dosage-title">Consigli di Trattamento</div>
+                <p>Il Cloro Libero è insufficiente (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
+                <p>Per raggiungere il target ottimale di 1,10 ppm aggiungere:</p>
+                <p>👉 <strong>${doseGrammi.toFixed(0)} g</strong> (circa <strong>${doseKg.replace('.', ',')} Kg</strong>) di <strong>Ipoclorito di Calcio</strong> granulare.</p>
             `;
         } else if (valoreCorrente > 2.00) {
             markup = `
-                <div class="dosage-title">Eccesso Cloro Libero</div>
-                <div class="dosage-badge">VALORE ELEVATO: ${valoreCorrente.toFixed(2).replace('.', ',')} ppm</div>
-                <p>La concentrazione di cloro libero supera i limiti massimi consentiti per la balneazione.</p>
-                <div class="dosage-box-alert">
-                    <p style="margin:0; font-weight:600; color:#b91c1c;">Azione Consigliata:</p>
-                    <p style="margin:5px 0 0 0; font-size:0.95rem; color:#334155;">Sospendere immediatamente ogni forma di clorazione. Rimuovere la copertura estiva e lasciare la vasca esposta al sole; l'azione dei raggi UV consumerà il cloro in eccesso in modo naturale.</p>
-                </div>
+                <div class="dosage-title">Consigli di Trattamento</div>
+                <p>Il Cloro Libero è molto alto (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
+                <p>👉 Sospendere temporaneamente le immissioni di cloro e scoprire la vasca. L'azione del sole abbatterà l'eccesso naturalmente.</p>
             `;
         }
     }
     else if (parametro === 'cl. com') {
         markup = `
-            <div class="dosage-title">Eccesso Cloro Combinato (Clorammine)</div>
-            <div class="dosage-badge">FUORI LIMITE: ${valoreCorrente.toFixed(2).replace('.', ',')} ppm</div>
-            <p>Le clorammine superano la soglia critica di 0,40 ppm. Questo causa il classico forte "odore di cloro", bruciore agli occhi e scarsa disinfezione reale.</p>
-            <div class="dosage-box-alert" style="background-color:#fff1f2; border-left-color:#e11d48;">
-                <p style="margin:0; font-weight:600; color:#b91c1c;">Intervento Tecnico Necessario:</p>
-                <p style="margin:5px 0 0 0; font-size:0.95rem; color:#334155;">Effettuare un **Controlavaggio profondo del filtro** seguito da un abbondante **Reintegro di acqua nuova pulita** per diluire il parametro. Se non scende, programmare una clorazione d'urto serale a impianto chiuso.</p>
-            </div>
+            <div class="dosage-title">Consigli di Trattamento</div>
+            <p>Il Cloro Combinato (clorammine) è fuori limite (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
+            <p>👉 Effettuare un <strong>controlavaggio filtro approfondito</strong> associato ad un abbondante <strong>reintegro di acqua nuova</strong>.</p>
         `;
     }
     else if (parametro === 'cya') {
         markup = `
-            <div class="dosage-title">Saturazione Acido Cianurico (CYA)</div>
-            <div class="dosage-badge">ALLARME: ${valoreCorrente.toFixed(0)} ppm</div>
-            <p>Il livello dello stabilizzatore ha superato la soglia critica di **60 ppm**. Un eccesso di cianurico blocca l'efficacia del cloro libero ("blocco del cloro"), rendendolo inefficiente anche a dosaggi elevati.</p>
-            <div class="dosage-box-alert" style="background-color:#fff1f2; border-left-color:#ef4444;">
-                <p style="margin:0; font-weight:600; color:#b91c1c;">Unica Soluzione Efficace:</p>
-                <p style="margin:5px 0 0 0; font-size:0.95rem; color:#334155;">L'acido cianurico non evapora e non può essere eliminato chimicamente. È tassativo **scaricare parzialmente la piscina (circa il 20-30% del volume)** ed effettuare un ampio reintegro con acqua fresca di acquedotto priva di stabilizzanti.</p>
-            </div>
+            <div class="dosage-title">Consigli di Trattamento</div>
+            <p>L'Acido Cianurico (stabilizzante) è elevato ed ha superato la soglia di allarme (<strong>${valoreCorrente.toFixed(0)} ppm</strong>).</p>
+            <p>👉 Si raccomanda di effettuare uno <strong>scarico parziale dell'acqua della piscina (20-30%)</strong> ed eseguire un successivo reintegro con acqua fresca pulita.</p>
         `;
     }
 
