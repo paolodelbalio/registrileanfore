@@ -46,7 +46,13 @@ function caricaTuttiIRegistri() {
                 
                 datiRegistriGlobali[chiave] = datiTrasformati;
                 
-                let headers = Object.keys(datiLetti[0]).map(h => h ? h.trim() : "");
+                // CORREZIONE CRASH: Trova la prima riga valida del CSV per estrarre le intestazioni corrette
+                let rigaValida PerHeaders = datiLetti.find(riga => {
+                    let valori = Object.values(riga).map(v => v ? v.trim() : "");
+                    return !valori.every(v => v === "");
+                }) || datiLetti[0];
+
+                let headers = Object.keys(rigaValidaPerHeaders).map(h => h ? h.trim() : "");
                 popolaTabellaHtml(datiTrasformati, config.tableId, chiave, headers);
             },
             error: function(err) {
