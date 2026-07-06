@@ -3,8 +3,8 @@ const PISCINA_CONFIG = {
     volume: 92, 
     target: { 
         ph: 7.30, 
-        cloro: 1.1,  // Quota ideale impostata a 1,1 ppm
-        cya: 60,     // Soglia allarme CYA a 60 ppm
+        cloro: 1.1,  
+        cya: 60,     
         temp: 27    
     },
     prodotti: {
@@ -131,7 +131,7 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
     else if (parametro === 'CYA' && valoreAttuale > 60) {
         title.innerText = `💧 Assistente Chimico - Diluizione Preventiva Stabilizzante (${dataRilevamento})`;
         const targetSicurezzaCya = PISCINA_CONFIG.target.cya; 
-        const frazioneRimanente = targetSicurezzaCya / valoreActuale;
+        const frazioneRimanente = targetSicurezzaCya / valoreAttuale;
         const percentualeDaScaricare = (1 - frazioneRimanente) * 100;
         const mcDaScaricare = PISCINA_CONFIG.volume * (1 - frazioneRimanente);
 
@@ -201,40 +201,41 @@ function closeOverlay() {
     if (containerDosi) containerDosi.style.display = 'none';
 }
 
-// === CARICAMENTO INTEGRALE CSV CON PARSING RIGIDO ===
+// === CARICAMENTO INTEGRALE CSV E ALLINEAMENTO DATE INTELLIGENTE ===
 function caricaTuttiIRegistri() {
     Object.keys(REGISTRI_FILES).forEach(chiave => {
         const config = REGISTRI_FILES[chiave];
         Papa.parse(config.file, {
             download: true,
-            header: false, // Lasciamo false per poter scorrere le righe sfasate come array nativi
+            header: true, // Usiamo true così associa i dati direttamente ai nomi colonna corretti
             skipEmptyLines: 'greedy',
             complete: function(results) {
-                let righe = results.data;
-                if (!righe || righe.length === 0) return;
-                
-                let indexHeader = righe.findIndex(r => r && r[0] && r[0].trim().toLowerCase().includes('data'));
-                if (indexHeader === -1) indexHeader = 0;
-                
-                let headers = righe[indexHeader].map(h => h ? h.trim() : "");
+                let datiLetti = results.data;
+                if (!datiLetti || datiLetti.length === 0) return;
                 
                 let datiTrasformati = [];
-                for (let i = indexHeader + 1; i < righe.length; i++) {
-                    let rigaCorrente = righe[i];
-                    if (!rigaCorrente || rigaCorrente.length === 0 || rigaCorrente.every(c => !c || c.trim() === "")) {
-                        continue;
+                let ultimaDataValida = "";
+
+                datiLetti.forEach(riga => {
+                    // Controlla se la riga è completamente vuota
+                    let valori = Object.values(riga).map(v => v ? v.trim() : "");
+                    if (valori.every(v => v === "")) return;
+
+                    // Gestione data per le righe delle 21:00 che non hanno la data ripetuta
+                    let dataCorrente = riga["Data"] ? riga["Data"].trim() : "";
+                    if (dataCorrente !== "") {
+                        ultimaDataValida = dataCorrente;
+                    } else if (dataCorrente === "" && riga["Ora"] && riga["Ora"].trim() === "21:00") {
+                        riga["Data"] = ultimaDataValida; // Eredita la data del mattino
                     }
-                    
-                    let obj = { _rawRow: rigaCorrente }; // Salviamo l'array originale intatto per il grafico
-                    headers.forEach((h, idx) => {
-                        if (h !== "") {
-                            obj[h] = rigaCorrente[idx] ? rigaCorrente[idx].trim() : "";
-                        }
-                    });
-                    datiTrasformati.push(obj);
-                }
+
+                    datiTrasformati.push(riga);
+                });
                 
                 datiRegistriGlobali[chiave] = datiTrasformati;
+                
+                // Estrae le intestazioni reali per rigenerare la tabella corretta
+                let headers = Object.keys(datiLetti[0]).map(h => h ? h.trim() : "");
                 popolaTabellaHtml(datiTrasformati, config.tableId, chiave, headers);
             },
             error: function(err) {
@@ -244,7 +245,7 @@ function caricaTuttiIRegistri() {
     });
 }
 
-// === GENERAZIONE DELLE TABELLE HTML CON FUNZIONE SCROLL RIPRISTINATA ===
+// === GENERAZIONE DELLE TABELLE HTML CON FUNZIONE SCROLL INTEGRATA ===
 function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     const table = document.getElementById(tableId);
     if (!table || !dati || dati.length === 0) return;
@@ -253,7 +254,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     let thead = table.createTHead();
     let rowHead = thead.insertRow();
     
-    headers.forEach((key, colIndex) => {
+    headers.forEach(key => {
         if (!key) return;
         let th = document.createElement("th");
         let cleanKey = key.toLowerCase().trim();
@@ -266,7 +267,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
         }
 
         if (daGraficare) {
-            th.innerHTML = `<button class="table-th-btn" onclick="apriGrafico('${key}', ${colIndex}, '${tipoRegistro}')">${key} 📊</button>`;
+            th.innerHTML = `<button class="table-th-btn" onclick="apriGrafico('${key}', '${tipoRegistro}')">${key} 📊</button>`;
         } else {
             th.innerText = key;
         }
@@ -325,8 +326,8 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     });
 }
 
-// === GRAFICI STORICI FUNZIONANTI CON SCROLL E RIPRISTINO VALORI VERI ===
-function apriGrafico(parametro, colIndex, tipoRegistro) {
+// === GENERAZIONE DEI GRAFICI STORICI DINAMICI DIRETTI DA CHIAVE ===
+function apriGrafico(parametro, tipoRegistro) {
     if (!tipoRegistro) tipoRegistro = 'chimico';
     const overlay = document.getElementById('chartOverlay');
     const title = document.getElementById('overlayTitle');
@@ -344,34 +345,21 @@ function apriGrafico(parametro, colIndex, tipoRegistro) {
     let cleanParam = parametro.toLowerCase().trim(); 
     let datiDaUsare = datiRegistriGlobali[tipoRegistro] || [];
 
-    datiDaUsare.forEach(obj => {
-        let arrayGrezzo = obj._rawRow;
-        if (!arrayGrezzo) return;
-
-        let dataStr = obj["Data"] || obj["data"] || "";
-        let oraStr = obj["Ora"] || obj["ora"] || "";
+    datiDaUsare.forEach(riga => {
+        let dataStr = riga["Data"] || riga["data"] || "";
+        let oraStr = riga["Ora"] || riga["ora"] || "";
+        let valStr = riga[parametro] || "";
         
-        // Lettura dinamica basata sull'indice di colonna per bypassare lo sfasamento delle virgole
-        let targetIndex = colIndex;
-        if (tipoRegistro === 'chimico' && arrayGrezzo[0] === "") {
-            // Se la riga serale salta la prima cella spostando tutto a sinistra di 1 posizione
-            targetIndex = colIndex - 1;
-        }
-
-        let valStr = arrayGrezzo[targetIndex] || "";
         if (valStr !== "" && valStr !== undefined) {
             let valFloat = parseFloat(valStr.replace(',', '.'));
             if (!isNaN(valFloat)) {
-                // Evita di inserire nel combinato il valore di 29 della temperatura causato dallo slittamento
-                if (!(cleanParam === 'cl. com' && valFloat > 5.0)) {
-                    etichetteTutte.push(`${dataStr} ${oraStr}`.trim());
-                    valoriTutti.push(valFloat);
-                }
+                etichetteTutte.push(`${dataStr} ${oraStr}`.trim());
+                valoriTutti.push(valFloat);
             }
         }
     });
 
-    // *** RIPRISTINO COMPLETO DELLA FUNZIONE SCROLL (LIMITAZIONE ULTIMI 60 RECORD) ***
+    // Filtra gli ultimi 60 record per permettere lo scorrimento fluido sull'asse X
     let etichette = etichetteTutte.slice(-60);
     let valori = valoriTutti.slice(-60);
 
@@ -385,24 +373,37 @@ function apriGrafico(parametro, colIndex, tipoRegistro) {
     }
 
     let opzioniScale = {
-        x: { ticks: { font: { size: 10 } } },
-        y: { ticks: { font: { size: 10 } } }
+        x: { 
+            ticks: { 
+                font: { size: 10 },
+                maxRotation: 45,
+                minRotation: 45
+            } 
+        },
+        y: { 
+            ticks: { font: { size: 10 } } 
+        }
     };
 
+    // Blocco e calibrazione scale grafiche basate sui parametri reali
     if (cleanParam === 'ph') {
         opzioniScale.y.min = 6.5;
-        opzioniScale.y.max = 8.2;
+        opzioniScale.y.max = 8.5;
     } else if (['cloro libero', 'cloro totale', 'cl. lib', 'cl. tot'].includes(cleanParam)) {
         opzioniScale.y.min = 0.0;
-        opzioniScale.y.max = 2.5;
+        opzioniScale.y.max = 4.0;
     } else if (['cloro combinato', 'cloro com', 'cl. com'].includes(cleanParam)) { 
         opzioniScale.y.min = 0.0;
-        opzioniScale.y.suggestedMax = 0.5; // Visualizzazione proporzionata senza schiacciare sul fondo
+        opzioniScale.y.max = 0.6; // Scala proporzionata e focalizzata per il Cloro Combinato
     } else if (cleanParam === 'cya') {
         opzioniScale.y.min = 0;
         opzioniScale.y.max = 100;
+    } else if (cleanParam === 'temp') {
+        opzioniScale.y.min = 10;
+        opzioniScale.y.max = 35;
     }
 
+    // Disegno dinamico degli sfondi colorati a zone
     const pluginSfondoFasce = {
         id: 'customCanvasBackgroundColor',
         beforeDraw: (chart) => {
@@ -423,17 +424,17 @@ function apriGrafico(parametro, colIndex, tipoRegistro) {
             if (cleanParam === 'ph') {
                 disegnaBanda(6.5, 7.2, 'rgba(239, 68, 68, 0.1)');   
                 disegnaBanda(7.2, 7.5, 'rgba(16, 185, 129, 0.15)'); 
-                disegnaBanda(7.5, 8.2, 'rgba(239, 68, 68, 0.1)');   
+                disegnaBanda(7.5, 8.5, 'rgba(239, 68, 68, 0.1)');   
             } 
             else if (['cloro libero', 'cl. lib'].includes(cleanParam)) {
                 disegnaBanda(0.0, 0.7, 'rgba(239, 68, 68, 0.1)');   
                 disegnaBanda(0.7, 2.0, 'rgba(16, 185, 129, 0.15)'); 
-                disegnaBanda(2.0, 2.5, 'rgba(239, 68, 68, 0.1)');   
+                disegnaBanda(2.0, 4.0, 'rgba(239, 68, 68, 0.1)');   
             } 
             else if (['cloro combinato', 'cloro com', 'cl. com'].includes(cleanParam)) {
                 disegnaBanda(0.0, 0.2, 'rgba(16, 185, 129, 0.15)');  
                 disegnaBanda(0.2, 0.4, 'rgba(254, 240, 138, 0.25)'); 
-                disegnaBanda(0.4, 1.0, 'rgba(239, 68, 68, 0.12)');   
+                disegnaBanda(0.4, 0.6, 'rgba(239, 68, 68, 0.12)');   
             }
             ctx.restore();
         }
@@ -453,7 +454,7 @@ function apriGrafico(parametro, colIndex, tipoRegistro) {
                     borderColor: '#1e293b',
                     backgroundColor: 'rgba(30, 41, 59, 0.1)',
                     borderWidth: 2,
-                    pointRadius: 3,         
+                    pointRadius: 4,         
                     pointHoverRadius: 6,      
                     tension: 0.15             
                 }]
