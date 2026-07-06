@@ -216,13 +216,11 @@ function apriGrafico(parametro, tipoRegistro) {
                 disegnaBanda(7.2, 7.5, 'rgba(16, 185, 129, 0.15)'); 
                 disegnaBanda(7.5, 8.5, 'rgba(239, 68, 68, 0.1)');   
             } 
-            // Inserite le fasce colorate sia per il Cloro Libero che per il Cloro Totale
             else if (['cl. lib', 'cl. tot'].includes(cleanParam)) {
                 disegnaBanda(0.0, 0.7, 'rgba(239, 68, 68, 0.1)');   
                 disegnaBanda(0.7, 2.0, 'rgba(16, 185, 129, 0.15)'); 
                 disegnaBanda(2.0, 4.0, 'rgba(239, 68, 68, 0.1)');   
             } 
-            // Inserite le fasce specifiche per il Cloro Combinato (fino a 0.2 ottimale, fino a 0.4 attenzione, sopra allarme)
             else if (cleanParam === 'cl. com') {
                 disegnaBanda(0.0, 0.2, 'rgba(16, 185, 129, 0.15)');  
                 disegnaBanda(0.2, 0.4, 'rgba(254, 240, 138, 0.25)'); 
