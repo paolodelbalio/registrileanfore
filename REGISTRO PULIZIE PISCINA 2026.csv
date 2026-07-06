@@ -81,11 +81,11 @@ dom 28 giu 26,07:00,G,,,Paolo,,,,
 ,,,,,,,,,
 lun 29 giu 26,07:00,G,,,Paolo,,Giornaliero,Settimanale,Mensile
 ,,,,,,,,,
-mar 30 giu 26,07:00,G,Lavato a pressione Lettini e Ombrelloni,,Paolo,,Bordo,Ombrelloni,Pompa filtro
+mar 30 giu 26,07:00,G,Lavato a pressione Lettini e Ombrelloni,"Cloro,",Paolo,,Bordo,Ombrelloni,Pompa filtro
 ,,,,,,,Linea battente,Bacheca,Pulizia
 mer 1 lug 26,07:00,GSM,lavato a pressione zona piedi nudi,,Paolo,,Doccia,Locale tecnico,
 ,,,,,,,Solarium,,
-gio 2 lug 26,07:00,G,"Tremporali, lavato tutto a pressione, era pieno d foglie",,Paolo,,Sdraio,,
+gio 2 lug 26,07:00,G,"Tremporali, lavato tutto a pressione, era pieno d foglie","Cloro,",Paolo,,Sdraio,,
 ,,,,,,,Cestini,,
 ven 3 lug 26,07:00,G ,Raccolto foglie solarium,,Paolo,,Pulizia,,
 ,,,,,,,,,
@@ -93,7 +93,7 @@ sab 4 lug 26,07:00,G,,,Paolo,,,,
 ,,,,,,,,,
 dom 5 lug 26,07:00,G,,,Paolo,,,,
 ,,,,,,,,,
-lun 6 lug 26,07:00,,,,,,Giornaliero,Settimanale,Mensile
+lun 6 lug 26,07:00,GS,"Pulito soffione doccia, pulito Robot",acido,Paolo,,Giornaliero,Settimanale,Mensile
 ,,,,,,,,,
 mar 7 lug 26,07:00,,,,,,Bordo,Ombrelloni,Pompa filtro
 ,,,,,,,Linea battente,Bacheca,Pulizia
