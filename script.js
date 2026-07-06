@@ -9,7 +9,6 @@ let datiRegistriGlobali = {
 
 const VOL_PISCINA = 92; // Volume vasca in m³
 
-// Mappatura esatta file CSV
 const REGISTRI_FILES = {
     chimico: { file: "REGISTRO CHIMICO 2026.csv", tableId: "chimicoTable" },
     contatori: { file: "REGISTRO CONTATORI.csv", tableId: "contatoriTable" },
@@ -17,7 +16,7 @@ const REGISTRI_FILES = {
     manutenzioni: { file: "REGISTRO MANUTENZIONE INTERVENTI .csv", tableId: "manutenzioniTable" }
 };
 
-// === CARICAMENTO INTEGRALE CSV CON SUPPORTO RIGHE PRE-HEADER RIGIDE ===
+// Carica tutti i file CSV
 function caricaTuttiIRegistri() {
     Object.keys(REGISTRI_FILES).forEach(chiave => {
         const config = REGISTRI_FILES[chiave];
@@ -44,10 +43,7 @@ function caricaTuttiIRegistri() {
 
                 for (let i = indiceHeader + 1; i < righeGrezze.length; i++) {
                     let rigaCorrente = righeGrezze[i];
-                    
-                    while(rigaCorrente.length < headers.length) {
-                        rigaCorrente.push("");
-                    }
+                    while(rigaCorrente.length < headers.length) rigaCorrente.push("");
                     
                     let valoriTrimmati = rigaCorrente.map(v => v ? v.trim() : "");
                     if (valoriTrimmati.every(v => v === "" || v === "0")) continue;
@@ -69,15 +65,17 @@ function caricaTuttiIRegistri() {
                 
                 datiRegistriGlobali[chiave] = datiFiltrati;
                 popolaTabellaHtml(datiFiltrati, config.tableId, chiave, headers);
-            },
-            error: function(err) {
-                console.error("Errore caricamento file:", config.file, err);
+                
+                // Forza lo scorrimento verso il basso al primo avvio sul registro chimico
+                if (chiave === 'chimico') {
+                    setTimeout(scollaAdUltimaRiga, 300);
+                }
             }
         });
     });
 }
 
-// === GENERAZIONE DELLE TABELLE HTML E INTERATTIVITÀ SULLE SOGLIE ===
+// Genera fisicamente le tabelle nel browser
 function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     const table = document.getElementById(tableId);
     if (!table || !dati || dati.length === 0) return;
@@ -124,7 +122,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
 
             if (isNaN(valoreFloat) || valoreTesto === "" || tipoRegistro !== 'chimico') return;
             
-            // Logica Colorazione e Interattività click
+            // Soglie con attivazione del click di dosaggio
             if (cleanKey === 'ph') {
                 if (valoreFloat > 7.50 || valoreFloat < 7.20) {
                     cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
@@ -163,7 +161,15 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     });
 }
 
-// === STRUTTURA ED ESTETICA CORRETTA PER I DOSAGGI (STILE SCREENSHOT) ===
+// Funzione Intelligente: scivola in automatico sulle righe della data odierna (fondo pagina)
+function scollaAdUltimaRiga() {
+    window.scrollTo({
+        top: document.body.scrollHeight,
+        behavior: 'smooth'
+    });
+}
+
+// Genera i testi corretti e spaziosi dentro la dosage-card
 function calcolaDosaggio(parametro, valoreCorrente) {
     const modal = document.getElementById('dosageModal');
     const content = document.getElementById('dosageContent');
@@ -205,21 +211,21 @@ function calcolaDosaggio(parametro, valoreCorrente) {
             markup = `
                 <div class="dosage-title">Consigli di Trattamento</div>
                 <p>Il Cloro Libero è molto alto (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
-                <p>👉 Sospendere temporaneamente le immissioni di cloro e scoprire la vasca. L'azione del sole abbatterà l'eccesso naturalmente.</p>
+                <p>👉 Sospendere temporaneamente le immissioni di cloro e scoprire la vasca per farlo scendere con il sole.</p>
             `;
         }
     }
     else if (parametro === 'cl. com') {
         markup = `
             <div class="dosage-title">Consigli di Trattamento</div>
-            <p>Il Cloro Combinato (clorammine) è fuori limite (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
+            <p>Il Cloro Combinato è fuori limite (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
             <p>👉 Effettuare un <strong>controlavaggio filtro approfondito</strong> associato ad un abbondante <strong>reintegro di acqua nuova</strong>.</p>
         `;
     }
     else if (parametro === 'cya') {
         markup = `
             <div class="dosage-title">Consigli di Trattamento</div>
-            <p>L'Acido Cianurico (stabilizzante) è elevato ed ha superato la soglia di allarme (<strong>${valoreCorrente.toFixed(0)} ppm</strong>).</p>
+            <p>L'Acido Cianurico ha superato la soglia critica (<strong>${valoreCorrente.toFixed(0)} ppm</strong>).</p>
             <p>👉 Si raccomanda di effettuare uno <strong>scarico parziale dell'acqua della piscina (20-30%)</strong> ed eseguire un successivo reintegro con acqua fresca pulita.</p>
         `;
     }
@@ -232,7 +238,7 @@ function chiudiDosaggio() {
     document.getElementById('dosageModal').classList.add('hidden');
 }
 
-// === GENERAZIONE DEI GRAFICI STORICI CON SOGLIE E FASCE COLORATE ===
+// Gestione dei grafici storici
 function apriGrafico(parametro, tipoRegistro) {
     if (!tipoRegistro) tipoRegistro = 'chimico';
     const overlay = document.getElementById('chartOverlay');
@@ -250,7 +256,6 @@ function apriGrafico(parametro, tipoRegistro) {
     datiDaUsare.forEach(riga => {
         let dataStr = riga["Data"] || riga["data"] || "";
         let oraStr = riga["Ora"] || riga["ora"] || "";
-        
         let chiaveTrovata = Object.keys(riga).find(k => k.toLowerCase().trim() === cleanParam);
         let valStr = chiaveTrovata ? riga[chiaveTrovata] : "";
         
@@ -263,38 +268,25 @@ function apriGrafico(parametro, tipoRegistro) {
         }
     });
 
-    if (mioGrafico) {
-        mioGrafico.destroy();
-    }
+    if (mioGrafico) mioGrafico.destroy();
 
-    let tipoGrafico = 'line';
-    if (cleanParam === 'n.ospiti' || cleanParam.includes('reintegro')) {
-        tipoGrafico = 'bar';
-    }
-
+    let tipoGrafico = (cleanParam === 'n.ospiti' || cleanParam.includes('reintegro')) ? 'bar' : 'line';
     let opzioniScale = {
         x: { ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 45 } },
         y: { ticks: { font: { size: 10 } } }
     };
 
-    if (cleanParam === 'ph') {
-        opzioniScale.y.min = 6.5; opzioniScale.y.max = 8.5;
-    } else if (['cl. lib', 'cl. tot'].includes(cleanParam)) {
-        opzioniScale.y.min = 0.0; opzioniScale.y.max = 4.0;
-    } else if (cleanParam === 'cl. com') { 
-        opzioniScale.y.min = 0.0; opzioniScale.y.max = 0.8; 
-    } else if (cleanParam === 'cya') {
-        opzioniScale.y.min = 0; opzioniScale.y.max = 120;
-    } else if (cleanParam === 'temp') {
-        opzioniScale.y.min = 10; opzioniScale.y.max = 35;
-    }
+    if (cleanParam === 'ph') { opzioniScale.y.min = 6.5; opzioniScale.y.max = 8.5; }
+    else if (['cl. lib', 'cl. tot'].includes(cleanParam)) { opzioniScale.y.min = 0.0; opzioniScale.y.max = 4.0; }
+    else if (cleanParam === 'cl. com') { opzioniScale.y.min = 0.0; opzioniScale.y.max = 0.8; }
+    else if (cleanParam === 'cya') { opzioniScale.y.min = 0; opzioniScale.y.max = 120; }
+    else if (cleanParam === 'temp') { opzioniScale.y.min = 10; opzioniScale.y.max = 35; }
 
     const pluginSfondoFasce = {
         id: 'customCanvasBackgroundColor',
         beforeDraw: (chart) => {
             const { ctx, chartArea: { top, bottom, left, right }, scales: { y } } = chart;
             ctx.save();
-
             function disegnaBanda(yMin, yMax, colore) {
                 let pixelTop = y.getPixelForValue(yMax);
                 let pixelBottom = y.getPixelForValue(yMin);
@@ -305,23 +297,19 @@ function apriGrafico(parametro, tipoRegistro) {
                     ctx.fillRect(left, pixelTop, right - left, pixelBottom - pixelTop);
                 }
             }
-
             if (cleanParam === 'ph') {
                 disegnaBanda(6.5, 7.2, 'rgba(239, 68, 68, 0.1)');   
                 disegnaBanda(7.2, 7.5, 'rgba(16, 185, 129, 0.15)'); 
                 disegnaBanda(7.5, 8.5, 'rgba(239, 68, 68, 0.1)');   
-            } 
-            else if (['cl. lib', 'cl. tot'].includes(cleanParam)) {
+            } else if (['cl. lib', 'cl. tot'].includes(cleanParam)) {
                 disegnaBanda(0.0, 0.7, 'rgba(239, 68, 68, 0.1)');   
                 disegnaBanda(0.7, 2.0, 'rgba(16, 185, 129, 0.15)'); 
                 disegnaBanda(2.0, 4.0, 'rgba(239, 68, 68, 0.1)');   
-            } 
-            else if (cleanParam === 'cl. com') {
+            } else if (cleanParam === 'cl. com') {
                 disegnaBanda(0.0, 0.2, 'rgba(16, 185, 129, 0.15)');  
                 disegnaBanda(0.2, 0.4, 'rgba(254, 240, 138, 0.25)'); 
                 disegnaBanda(0.4, 0.8, 'rgba(239, 68, 68, 0.12)');   
-            }
-            else if (cleanParam === 'cya') {
+            } else if (cleanParam === 'cya') {
                 disegnaBanda(0, 60, 'rgba(16, 185, 129, 0.15)');
                 disegnaBanda(60, 120, 'rgba(239, 68, 68, 0.1)');
             }
@@ -330,8 +318,6 @@ function apriGrafico(parametro, tipoRegistro) {
     };
 
     let ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     setTimeout(() => {
         mioGrafico = new Chart(ctx, {
             type: tipoGrafico,
@@ -344,30 +330,27 @@ function apriGrafico(parametro, tipoRegistro) {
                     backgroundColor: 'rgba(30, 41, 59, 0.1)',
                     borderWidth: 2,
                     pointRadius: 4,         
-                    pointHoverRadius: 6,      
                     tension: 0.15             
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: opzioniScale,
-                plugins: { legend: { display: false } }
-            },
+            options: { responsive: true, maintainAspectRatio: false, scales: opzioniScale, plugins: { legend: { display: false } } },
             plugins: [pluginSfondoFasce]
         });
     }, 60);
 }
 
 function closeOverlay() {
-    const overlay = document.getElementById('chartOverlay');
-    if (overlay) overlay.classList.add('hidden');
+    document.getElementById('chartOverlay').classList.add('hidden');
 }
 
+// Cambia la sezione visibile e fa scorrere subito verso il basso
 function mostraSezione(sezioneId) {
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
     const sez = document.getElementById(sezioneId);
-    if (sez) sez.classList.remove('hidden');
+    if (sez) {
+        sez.classList.remove('hidden');
+        setTimeout(scollaAdUltimaRiga, 100); // Scorre giù appena apri il nuovo registro
+    }
 }
 
 window.mostraSezione = mostraSezione;
