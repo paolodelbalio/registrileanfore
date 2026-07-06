@@ -25,7 +25,7 @@ let datiRegistriGlobali = {
     manutenzioni: []
 }; 
 
-// Mappatura file CSV con i nomi ESATTI rilevati nella tua cartella
+// Mappatura file CSV con i nomi ESATTI
 const REGISTRI_FILES = {
     chimico: { file: "REGISTRO CHIMICO 2026.csv", tableId: "chimicoTable" },
     contatori: { file: "REGISTRO CONTATORI.csv", tableId: "contatoriTable" },
@@ -199,9 +199,11 @@ function closeOverlay() {
     if (overlay) overlay.classList.add('hidden');
     if (canvas) canvas.style.display = 'block';
     if (containerDosi) containerDosi.style.display = 'none';
+    
+    document.body.style.overflow = 'auto';
 }
 
-// === CARICAMENTO INTEGRALE CSV E ALLINEAMENTO DATE INTELLIGENTE ===
+// === CARICAMENTO INTEGRALE CSV CON ESCLUSIONE DELLE RIGHE VUOTE STRUTTURALI ===
 function caricaTuttiIRegistri() {
     Object.keys(REGISTRI_FILES).forEach(chiave => {
         const config = REGISTRI_FILES[chiave];
@@ -217,8 +219,24 @@ function caricaTuttiIRegistri() {
                 let ultimaDataValida = "";
 
                 datiLetti.forEach(riga => {
-                    let valori = Object.values(riga).map(v => v ? v.trim() : "");
-                    if (valori.every(v => v === "")) return;
+                    // Controllo di pulizia profonda: escludiamo righe vuote del CSV composte solo da virgole
+                    let chiaviValide = Object.keys(riga).filter(k => k && k.trim() !== "");
+                    let haDatiVeri = false;
+                    
+                    chiaviValide.forEach(k => {
+                        let v = riga[k] ? riga[k].trim() : "";
+                        // Se la cella ha un valore che non sia solo "0" o stringa vuota nelle colonne principali, lo consideriamo un record valido
+                        if (v !== "" && v !== "0" && k.toLowerCase() !== "n.ospiti") {
+                            haDatiVeri = true;
+                        } else if (v === "0" && k.toLowerCase() === "n.ospiti") {
+                            // Teniamo i record con zero ospiti purché abbiano almeno un parametro orario o chimico
+                            if ((riga["Ora"] && riga["Ora"].trim() !== "") || (riga["pH"] && riga["pH"].trim() !== "")) {
+                                haDatiVeri = true;
+                            }
+                        }
+                    });
+
+                    if (!haDatiVeri) return; // Salta ed evita di intasare la pagina e rompere lo scroll
 
                     let dataCorrente = riga["Data"] ? riga["Data"].trim() : "";
                     if (dataCorrente !== "") {
@@ -232,7 +250,7 @@ function caricaTuttiIRegistri() {
                 
                 datiRegistriGlobali[chiave] = datiTrasformati;
                 
-                let headers = Object.keys(datiLetti[0]).map(h => h ? h.trim() : "");
+                let headers = Object.keys(datiLetti[0]).map(h => h ? h.trim() : "").filter(h => h !== "");
                 popolaTabellaHtml(datiTrasformati, config.tableId, chiave, headers);
             },
             error: function(err) {
@@ -254,10 +272,10 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     headers.forEach(key => {
         if (!key) return;
         let th = document.createElement("th");
-        let cleanKey = key.toLowerCase().trim();
+        let cleanKey = key.toLowerCase().replace(/[\s\.]/g, '').trim(); 
         
         let daGraficare = false;
-        if (tipoRegistro === 'chimico' && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'n.ospiti', 'cya'].includes(cleanKey)) {
+        if (tipoRegistro === 'chimico' && ['ph', 'cllib', 'cltot', 'clcom', 'temp', 'nospiti', 'cya'].includes(cleanKey)) {
             daGraficare = true;
         } else if (tipoRegistro === 'contatori' && (cleanKey.includes('reintegro') || cleanKey.includes('ricircolo'))) {
             daGraficare = true;
@@ -278,10 +296,10 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
             if (!key) return;
             let cell = row.insertCell();
             let valoreTesto = riga[key] ? riga[key].trim() : "";
-            let cleanKey = key.toLowerCase().trim();
+            let cleanKey = key.toLowerCase().replace(/[\s\.]/g, '').trim();
             let valoreFloat = parseFloat(valoreTesto.replace(',', '.'));
 
-            if (!isNaN(valoreFloat) && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'cya'].includes(cleanKey)) {
+            if (!isNaN(valoreFloat) && ['ph', 'cllib', 'cltot', 'clcom', 'temp', 'cya'].includes(cleanKey)) {
                 cell.innerText = valoreFloat.toFixed(2).replace('.', ',');
             } else {
                 cell.innerText = valoreTesto;
@@ -295,19 +313,18 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
                     if (valoreFloat > 7.50) { cell.style.cursor = "pointer"; cell.onclick = () => mostraDosiInOverlay('pH', valoreFloat, riga); }
                 } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
             }
-            if (cleanKey === 'cl. lib') {
+            if (cleanKey === 'cllib') {
                 if (valoreFloat < 0.70 || valoreFloat > 2.00) {
                     cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
                     cell.onclick = () => mostraDosiInOverlay('Cloro', valoreFloat, riga);
                 } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
             }
-            // RISOLTO: Colorazione condizionale per la colonna Cl. Tot.
-            if (cleanKey === 'cl. tot') {
+            if (cleanKey === 'cltot') {
                 if (valoreFloat > 2.40 || valoreFloat < 0.90) {
                     cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
                 } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
             }
-            if (cleanKey === 'cl. com') {
+            if (cleanKey === 'clcom') {
                 if (valoreFloat > 0.40) {
                     cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
                     cell.onclick = () => mostraDosiInOverlay('CloroCombinato', valoreFloat, riga);
@@ -329,7 +346,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     });
 }
 
-// === GENERAZIONE DEI GRAFICI STORICI DINAMICI DIRETTI DA CHIAVE ED ATTIVAZIONE SCROLL ===
+// === GENERAZIONE DEI GRAFICI STORICI DINAMICI E FINESTRA MOBILE SCROLL DI CHART.JS ===
 function apriGrafico(parametro, tipoRegistro) {
     if (!tipoRegistro) tipoRegistro = 'chimico';
     const overlay = document.getElementById('chartOverlay');
@@ -345,15 +362,14 @@ function apriGrafico(parametro, tipoRegistro) {
 
     let etichette = [];
     let valori = [];
-    let cleanParam = parametro.toLowerCase().trim(); 
+    let cleanParam = parametro.toLowerCase().replace(/[\s\.]/g, '').trim(); 
     let datiDaUsare = datiRegistriGlobali[tipoRegistro] || [];
 
-    // RISOLTO: Normalizzazione chiavi per trovare corrispondenza esatta con Cl. Com. o Cl. Lib
     datiDaUsare.forEach(riga => {
         let dataStr = riga["Data"] || riga["data"] || "";
         let oraStr = riga["Ora"] || riga["ora"] || "";
         
-        let chiaveTrovata = Object.keys(riga).find(k => k.toLowerCase().trim() === cleanParam);
+        let chiaveTrovata = Object.keys(riga).find(k => k.toLowerCase().replace(/[\s\.]/g, '').trim() === cleanParam);
         let valStr = chiaveTrovata ? riga[chiaveTrovata] : "";
         
         if (valStr !== "" && valStr !== undefined) {
@@ -370,48 +386,36 @@ function apriGrafico(parametro, tipoRegistro) {
     }
 
     let tipoGrafico = 'line';
-    if (cleanParam === 'n.ospiti' || cleanParam.includes('reintegro')) {
+    if (cleanParam === 'nospiti' || cleanParam.includes('reintegro')) {
         tipoGrafico = 'bar';
     }
 
-    // RISOLTO FUNZIONE SCROLL: Manteniamo tutti i record nel dataset e visualizziamo un intervallo (finestra mobile)
-    let maxVisualizzati = 30;
+    // SCROLL INTERNO ATTIVATO: Manteniamo l'intero set storico ma limitiamo la vista iniziale agli ultimi 25 elementi
+    let maxVisualizzati = 25;
     let indexMin = Math.max(0, etichette.length - maxVisualizzati);
     let indexMax = etichette.length - 1;
 
     let opzioniScale = {
         x: { 
-            min: etichette[indexMin], // Imposta la vista di partenza sugli ultimi 30 record
+            min: etichette[indexMin], 
             max: etichette[indexMax],
-            ticks: { 
-                font: { size: 10 },
-                maxRotation: 45,
-                minRotation: 45
-            } 
+            ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 45 } 
         },
-        y: { 
-            ticks: { font: { size: 10 } } 
-        }
+        y: { ticks: { font: { size: 10 } } }
     };
 
     if (cleanParam === 'ph') {
-        opzioniScale.y.min = 6.5;
-        opzioniScale.y.max = 8.5;
-    } else if (['cloro libero', 'cloro totale', 'cl. lib', 'cl. tot'].includes(cleanParam)) {
-        opzioniScale.y.min = 0.0;
-        opzioniScale.y.max = 4.0;
-    } else if (['cloro combinato', 'cloro com', 'cl. com'].includes(cleanParam)) { 
-        opzioniScale.y.min = 0.0;
-        opzioniScale.y.max = 0.8; 
+        opzioniScale.y.min = 6.5; opzioniScale.y.max = 8.5;
+    } else if (['clorolibero', 'clorototale', 'cllib', 'cltot'].includes(cleanParam)) {
+        opzioniScale.y.min = 0.0; opzioniScale.y.max = 4.0;
+    } else if (['clorocombinato', 'clcom'].includes(cleanParam)) { 
+        opzioniScale.y.min = 0.0; opzioniScale.y.max = 0.8; 
     } else if (cleanParam === 'cya') {
-        opzioniScale.y.min = 0;
-        opzioniScale.y.max = 120;
+        opzioniScale.y.min = 0; opzioniScale.y.max = 120;
     } else if (cleanParam === 'temp') {
-        opzioniScale.y.min = 10;
-        opzioniScale.y.max = 35;
+        opzioniScale.y.min = 10; opzioniScale.y.max = 35;
     }
 
-    // DISCETTAZIONE SFONDI: Plugin di disegno fasce aggiornato per includere anche CYA
     const pluginSfondoFasce = {
         id: 'customCanvasBackgroundColor',
         beforeDraw: (chart) => {
@@ -434,17 +438,17 @@ function apriGrafico(parametro, tipoRegistro) {
                 disegnaBanda(7.2, 7.5, 'rgba(16, 185, 129, 0.15)'); 
                 disegnaBanda(7.5, 8.5, 'rgba(239, 68, 68, 0.1)');   
             } 
-            else if (['cloro libero', 'cl. lib'].includes(cleanParam)) {
+            // RISOLTO: Sfondi e fasce colorate speculari applicate sia a Cloro Libero che a Cloro Totale
+            else if (['clorolibero', 'cllib', 'clorototale', 'cltot'].includes(cleanParam)) {
                 disegnaBanda(0.0, 0.7, 'rgba(239, 68, 68, 0.1)');   
                 disegnaBanda(0.7, 2.0, 'rgba(16, 185, 129, 0.15)'); 
                 disegnaBanda(2.0, 4.0, 'rgba(239, 68, 68, 0.1)');   
             } 
-            else if (['cloro combinato', 'cloro com', 'cl. com'].includes(cleanParam)) {
+            else if (['clorocombinato', 'clcom'].includes(cleanParam)) {
                 disegnaBanda(0.0, 0.2, 'rgba(16, 185, 129, 0.15)');  
                 disegnaBanda(0.2, 0.4, 'rgba(254, 240, 138, 0.25)'); 
                 disegnaBanda(0.4, 0.8, 'rgba(239, 68, 68, 0.12)');   
             }
-            // RISOLTO: Aggiunta fasce colorate per lo sfondo dell'Acido Cianurico (CYA)
             else if (cleanParam === 'cya') {
                 disegnaBanda(0, 60, 'rgba(16, 185, 129, 0.15)');
                 disegnaBanda(60, 120, 'rgba(239, 68, 68, 0.1)');
@@ -476,24 +480,22 @@ function apriGrafico(parametro, tipoRegistro) {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: opzioniScale,
-                plugins: {
-                    legend: { display: false }
-                }
+                plugins: { legend: { display: false } }
             },
             plugins: [pluginSfondoFasce]
         });
     }, 60);
 }
 
-function montreSezione(sezioneId) {
+function mostraSezione(sezioneId) {
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
     const sez = document.getElementById(sezioneId);
     if (sez) sez.classList.remove('hidden');
 }
 
-window.mostraSezione = montreSezione;
+window.mostraSezione = mostraSezione;
 
 window.onload = function() {
     caricaTuttiIRegistri();
-    montreSezione('chimicoSection');
+    mostraSezione('chimicoSection');
 };
