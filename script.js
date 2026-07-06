@@ -41,15 +41,30 @@ function caricaTuttiIRegistri() {
                 let datiFiltrati = [];
                 let ultimaDataValida = "";
 
+                // Trova gli indici delle colonne pH e Ora per il controllo di blocco
+                let idxPH = headers.findIndex(h => h.toLowerCase().trim() === 'ph');
+                let idxOra = headers.findIndex(h => h.toLowerCase().trim() === 'ora');
+
                 for (let i = indiceHeader + 1; i < righeGrezze.length; i++) {
                     let rigaCorrente = righeGrezze[i];
                     while(rigaCorrente.length < headers.length) rigaCorrente.push("");
                     
                     let valoriTrimmati = rigaCorrente.map(v => v ? v.trim() : "");
                     
-                    // CONTROLLO RIGHE VUOTE: Unisce la riga eliminando virgole e zeri. Se è vuota, si ferma qui e ignora il resto del file
-                    let contenutoRiga = valoriTrimmati.join('').replace(/,/g, '').replace(/0/g, '').trim();
-                    if (contenutoRiga === "") continue;
+                    // RIFERIMENTO PRIMA LETTURA PH: Se siamo nel registro chimico, controlliamo la riga delle 07:00
+                    if (chiave === 'chimico' && idxPH !== -1 && idxOra !== -1) {
+                        let oraCorrente = valoriTrimmati[idxOra];
+                        let valorePH = valoriTrimmati[idxPH];
+                        
+                        // Se la riga è quella della mattina (07:00) e il pH è vuoto, i dati inseriti sono finiti. Ci fermiamo!
+                        if (oraCorrente === "07:00" && (valorePH === "" || valorePH === undefined)) {
+                            break; 
+                        }
+                    }
+
+                    // Per gli altri registri, saltiamo solo se la riga è totalmente vuota
+                    let rigaUnita = valoriTrimmati.join('').replace(/,/g, '').trim();
+                    if (rigaUnita === "") continue;
 
                     let objRiga = {};
                     headers.forEach((h, idx) => {
@@ -69,7 +84,7 @@ function caricaTuttiIRegistri() {
                 datiRegistriGlobali[chiave] = datiFiltrati;
                 popolaTabellaHtml(datiFiltrati, config.tableId, chiave, headers);
                 
-                // Fa scendere la pagina automaticamente all'avvio sul registro chimico
+                // All'avvio, fa scorrere la pagina fino in fondo sul registro chimico reale
                 if (chiave === 'chimico') {
                     setTimeout(scollaAdUltimaRiga, 300);
                 }
