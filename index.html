@@ -22,11 +22,8 @@
         <button onclick="mostraSezione('manutenzioniSection')">Manutenzioni</button>
     </div>
 
-    <section id=\"chimicoSection\" class="register-section">
+    <section id="chimicoSection" class="register-section">
         <h2>Registro Chimico</h2>
-        <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">
-            💡 <em>Suggerimento: Le celle evidenziate in rosso indicano parametri fuori soglia. Clicca direttamente sopra le celle rosse di <strong>pH</strong> o <strong>Cl. Lib</strong> per aprire l'assistente di dosaggio dei prodotti.</em>
-        </p>
         <div class="table-wrapper">
             <table id="chimicoTable"></table>
         </div>
@@ -57,9 +54,7 @@
         <div class="overlay-content">
             <span class="overlay-close" onclick="closeOverlay()">✖</span>
             <h3 id="overlayTitle">Andamento Storico</h3>
-            <div class="chart-scroll-container">
-                <canvas id="overlayCanvas"></canvas>
-            </div>
+            <canvas id="overlayCanvas"></canvas>
         </div>
     </div>
 
