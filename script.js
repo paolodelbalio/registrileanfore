@@ -131,7 +131,7 @@ function mostraDosiInOverlay(parametro, valoreAttuale, rigaDati) {
     else if (parametro === 'CYA' && valoreAttuale > 60) {
         title.innerText = `💧 Assistente Chimico - Diluizione Preventiva Stabilizzante (${dataRilevamento})`;
         const targetSicurezzaCya = PISCINA_CONFIG.target.cya; 
-        const frazioneRimanente = targetSicurezzaCya / valoreAttuale;
+        const frazioneRimanente = targetSicurezzaCya / valoreActuale;
         const percentualeDaScaricare = (1 - frazioneRimanente) * 100;
         const mcDaScaricare = PISCINA_CONFIG.volume * (1 - frazioneRimanente);
 
@@ -201,22 +201,20 @@ function closeOverlay() {
     if (containerDosi) containerDosi.style.display = 'none';
 }
 
-// === CARICAMENTO INTELLIGENTE DEI FILE CSV ===
+// === CARICAMENTO INTEGRALE CSV CON PARSING RIGIDO ===
 function caricaTuttiIRegistri() {
     Object.keys(REGISTRI_FILES).forEach(chiave => {
         const config = REGISTRI_FILES[chiave];
         Papa.parse(config.file, {
             download: true,
-            header: false,
+            header: false, // Lasciamo false per poter scorrere le righe sfasate come array nativi
             skipEmptyLines: 'greedy',
             complete: function(results) {
                 let righe = results.data;
                 if (!righe || righe.length === 0) return;
                 
-                let indexHeader = righe.findIndex(r => r && r[0] && r[0].trim().toLowerCase() === 'data');
-                if (indexHeader === -1) {
-                    indexHeader = 0;
-                }
+                let indexHeader = righe.findIndex(r => r && r[0] && r[0].trim().toLowerCase().includes('data'));
+                if (indexHeader === -1) indexHeader = 0;
                 
                 let headers = righe[indexHeader].map(h => h ? h.trim() : "");
                 
@@ -227,7 +225,7 @@ function caricaTuttiIRegistri() {
                         continue;
                     }
                     
-                    let obj = {};
+                    let obj = { _rawRow: rigaCorrente }; // Salviamo l'array originale intatto per il grafico
                     headers.forEach((h, idx) => {
                         if (h !== "") {
                             obj[h] = rigaCorrente[idx] ? rigaCorrente[idx].trim() : "";
@@ -237,7 +235,7 @@ function caricaTuttiIRegistri() {
                 }
                 
                 datiRegistriGlobali[chiave] = datiTrasformati;
-                popolaTabellaHtml(datiTrasformati, config.tableId, chiave);
+                popolaTabellaHtml(datiTrasformati, config.tableId, chiave, headers);
             },
             error: function(err) {
                 console.error("Errore caricamento per il file:", config.file, err);
@@ -246,17 +244,17 @@ function caricaTuttiIRegistri() {
     });
 }
 
-// === GENERAZIONE DELLE TABELLE HTML ===
-function popolaTabellaHtml(dati, tableId, tipoRegistro) {
+// === GENERAZIONE DELLE TABELLE HTML CON FUNZIONE SCROLL RIPRISTINATA ===
+function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     const table = document.getElementById(tableId);
     if (!table || !dati || dati.length === 0) return;
     table.innerHTML = "";
 
-    let keys = Object.keys(dati[0]);
     let thead = table.createTHead();
     let rowHead = thead.insertRow();
     
-    keys.forEach(key => {
+    headers.forEach((key, colIndex) => {
+        if (!key) return;
         let th = document.createElement("th");
         let cleanKey = key.toLowerCase().trim();
         
@@ -268,7 +266,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
         }
 
         if (daGraficare) {
-            th.innerHTML = `<button class="table-th-btn" onclick="apriGrafico('${key}', '${tipoRegistro}')">${key} 📊</button>`;
+            th.innerHTML = `<button class="table-th-btn" onclick="apriGrafico('${key}', ${colIndex}, '${tipoRegistro}')">${key} 📊</button>`;
         } else {
             th.innerText = key;
         }
@@ -278,7 +276,8 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
     let tbody = table.createTBody();
     dati.forEach(riga => {
         let row = tbody.insertRow();
-        keys.forEach(key => {
+        headers.forEach(key => {
+            if (!key) return;
             let cell = row.insertCell();
             let valoreTesto = riga[key] ? riga[key].trim() : "";
             let cleanKey = key.toLowerCase().trim();
@@ -322,16 +321,12 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
                     cell.onclick = () => mostraDosiInOverlay('CYA', valoreFloat, riga);
                 } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
             }
-            if (cleanKey === 'cl. tot') {
-                if (valoreFloat < 0.70 || valoreFloat > 2.40) { cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; } 
-                else { cell.style.backgroundColor = "#ecfdf5"; }
-            }
         });
     });
 }
 
-// === GENERAZIONE DEI GRAFICI STORICI DINAMICI CON FASCE COLORATE ===
-function apriGrafico(parametro, tipoRegistro) {
+// === GRAFICI STORICI FUNZIONANTI CON SCROLL E RIPRISTINO VALORI VERI ===
+function apriGrafico(parametro, colIndex, tipoRegistro) {
     if (!tipoRegistro) tipoRegistro = 'chimico';
     const overlay = document.getElementById('chartOverlay');
     const title = document.getElementById('overlayTitle');
@@ -341,7 +336,7 @@ function apriGrafico(parametro, tipoRegistro) {
     if (containerDosi) containerDosi.style.display = 'none';
     if (canvas) canvas.style.display = 'block';
 
-    title.innerText = `Andamento Storico Parametro (Ultimi 60 Record): ${parametro}`;
+    title.innerText = `Andamento Storico Parametro: ${parametro}`;
     overlay.classList.remove('hidden');
 
     let etichetteTutte = [];
@@ -349,20 +344,34 @@ function apriGrafico(parametro, tipoRegistro) {
     let cleanParam = parametro.toLowerCase().trim(); 
     let datiDaUsare = datiRegistriGlobali[tipoRegistro] || [];
 
-    datiDaUsare.forEach(riga => {
-        let dataStr = riga["Data"] || riga["data"] || "";
-        let oraStr = riga["Ora"] || riga["ora"] || "";
-        let valStr = riga[parametro] || "";
+    datiDaUsare.forEach(obj => {
+        let arrayGrezzo = obj._rawRow;
+        if (!arrayGrezzo) return;
+
+        let dataStr = obj["Data"] || obj["data"] || "";
+        let oraStr = obj["Ora"] || obj["ora"] || "";
         
+        // Lettura dinamica basata sull'indice di colonna per bypassare lo sfasamento delle virgole
+        let targetIndex = colIndex;
+        if (tipoRegistro === 'chimico' && arrayGrezzo[0] === "") {
+            // Se la riga serale salta la prima cella spostando tutto a sinistra di 1 posizione
+            targetIndex = colIndex - 1;
+        }
+
+        let valStr = arrayGrezzo[targetIndex] || "";
         if (valStr !== "" && valStr !== undefined) {
             let valFloat = parseFloat(valStr.replace(',', '.'));
             if (!isNaN(valFloat)) {
-                etichetteTutte.push(`${dataStr} ${oraStr}`.trim());
-                valoriTutti.push(valFloat);
+                // Evita di inserire nel combinato il valore di 29 della temperatura causato dallo slittamento
+                if (!(cleanParam === 'cl. com' && valFloat > 5.0)) {
+                    etichetteTutte.push(`${dataStr} ${oraStr}`.trim());
+                    valoriTutti.push(valFloat);
+                }
             }
         }
     });
 
+    // *** RIPRISTINO COMPLETO DELLA FUNZIONE SCROLL (LIMITAZIONE ULTIMI 60 RECORD) ***
     let etichette = etichetteTutte.slice(-60);
     let valori = valoriTutti.slice(-60);
 
@@ -388,15 +397,12 @@ function apriGrafico(parametro, tipoRegistro) {
         opzioniScale.y.max = 2.5;
     } else if (['cloro combinato', 'cloro com', 'cl. com'].includes(cleanParam)) { 
         opzioniScale.y.min = 0.0;
-        opzioniScale.y.suggestedMax = 0.5; // Blocca la scala proporzionata a 0,5 senza andare in negativo
+        opzioniScale.y.suggestedMax = 0.5; // Visualizzazione proporzionata senza schiacciare sul fondo
     } else if (cleanParam === 'cya') {
         opzioniScale.y.min = 0;
         opzioniScale.y.max = 100;
-    } else if (cleanParam.includes('reintegro')) {
-        opzioniScale.y.min = 0;
     }
 
-    // Plugin per disegnare lo sfondo colorato a zone differenziate
     const pluginSfondoFasce = {
         id: 'customCanvasBackgroundColor',
         beforeDraw: (chart) => {
@@ -425,9 +431,9 @@ function apriGrafico(parametro, tipoRegistro) {
                 disegnaBanda(2.0, 2.5, 'rgba(239, 68, 68, 0.1)');   
             } 
             else if (['cloro combinato', 'cloro com', 'cl. com'].includes(cleanParam)) {
-                disegnaBanda(0.0, 0.2, 'rgba(16, 185, 129, 0.15)');  // Zona verde ottimale
-                disegnaBanda(0.2, 0.4, 'rgba(254, 240, 138, 0.25)'); // Zona gialla pre-allarme
-                disegnaBanda(0.4, 1.0, 'rgba(239, 68, 68, 0.12)');   // Zona rossa fuori limite
+                disegnaBanda(0.0, 0.2, 'rgba(16, 185, 129, 0.15)');  
+                disegnaBanda(0.2, 0.4, 'rgba(254, 240, 138, 0.25)'); 
+                disegnaBanda(0.4, 1.0, 'rgba(239, 68, 68, 0.12)');   
             }
             ctx.restore();
         }
