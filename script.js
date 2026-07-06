@@ -7,9 +7,9 @@ let datiRegistriGlobali = {
     manutenzioni: []
 }; 
 
-const VOL_PISCINA = 92; // Volume fisso della vasca in metri cubi
+const VOL_PISCINA = 92; // Volume vasca in m³
 
-// Mappatura file CSV con i nomi dei file precisi su GitHub
+// Mappatura esatta file CSV
 const REGISTRI_FILES = {
     chimico: { file: "REGISTRO CHIMICO 2026.csv", tableId: "chimicoTable" },
     contatori: { file: "REGISTRO CONTATORI.csv", tableId: "contatoriTable" },
@@ -17,23 +17,23 @@ const REGISTRI_FILES = {
     manutenzioni: { file: "REGISTRO MANUTENZIONE INTERVENTI .csv", tableId: "manutenzioniTable" }
 };
 
-// === CARICAMENTO INTEGRALE CSV E FILTRAGGIO RIGHE VUOTE ===
+// === CARICAMENTO INTEGRALE CSV CON SUPPORTO RIGHE PRE-HEADER RIGIDE ===
 function caricaTuttiIRegistri() {
     Object.keys(REGISTRI_FILES).forEach(chiave => {
         const config = REGISTRI_FILES[chiave];
         Papa.parse(config.file, {
             download: true,
-            header: false, // Leggiamo come array puro per ripulire intestazioni descrittive extra
+            header: false, 
             skipEmptyLines: true,
             complete: function(results) {
                 let righeGrezze = results.data;
                 if (!righeGrezze || righeGrezze.length === 0) return;
                 
-                // 1. Trova la riga delle intestazioni effettive (salta titoli decorativi in cima)
+                // Individua l'intestazione esatta pulendo i metadati descrittivi iniziali di LibreOffice
                 let indiceHeader = 0;
                 for (let i = 0; i < righeGrezze.length; i++) {
-                    let uniti = righeGrezze[i].map(v => v ? v.toLowerCase().trim() : "");
-                    if (uniti.includes("data") && (uniti.includes("ora") || uniti.includes("intervento") || uniti.includes("reintegro"))) {
+                    let celleSottoEsame = righeGrezze[i].map(v => v ? v.toLowerCase().trim() : "");
+                    if (celleSottoEsame.includes("data")) {
                         indiceHeader = i;
                         break;
                     }
@@ -43,15 +43,18 @@ function caricaTuttiIRegistri() {
                 let datiFiltrati = [];
                 let ultimaDataValida = "";
 
-                // 2. Processa le righe dei dati reali sotto la riga di intestazione trovato
+                // Estrai i dati reali posizionati sotto l'intestazione scoperta
                 for (let i = indiceHeader + 1; i < righeGrezze.length; i++) {
                     let rigaCorrente = righeGrezze[i];
-                    let valoriTrimmati = rigaCorrente.map(v => v ? v.trim() : "");
                     
-                    // Se la riga è completamente vuota o contiene solo celle vuote, saltala
+                    // Allinea la riga alla lunghezza corretta delle intestazioni
+                    while(rigaCorrente.length < headers.length) {
+                        rigaCorrente.push("");
+                    }
+                    
+                    let valoriTrimmati = rigaCorrente.map(v => v ? v.trim() : "");
                     if (valoriTrimmati.every(v => v === "" || v === "0")) continue;
 
-                    // Costruiamo l'oggetto riga associando l'intestazione corretta
                     let objRiga = {};
                     headers.forEach((h, idx) => {
                         if (h) objRiga[h] = rigaCorrente[idx] ? rigaCorrente[idx].trim() : "";
@@ -71,13 +74,13 @@ function caricaTuttiIRegistri() {
                 popolaTabellaHtml(datiFiltrati, config.tableId, chiave, headers);
             },
             error: function(err) {
-                console.error("Errore caricamento per il file:", config.file, err);
+                console.error("Errore caricamento file:", config.file, err);
             }
         });
     });
 }
 
-// === GENERAZIONE DELLE TABELLE HTML E COLORAZIONE LOGICA SOGLIE ===
+// === GENERAZIONE DELLE TABELLE HTML E INTERATTIVITÀ SULLE SOGLIE ===
 function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     const table = document.getElementById(tableId);
     if (!table || !dati || dati.length === 0) return;
@@ -124,7 +127,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
 
             if (isNaN(valoreFloat) || valoreTesto === "" || tipoRegistro !== 'chimico') return;
             
-            // Logica colorazione parametri e attivazione click dosaggi su celle rosse
+            // Logica Colorazione e Interattività click
             if (cleanKey === 'ph') {
                 if (valoreFloat > 7.50 || valoreFloat < 7.20) {
                     cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
@@ -144,7 +147,8 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
             }
             if (cleanKey === 'cl. com') {
                 if (valoreFloat > 0.40) {
-                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
+                    cell.onclick = () => calcolaDosaggio('cl. com', valoreFloat);
                 } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
             }
             if (cleanKey === 'temp') {
@@ -154,71 +158,102 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
             }
             if (cleanKey === 'cya') {
                 if (valoreFloat > 60) {
-                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
+                    cell.onclick = () => calcolaDosaggio('cya', valoreFloat);
                 } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
             }
         });
     });
 }
 
-// === CALCOLO AUTOMATICO DOSI CONSIGLIATE PRODOTTI ===
+// === AGGIORNATO: ASSISTENTE DOSAGGI INTERATTIVO CON STILE AVANZATO DI IERI ===
 function calcolaDosaggio(parametro, valoreCorrente) {
     const modal = document.getElementById('dosageModal');
     const content = document.getElementById('dosageContent');
-    let testoDose = "";
+    let markup = "";
 
     if (parametro === 'ph') {
         if (valoreCorrente > 7.50) {
             let delta = valoreCorrente - 7.30; 
-            // Regola standard indicativa: ~10g di pH- per m3 per abbassare di 0.1 unità
-            let doseGrammi = delta * 10 * 10 * VOL_PISCINA;
-            let doseKg = (doseGrammi / 1000).toFixed(2);
-            testoDose = `
-                <p>Il valore di <strong>pH misura ${valoreCorrente.toFixed(2).replace('.', ',')}</strong> ed è superiore al limite massimo consigliato (7,50).</p>
-                <p style="margin: 15px 0; font-size: 1.1rem;">🎯 Obiettivo target: <strong>7,30</strong></p>
-                <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px; border-radius: 4px; font-weight: bold; font-size: 1.1rem; color: #b91c1c;">
-                    Aggiungere circa ${doseKg.replace('.', ',')} Kg di pH MINUS (Acido Secco)
+            let doseKg = ((delta * 10 * 10 * VOL_PISCINA) / 1000).toFixed(2);
+            markup = `
+                <div class="dosage-title">Correzione Valore pH</div>
+                <div class="dosage-badge">VALORE ALTO: ${valoreCorrente.toFixed(2).replace('.', ',')}</div>
+                <p>Il pH rilevato è fuori norma. Per stabilizzare l'acqua e ottimizzare l'azione del cloro libero, è necessario abbassarlo al valore target ideale.</p>
+                <div class="dosage-box-alert">
+                    <p style="margin:0; font-size:0.9rem; color:#475569;">Dose consigliata per ${VOL_PISCINA} m³ (Target 7,30):</p>
+                    <div class="dosage-value-highlight">${doseKg.replace('.', ',')} Kg</div>
+                    <p style="margin:5px 0 0 0; color:#b91c1c; font-weight:600;">di pH MINUS (Correttore Acido Secco)</p>
                 </div>
-                <p style="margin-top: 10px; font-size: 0.85rem; color: #555;"><em>Versare il prodotto lentamente nello skimmer o diluito in un secchio d'acqua davanti alle bocchette di mandata con la pompa in funzione.</em></p>
+                <p style="font-size:0.85rem; color:#64748b;"><em>Versare il prodotto lentamente negli skimmer o diluirlo preventivamente in un secchio d'acqua distribuendolo uniformemente davanti alle bocchette di mandata.</em></p>
             `;
         } else if (valoreCorrente < 7.20) {
             let delta = 7.30 - valoreCorrente;
-            let doseGrammi = delta * 10 * 10 * VOL_PISCINA;
-            let doseKg = (doseGrammi / 1000).toFixed(2);
-            testoDose = `
-                <p>Il valore di <strong>pH misura ${valoreCorrente.toFixed(2).replace('.', ',')}</strong> ed è inferiore al limite minimo consentito (7,20).</p>
-                <p style="margin: 15px 0; font-size: 1.1rem;">🎯 Obiettivo target: <strong>7,30</strong></p>
-                <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px; border-radius: 4px; font-weight: bold; font-size: 1.1rem; color: #1d4ed8;">
-                    Aggiungere circa ${doseKg.replace('.', ',')} Kg di pH PLUS (Incrementatore)
+            let doseKg = ((delta * 10 * 10 * VOL_PISCINA) / 1000).toFixed(2);
+            markup = `
+                <div class="dosage-title">Correzione Valore pH</div>
+                <div class="dosage-badge" style="background-color:#dbeafe; color:#1e40af;">VALORE BASSO: ${valoreCorrente.toFixed(2).replace('.', ',')}</div>
+                <p>Il pH della vasca è troppo basso, rischiando di corrodere le parti metalliche o irritare la pelle.</p>
+                <div class="dosage-box-alert" style="background-color:#eff6ff; border-left-color:#3b82f6;">
+                    <p style="margin:0; font-size:0.9rem; color:#475569;">Dose consigliata per ${VOL_PISCINA} m³ (Target 7,30):</p>
+                    <div class="dosage-value-highlight" style="color:#2563eb;">${doseKg.replace('.', ',')} Kg</div>
+                    <p style="margin:5px 0 0 0; color:#1e40af; font-weight:600;">di pH PLUS (Incrementatore Alcalino)</p>
                 </div>
             `;
         }
     } 
     else if (parametro === 'cl. lib') {
         if (valoreCorrente < 0.70) {
-            let delta = 1.10 - valoreCorrente; // Target ottimale fisso stabilito a 1.1 ppm
-            // Utilizzando Ipoclorito di Calcio granulare al 65-70%: servono ~1.5g per m3 per alzare di 1 ppm
+            let delta = 1.10 - valoreCorrente; 
             let doseGrammi = delta * 1.5 * VOL_PISCINA;
             let doseKg = (doseGrammi / 1000).toFixed(2);
-            testoDose = `
-                <p>Il valore di <strong>Cloro Libero misura ${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong> ed è troppo basso rispetto alle normative di sicurezza (minimo 0,70 ppm).</p>
-                <p style="margin: 15px 0; font-size: 1.1rem;">🎯 Obiettivo target ottimale: <strong>1,10 ppm</strong></p>
-                <div style="background-color: #fef3c7; border-left: 4px solid #d97706; padding: 12px; border-radius: 4px; font-weight: bold; font-size: 1.1rem; color: #b45309;">
-                    Aggiungere circa ${doseGrammi.toFixed(0)} grammi (${doseKg.replace('.', ',')} Kg) di IPOCLORITO DI CALCIO granulare
+            markup = `
+                <div class="dosage-title">Integrazione Cloro Libero</div>
+                <div class="dosage-badge" style="background-color:#fef3c7; color:#92400e;">LIVELLO INSUFFICIENTE: ${valoreCorrente.toFixed(2).replace('.', ',')} ppm</div>
+                <p>Il livello di disinfettante attivo è sceso sotto la soglia di sicurezza normativa. È necessario un ripristino immediato.</p>
+                <div class="dosage-box-alert" style="background-color:#fffbeb; border-left-color:#f59e0b;">
+                    <p style="margin:0; font-size:0.9rem; color:#475569;">Dose per ${VOL_PISCINA} m³ per raggiungere il target ottimale (1,10 ppm):</p>
+                    <div class="dosage-value-highlight" style="color:#d97706;">${doseGrammi.toFixed(0)} g (${doseKg.replace('.', ',')} Kg)</div>
+                    <p style="margin:5px 0 0 0; color:#92400e; font-weight:600;">di IPOCLORITO DI CALCIO granulare</p>
                 </div>
-                <p style="margin-top: 10px; font-size: 0.85rem; color: #555;"><em>Sciogliere preventivamente il prodotto in acqua tiepida prima di inserirlo per evitare depositi sul fondo del PVC.</em></p>
+                <p style="font-size:0.85rem; color:#64748b;"><em>Nota: Si utilizza esclusivamente ipoclorito di calcio puro per non incrementare ulteriormente l'acido cianurico stabilizzante.</em></p>
             `;
         } else if (valoreCorrente > 2.00) {
-            testoDose = `
-                <p>Il valore di <strong>Cloro Libero misura ${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong> ed è superiore alla soglia di balneabilità (massimo 2,00 ppm).</p>
-                <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px; border-radius: 4px; font-weight: bold; color: #78350f; margin-top: 15px;">
-                    Sospendere temporaneamente i dosaggi di cloro e attendere il consumo naturale guidato dai raggi UV del sole. Lasciare scoperta la piscina.
+            markup = `
+                <div class="dosage-title">Eccesso Cloro Libero</div>
+                <div class="dosage-badge">VALORE ELEVATO: ${valoreCorrente.toFixed(2).replace('.', ',')} ppm</div>
+                <p>La concentrazione di cloro libero supera i limiti massimi consentiti per la balneazione.</p>
+                <div class="dosage-box-alert">
+                    <p style="margin:0; font-weight:600; color:#b91c1c;">Azione Consigliata:</p>
+                    <p style="margin:5px 0 0 0; font-size:0.95rem; color:#334155;">Sospendere immediatamente ogni forma di clorazione. Rimuovere la copertura estiva e lasciare la vasca esposta al sole; l'azione dei raggi UV consumerà il cloro in eccesso in modo naturale.</p>
                 </div>
             `;
         }
     }
+    else if (parametro === 'cl. com') {
+        markup = `
+            <div class="dosage-title">Eccesso Cloro Combinato (Clorammine)</div>
+            <div class="dosage-badge">FUORI LIMITE: ${valoreCorrente.toFixed(2).replace('.', ',')} ppm</div>
+            <p>Le clorammine superano la soglia critica di 0,40 ppm. Questo causa il classico forte "odore di cloro", bruciore agli occhi e scarsa disinfezione reale.</p>
+            <div class="dosage-box-alert" style="background-color:#fff1f2; border-left-color:#e11d48;">
+                <p style="margin:0; font-weight:600; color:#b91c1c;">Intervento Tecnico Necessario:</p>
+                <p style="margin:5px 0 0 0; font-size:0.95rem; color:#334155;">Effettuare un **Controlavaggio profondo del filtro** seguito da un abbondante **Reintegro di acqua nuova pulita** per diluire il parametro. Se non scende, programmare una clorazione d'urto serale a impianto chiuso.</p>
+            </div>
+        `;
+    }
+    else if (parametro === 'cya') {
+        markup = `
+            <div class="dosage-title">Saturazione Acido Cianurico (CYA)</div>
+            <div class="dosage-badge">ALLARME: ${valoreCorrente.toFixed(0)} ppm</div>
+            <p>Il livello dello stabilizzatore ha superato la soglia critica di **60 ppm**. Un eccesso di cianurico blocca l'efficacia del cloro libero ("blocco del cloro"), rendendolo inefficiente anche a dosaggi elevati.</p>
+            <div class="dosage-box-alert" style="background-color:#fff1f2; border-left-color:#ef4444;">
+                <p style="margin:0; font-weight:600; color:#b91c1c;">Unica Soluzione Efficace:</p>
+                <p style="margin:5px 0 0 0; font-size:0.95rem; color:#334155;">L'acido cianurico non evapora e non può essere eliminato chimicamente. È tassativo **scaricare parzialmente la piscina (circa il 20-30% del volume)** ed effettuare un ampio reintegro con acqua fresca di acquedotto priva di stabilizzanti.</p>
+            </div>
+        `;
+    }
 
-    content.innerHTML = testoDose;
+    content.innerHTML = markup;
     modal.classList.remove('hidden');
 }
 
