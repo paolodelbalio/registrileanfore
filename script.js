@@ -1,194 +1,283 @@
-/* ==========================================================================
-   1. IMPOSTAZIONI GLOBALI E STRUTTURA
-   ========================================================================== */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+// Variabili globali per memorizzare i dati di tutti i registri
+let mioGrafico = null;
+let datiRegistriGlobali = {
+    chimico: [],
+    contatori: [],
+    pulizie: [],
+    manutenzioni: []
+}; 
+
+// Mappatura file CSV con i nomi dei file
+const REGISTRI_FILES = {
+    chimico: { file: "REGISTRO CHIMICO 2026.csv", tableId: "chimicoTable" },
+    contatori: { file: "REGISTRO CONTATORI.csv", tableId: "contatoriTable" },
+    pulizie: { file: "REGISTRO PULIZIE PISCINA 2026.csv", tableId: "pulizieTable" },
+    manutenzioni: { file: "REGISTRO MANUTENZIONE INTERVENTI .csv", tableId: "manutenzioniTable" }
+};
+
+// === CARICAMENTO INTEGRALE CSV ===
+function caricaTuttiIRegistri() {
+    Object.keys(REGISTRI_FILES).forEach(chiave => {
+        const config = REGISTRI_FILES[chiave];
+        Papa.parse(config.file, {
+            download: true,
+            header: true, 
+            skipEmptyLines: true,
+            complete: function(results) {
+                let datiLetti = results.data;
+                if (!datiLetti || datiLetti.length === 0) return;
+                
+                let datiTrasformati = [];
+                let ultimaDataValida = "";
+
+                datiLetti.forEach(riga => {
+                    let valori = Object.values(riga).map(v => v ? v.trim() : "");
+                    if (valori.every(v => v === "")) return;
+
+                    let dataCorrente = riga["Data"] ? riga["Data"].trim() : "";
+                    if (dataCorrente !== "") {
+                        ultimaDataValida = dataCorrente;
+                    } else if (dataCorrente === "" && riga["Ora"] && riga["Ora"].trim() === "21:00") {
+                        riga["Data"] = ultimaDataValida; 
+                    }
+
+                    datiTrasformati.push(riga);
+                });
+                
+                datiRegistriGlobali[chiave] = datiTrasformati;
+                
+                let headers = Object.keys(datiLetti[0]).map(h => h ? h.trim() : "");
+                popolaTabellaHtml(datiTrasformati, config.tableId, chiave, headers);
+            },
+            error: function(err) {
+                console.error("Errore caricamento per il file:", config.file, err);
+            }
+        });
+    });
 }
 
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: #f4f7f6;
-    color: #333333;
-    padding: 20px;
-    line-height: 1.5;
+// === GENERAZIONE DELLE TABELLE HTML ===
+function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
+    const table = document.getElementById(tableId);
+    if (!table || !dati || dati.length === 0) return;
+    table.innerHTML = "";
+
+    let thead = table.createTHead();
+    let rowHead = thead.insertRow();
+    
+    headers.forEach(key => {
+        if (!key) return;
+        let th = document.createElement("th");
+        let cleanKey = key.toLowerCase().trim();
+        
+        let daGraficare = false;
+        if (tipoRegistro === 'chimico' && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'n.ospiti', 'cya'].includes(cleanKey)) {
+            daGraficare = true;
+        } else if (tipoRegistro === 'contatori' && (cleanKey.includes('reintegro') || cleanKey.includes('ricircolo'))) {
+            daGraficare = true;
+        }
+
+        if (daGraficare) {
+            th.innerHTML = `<button class="table-th-btn" onclick="apriGrafico('${key}', '${tipoRegistro}')">${key} 📊</button>`;
+        } else {
+            th.innerText = key;
+        }
+        rowHead.appendChild(th);
+    });
+
+    let tbody = table.createTBody();
+    dati.forEach(riga => {
+        let row = tbody.insertRow();
+        headers.forEach(key => {
+            if (!key) return;
+            let cell = row.insertCell();
+            let valoreTesto = riga[key] ? riga[key].trim() : "";
+            let cleanKey = key.toLowerCase().trim();
+            let valoreFloat = parseFloat(valoreTesto.replace(',', '.'));
+
+            if (!isNaN(valoreFloat) && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'cya'].includes(cleanKey)) {
+                cell.innerText = valoreFloat.toFixed(2).replace('.', ',');
+            } else {
+                cell.innerText = valoreTesto;
+            }
+
+            if (isNaN(valoreFloat) || valoreTesto === "" || tipoRegistro !== 'chimico') return;
+            
+            if (cleanKey === 'ph') {
+                if (valoreFloat > 7.50 || valoreFloat < 7.20) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'cl. lib') {
+                if (valoreFloat < 0.70 || valoreFloat > 2.00) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'cl. tot') {
+                if (valoreFloat > 2.40 || valoreFloat < 0.90) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'cl. com') {
+                if (valoreFloat > 0.40) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'temp') {
+                if (valoreFloat < 24.0 || valoreFloat > 30.0) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c";
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'cya') {
+                if (valoreFloat > 60) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+        });
+    });
 }
 
-header {
-    text-align: center;
-    margin-bottom: 25px;
-    background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
-    color: #ffffff;
-    padding: 30px 20px;
-    border-radius: 6px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+// === GENERAZIONE DEI GRAFICI STORICI ===
+function apriGrafico(parametro, tipoRegistro) {
+    if (!tipoRegistro) tipoRegistro = 'chimico';
+    const overlay = document.getElementById('chartOverlay');
+    const title = document.getElementById('overlayTitle');
+    const canvas = document.getElementById('overlayCanvas');
+
+    title.innerText = `Andamento Storico Parametro: ${parametro}`;
+    overlay.classList.remove('hidden');
+
+    let etichette = [];
+    let valori = [];
+    let cleanParam = parametro.toLowerCase().trim(); 
+    let datiDaUsare = datiRegistriGlobali[tipoRegistro] || [];
+
+    datiDaUsare.forEach(riga => {
+        let dataStr = riga["Data"] || riga["data"] || "";
+        let oraStr = riga["Ora"] || riga["ora"] || "";
+        
+        let chiaveTrovata = Object.keys(riga).find(k => k.toLowerCase().trim() === cleanParam);
+        let valStr = chiaveTrovata ? riga[chiaveTrovata] : "";
+        
+        if (valStr !== "" && valStr !== undefined) {
+            let valFloat = parseFloat(String(valStr).replace(',', '.'));
+            if (!isNaN(valFloat)) {
+                etichette.push(`${dataStr} ${oraStr}`.trim());
+                valori.push(valFloat);
+            }
+        }
+    });
+
+    if (mioGrafico) {
+        mioGrafico.destroy();
+    }
+
+    let tipoGrafico = 'line';
+    if (cleanParam === 'n.ospiti' || cleanParam.includes('reintegro')) {
+        tipoGrafico = 'bar';
+    }
+
+    let opzioniScale = {
+        x: { ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 45 } },
+        y: { ticks: { font: { size: 10 } } }
+    };
+
+    if (cleanParam === 'ph') {
+        opzioniScale.y.min = 6.5; opzioniScale.y.max = 8.5;
+    } else if (['cl. lib', 'cl. tot'].includes(cleanParam)) {
+        opzioniScale.y.min = 0.0; opzioniScale.y.max = 4.0;
+    } else if (cleanParam === 'cl. com') { 
+        opzioniScale.y.min = 0.0; opzioniScale.y.max = 0.8; 
+    } else if (cleanParam === 'cya') {
+        opzioniScale.y.min = 0; opzioniScale.y.max = 120;
+    } else if (cleanParam === 'temp') {
+        opzioniScale.y.min = 10; opzioniScale.y.max = 35;
+    }
+
+    const pluginSfondoFasce = {
+        id: 'customCanvasBackgroundColor',
+        beforeDraw: (chart) => {
+            const { ctx, chartArea: { top, bottom, left, right }, scales: { y } } = chart;
+            ctx.save();
+
+            function disegnaBanda(yMin, yMax, colore) {
+                let pixelTop = y.getPixelForValue(yMax);
+                let pixelBottom = y.getPixelForValue(yMin);
+                pixelTop = Math.max(pixelTop, top);
+                pixelBottom = Math.min(pixelBottom, bottom);
+                if (pixelTop < pixelBottom) {
+                    ctx.fillStyle = colore;
+                    ctx.fillRect(left, pixelTop, right - left, pixelBottom - pixelTop);
+                }
+            }
+
+            if (cleanParam === 'ph') {
+                disegnaBanda(6.5, 7.2, 'rgba(239, 68, 68, 0.1)');   
+                disegnaBanda(7.2, 7.5, 'rgba(16, 185, 129, 0.15)'); 
+                disegnaBanda(7.5, 8.5, 'rgba(239, 68, 68, 0.1)');   
+            } 
+            else if (['cl. lib', 'cl. tot'].includes(cleanParam)) {
+                disegnaBanda(0.0, 0.7, 'rgba(239, 68, 68, 0.1)');   
+                disegnaBanda(0.7, 2.0, 'rgba(16, 185, 129, 0.15)'); 
+                disegnaBanda(2.0, 4.0, 'rgba(239, 68, 68, 0.1)');   
+            } 
+            else if (cleanParam === 'cl. com') {
+                disegnaBanda(0.0, 0.2, 'rgba(16, 185, 129, 0.15)');  
+                disegnaBanda(0.2, 0.4, 'rgba(254, 240, 138, 0.25)'); 
+                disegnaBanda(0.4, 0.8, 'rgba(239, 68, 68, 0.12)');   
+            }
+            else if (cleanParam === 'cya') {
+                disegnaBanda(0, 60, 'rgba(16, 185, 129, 0.15)');
+                disegnaBanda(60, 120, 'rgba(239, 68, 68, 0.1)');
+            }
+            ctx.restore();
+        }
+    };
+
+    let ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    setTimeout(() => {
+        mioGrafico = new Chart(ctx, {
+            type: tipoGrafico,
+            data: {
+                labels: etichette,
+                datasets: [{
+                    label: parametro,
+                    data: valori,
+                    borderColor: '#1e293b',
+                    backgroundColor: 'rgba(30, 41, 59, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 4,         
+                    pointHoverRadius: 6,      
+                    tension: 0.15             
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: opzioniScale,
+                plugins: { legend: { display: false } }
+            },
+            plugins: [pluginSfondoFasce]
+        });
+    }, 60);
 }
 
-header h1 {
-    font-size: 2.2rem;
-    margin-bottom: 8px;
-    font-weight: 700;
+function closeOverlay() {
+    const overlay = document.getElementById('chartOverlay');
+    if (overlay) overlay.classList.add('hidden');
 }
 
-header p {
-    font-size: 1.1rem;
-    opacity: 0.9;
+function mostraSezione(sezioneId) {
+    document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
+    const sez = document.getElementById(sezioneId);
+    if (sez) sez.classList.remove('hidden');
 }
 
-/* ==========================================================================
-   2. BOTTONI DI NAVIGAZIONE
-   ========================================================================== */
-.top-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-bottom: 25px;
-    flex-wrap: wrap;
-}
+window.mostraSezione = mostraSezione;
 
-.top-buttons button {
-    padding: 12px 24px;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #333333;
-    background-color: #ffffff;
-    border: 2px solid #e2e8f0;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.15s ease-in-out;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-}
-
-.top-buttons button:hover {
-    background-color: #0066cc;
-    color: #ffffff;
-    border-color: #0066cc;
-    transform: translateY(-1px);
-}
-
-/* ==========================================================================
-   3. SEZIONI E TABELLE
-   ========================================================================== */
-.register-section {
-    background-color: #ffffff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    margin-bottom: 30px;
-}
-
-.register-section h2 {
-    color: #1e293b;
-    margin-bottom: 15px;
-    font-size: 1.6rem;
-    border-bottom: 2px solid #f1f5f9;
-    padding-bottom: 8px;
-}
-
-.table-wrapper {
-    width: 100%;
-    overflow-x: auto;
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
-    font-size: 0.9rem;
-}
-
-th, td {
-    padding: 10px 12px;
-    border-bottom: 1px solid #e2e8f0;
-    white-space: nowrap; 
-}
-
-th {
-    background-color: #f8fafc;
-    color: #475569;
-    font-weight: 600;
-}
-
-tr:hover td {
-    background-color: #f8fafc;
-}
-
-.table-th-btn {
-    background: none;
-    border: none;
-    color: #0066cc;
-    font-weight: 600;
-    font-size: 0.9rem;
-    cursor: pointer;
-    padding: 2px 6px;
-    border-radius: 4px;
-}
-
-.table-th-btn:hover {
-    background-color: #e0f2fe;
-    text-decoration: underline;
-}
-
-/* ==========================================================================
-   4. MODALE OVERLAY
-   ========================================================================== */
-.overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.overlay-content {
-    background-color: #ffffff;
-    padding: 30px;
-    border-radius: 8px;
-    width: 85%;
-    max-width: 900px;
-    height: 75vh;
-    position: relative;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-    display: flex;
-    flex-direction: column;
-}
-
-.overlay-close {
-    position: absolute;
-    top: 15px;
-    right: 20px;
-    font-size: 24px;
-    cursor: pointer;
-    color: #888888;
-    transition: color 0.15s;
-}
-
-.overlay-close:hover {
-    color: #333333;
-}
-
-.overlay-content h3 {
-    margin-bottom: 20px;
-    color: #333333;
-    font-size: 1.4rem;
-    padding-right: 30px;
-}
-
-.overlay-content canvas {
-    flex-grow: 1;
-    width: 100% !important;
-    height: calc(100% - 60px) !important;
-}
-
-/* Classi di utilità */
-.hidden {
-    display: none !important;
-}
+window.onload = function() {
+    caricaTuttiIRegistri();
+    mostraSezione('chimicoSection');
+};
