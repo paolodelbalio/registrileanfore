@@ -37,7 +37,7 @@ header p {
 }
 
 /* ==========================================================================
-   2. BOTTONI DI NAVIGAZIONE
+   2. BOTTONI DI NAVIGAZIONE PRINCIPALE
    ========================================================================== */
 .top-buttons {
     display: flex;
@@ -116,24 +116,27 @@ tr:hover td {
     background-color: #f8fafc;
 }
 
+/* RIPRISTINATO: Pulsante Grafico Colorato ed Elegante */
 .table-th-btn {
-    background: none;
-    border: none;
-    color: #0066cc;
+    background-color: #e0f2fe;
+    border: 1px solid #bae6fd;
+    color: #0369a1;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     cursor: pointer;
-    padding: 2px 6px;
+    padding: 4px 8px;
     border-radius: 4px;
+    transition: all 0.1s ease-in-out;
 }
 
 .table-th-btn:hover {
-    background-color: #e0f2fe;
-    text-decoration: underline;
+    background-color: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
 }
 
 /* ==========================================================================
-   4. MODALE OVERLAY
+   4. MODALI E FINESTRE DI OVERLAY
    ========================================================================== */
 .overlay {
     position: fixed;
@@ -179,13 +182,74 @@ tr:hover td {
     margin-bottom: 20px;
     color: #333333;
     font-size: 1.4rem;
-    padding-right: 30px;
 }
 
 .overlay-content canvas {
     flex-grow: 1;
     width: 100% !important;
     height: calc(100% - 60px) !important;
+}
+
+/* RIPRISTINATO: Card dei Consigli elegante di ieri pomeriggio */
+.dosage-card {
+    background: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    width: 90%;
+    max-width: 550px;
+    position: relative;
+    border-top: 6px solid #ef4444;
+}
+
+.dosage-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 12px;
+}
+
+.dosage-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background-color: #fee2e2;
+    color: #b91c1c;
+    font-weight: 700;
+    font-size: 0.85rem;
+    border-radius: 20px;
+    margin-bottom: 15px;
+}
+
+.dosage-box-alert {
+    background-color: #fff1f2;
+    border-left: 4px solid #f43f5e;
+    padding: 15px;
+    border-radius: 6px;
+    margin: 15px 0;
+}
+
+.dosage-value-highlight {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #e11d48;
+}
+
+.dosage-close-btn {
+    width: 100%;
+    background-color: #1e293b;
+    color: #ffffff;
+    border: none;
+    padding: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 15px;
+    transition: background-color 0.1s;
+}
+
+.dosage-close-btn:hover {
+    background-color: #0f172a;
 }
 
 /* Classi di utilità */
