@@ -1,3 +1,4 @@
+// Variabili globali per memorizzare i dati di tutti i registri
 let mioGrafico = null;
 let datiRegistriGlobali = {
     chimico: [],
@@ -6,7 +7,7 @@ let datiRegistriGlobali = {
     manutenzioni: []
 }; 
 
-const VOL_PISCINA = 92; 
+const VOL_PISCINA = 92; // Volume vasca in m³
 
 const REGISTRI_FILES = {
     chimico: { file: "REGISTRO CHIMICO 2026.csv", tableId: "chimicoTable" },
@@ -15,6 +16,7 @@ const REGISTRI_FILES = {
     manutenzioni: { file: "REGISTRO MANUTENZIONE INTERVENTI .csv", tableId: "manutenzioniTable" }
 };
 
+// Carica tutti i file CSV
 function caricaTuttiIRegistri() {
     Object.keys(REGISTRI_FILES).forEach(chiave => {
         const config = REGISTRI_FILES[chiave];
@@ -45,9 +47,9 @@ function caricaTuttiIRegistri() {
                     
                     let valoriTrimmati = rigaCorrente.map(v => v ? v.trim() : "");
                     
-                    // RISOLTO SCROLL FINO A SETTEMBRE: Se la riga è completamente vuota o contiene solo zeri, si ferma e non genera righe inutili
-                    let rigaUnita = valoriTrimmati.join('').replace(/,/g, '').replace(/0/g, '').trim();
-                    if (rigaUnita === "") continue;
+                    // CONTROLLO RIGHE VUOTE: Unisce la riga eliminando virgole e zeri. Se è vuota, si ferma qui e ignora il resto del file
+                    let contenutoRiga = valoriTrimmati.join('').replace(/,/g, '').replace(/0/g, '').trim();
+                    if (contenutoRiga === "") continue;
 
                     let objRiga = {};
                     headers.forEach((h, idx) => {
@@ -67,6 +69,7 @@ function caricaTuttiIRegistri() {
                 datiRegistriGlobali[chiave] = datiFiltrati;
                 popolaTabellaHtml(datiFiltrati, config.tableId, chiave, headers);
                 
+                // Fa scendere la pagina automaticamente all'avvio sul registro chimico
                 if (chiave === 'chimico') {
                     setTimeout(scollaAdUltimaRiga, 300);
                 }
@@ -75,6 +78,7 @@ function caricaTuttiIRegistri() {
     });
 }
 
+// Genera le tabelle nel browser
 function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     const table = document.getElementById(tableId);
     if (!table || !dati || dati.length === 0) return;
@@ -159,6 +163,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     });
 }
 
+// Funzione di scorrimento automatico verso il fondo effettivo della pagina
 function scollaAdUltimaRiga() {
     window.scrollTo({
         top: document.body.scrollHeight,
@@ -166,7 +171,6 @@ function scollaAdUltimaRiga() {
     });
 }
 
-// RISOLTO: Genera la struttura HTML iniettando le classi per agganciare lo stile corretto di Foto 1
 function calcolaDosaggio(parametro, valoreCorrente) {
     const modal = document.getElementById('dosageModal');
     const content = document.getElementById('dosageContent');
@@ -177,7 +181,7 @@ function calcolaDosaggio(parametro, valoreCorrente) {
             let delta = valoreCorrente - 7.30; 
             let doseKg = ((delta * 10 * 10 * VOL_PISCINA) / 1000).toFixed(2);
             markup = `
-                <span class="dosage-title">Consigli di Trattamento</span>
+                <h3>Consigli di Trattamento</h3>
                 <p>Il valore del pH è alto (<strong>${valoreCorrente.toFixed(2).replace('.', ',')}</strong>).</p>
                 <p>Per abbassarlo al valore ideale di 7,30 inserire:</p>
                 <p>👉 <strong>${doseKg.replace('.', ',')} Kg</strong> di <strong>pH MINUS</strong>.</p>
@@ -186,7 +190,7 @@ function calcolaDosaggio(parametro, valoreCorrente) {
             let delta = 7.30 - valoreCorrente;
             let doseKg = ((delta * 10 * 10 * VOL_PISCINA) / 1000).toFixed(2);
             markup = `
-                <span class="dosage-title">Consigli di Trattamento</span>
+                <h3>Consigli di Trattamento</h3>
                 <p>Il valore del pH è basso (<strong>${valoreCorrente.toFixed(2).replace('.', ',')}</strong>).</p>
                 <p>Per alzarlo al valore ideale di 7,30 inserire:</p>
                 <p>👉 <strong>${doseKg.replace('.', ',')} Kg</strong> di <strong>pH PLUS</strong>.</p>
@@ -199,14 +203,14 @@ function calcolaDosaggio(parametro, valoreCorrente) {
             let doseGrammi = delta * 1.5 * VOL_PISCINA;
             let doseKg = (doseGrammi / 1000).toFixed(2);
             markup = `
-                <span class="dosage-title">Consigli di Trattamento</span>
+                <h3>Consigli di Trattamento</h3>
                 <p>Il Cloro Libero è insufficiente (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
                 <p>Per raggiungere il target ottimale di 1,10 ppm aggiungere:</p>
                 <p>👉 <strong>${doseGrammi.toFixed(0)} g</strong> (circa <strong>${doseKg.replace('.', ',')} Kg</strong>) di <strong>Ipoclorito di Calcio</strong> granulare.</p>
             `;
         } else if (valoreCorrente > 2.00) {
             markup = `
-                <span class="dosage-title">Consigli di Trattamento</span>
+                <h3>Consigli di Trattamento</h3>
                 <p>Il Cloro Libero è molto alto (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
                 <p>👉 Sospendere temporaneamente le immissioni di cloro e scoprire la vasca per farlo scendere con il sole.</p>
             `;
@@ -214,14 +218,14 @@ function calcolaDosaggio(parametro, valoreCorrente) {
     }
     else if (parametro === 'cl. com') {
         markup = `
-            <span class="dosage-title">Consigli di Trattamento</span>
+            <h3>Consigli di Trattamento</h3>
             <p>Il Cloro Combinato è fuori limite (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
             <p>👉 Effettuare un <strong>controlavaggio filtro approfondito</strong> associato ad un abbondante <strong>reintegro di acqua nuova</strong>.</p>
         `;
     }
     else if (parametro === 'cya') {
         markup = `
-            <span class="dosage-title">Consigli di Trattamento</span>
+            <h3>Consigli di Trattamento</h3>
             <p>L'Acido Cianurico ha superato la soglia critica (<strong>${valoreCorrente.toFixed(0)} ppm</strong>).</p>
             <p>👉 Si raccomanda di effettuare uno <strong>scarico parziale dell'acqua della piscina (20-30%)</strong> ed eseguire un successivo reintegro con acqua fresca pulita.</p>
         `;
