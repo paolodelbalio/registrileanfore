@@ -246,7 +246,7 @@ function caricaTuttiIRegistri() {
     });
 }
 
-// === GENERAZIONE DELLE TABELLE HTML CON PULSANTI GRAFICI ===
+// === GENERAZIONE DELLE TABELLE HTML ===
 function popolaTabellaHtml(dati, tableId, tipoRegistro) {
     const table = document.getElementById(tableId);
     if (!table || !dati || dati.length === 0) return;
@@ -330,7 +330,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro) {
     });
 }
 
-// === GENERAZIONE DEI GRAFICI STORICI DINAMICI (LINEE O BARRE) ===
+// === GENERAZIONE DEI GRAFICI STORICI DINAMICI CON FASCE COLORATE ===
 function apriGrafico(parametro, tipoRegistro) {
     if (!tipoRegistro) tipoRegistro = 'chimico';
     const overlay = document.getElementById('chartOverlay');
@@ -346,7 +346,7 @@ function apriGrafico(parametro, tipoRegistro) {
 
     let etichetteTutte = [];
     let valoriTutti = [];
-    let cleanParam = parametro.toLowerCase().trim();
+    let cleanParam = parametro.toLowerCase().trim(); 
     let datiDaUsare = datiRegistriGlobali[tipoRegistro] || [];
 
     datiDaUsare.forEach(riga => {
@@ -354,7 +354,7 @@ function apriGrafico(parametro, tipoRegistro) {
         let oraStr = riga["Ora"] || riga["ora"] || "";
         let valStr = riga[parametro] || "";
         
-        if (valStr !== "") {
+        if (valStr !== "" && valStr !== undefined) {
             let valFloat = parseFloat(valStr.replace(',', '.'));
             if (!isNaN(valFloat)) {
                 etichetteTutte.push(`${dataStr} ${oraStr}`.trim());
@@ -363,7 +363,6 @@ function apriGrafico(parametro, tipoRegistro) {
         }
     });
 
-    // Filtro per estendere lo storico a 60 record
     let etichette = etichetteTutte.slice(-60);
     let valori = valoriTutti.slice(-60);
 
@@ -382,24 +381,57 @@ function apriGrafico(parametro, tipoRegistro) {
     };
 
     if (cleanParam === 'ph') {
-        opzioniScale.y.min = 7.0;
-        opzioniScale.y.max = 8.0;
-    }
-    else if (['cloro libero', 'cloro totale', 'cl. lib', 'cl. tot'].includes(cleanParam)) {
+        opzioniScale.y.min = 6.5;
+        opzioniScale.y.max = 8.2;
+    } else if (['cloro libero', 'cloro totale', 'cl. lib', 'cl. tot'].includes(cleanParam)) {
         opzioniScale.y.min = 0.0;
         opzioniScale.y.max = 2.5;
-    }
-    else if (['cloro combinato', 'cl. com'].includes(cleanParam)) {
-        opzioniScale.y.min = 0.0;          // Evita valori negativi dovuti all'autoscale di Chart.js
-        opzioniScale.y.suggestedMax = 0.5; // Blocca il tetto minimo visualizzato a 0.5 se i record sono tutti a zero
-    }
-    else if (cleanParam.includes('reintegro')) {
+    } else if (['cloro combinato', 'cloro com', 'cl. com'].includes(cleanParam)) { 
+        opzioniScale.y.min = 0.0;
+        opzioniScale.y.suggestedMax = 0.5; // Blocca la scala proporzionata a 0,5 senza andare in negativo
+    } else if (cleanParam === 'cya') {
         opzioniScale.y.min = 0;
-        opzioniScale.y.ticks = {
-            stepSize: 500,
-            font: { size: 10 }
-        };
+        opzioniScale.y.max = 100;
+    } else if (cleanParam.includes('reintegro')) {
+        opzioniScale.y.min = 0;
     }
+
+    // Plugin per disegnare lo sfondo colorato a zone differenziate
+    const pluginSfondoFasce = {
+        id: 'customCanvasBackgroundColor',
+        beforeDraw: (chart) => {
+            const { ctx, chartArea: { top, bottom, left, right }, scales: { y } } = chart;
+            ctx.save();
+
+            function disegnaBanda(yMin, yMax, colore) {
+                let pixelTop = y.getPixelForValue(yMax);
+                let pixelBottom = y.getPixelForValue(yMin);
+                pixelTop = Math.max(pixelTop, top);
+                pixelBottom = Math.min(pixelBottom, bottom);
+                if (pixelTop < pixelBottom) {
+                    ctx.fillStyle = colore;
+                    ctx.fillRect(left, pixelTop, right - left, pixelBottom - pixelTop);
+                }
+            }
+
+            if (cleanParam === 'ph') {
+                disegnaBanda(6.5, 7.2, 'rgba(239, 68, 68, 0.1)');   
+                disegnaBanda(7.2, 7.5, 'rgba(16, 185, 129, 0.15)'); 
+                disegnaBanda(7.5, 8.2, 'rgba(239, 68, 68, 0.1)');   
+            } 
+            else if (['cloro libero', 'cl. lib'].includes(cleanParam)) {
+                disegnaBanda(0.0, 0.7, 'rgba(239, 68, 68, 0.1)');   
+                disegnaBanda(0.7, 2.0, 'rgba(16, 185, 129, 0.15)'); 
+                disegnaBanda(2.0, 2.5, 'rgba(239, 68, 68, 0.1)');   
+            } 
+            else if (['cloro combinato', 'cloro com', 'cl. com'].includes(cleanParam)) {
+                disegnaBanda(0.0, 0.2, 'rgba(16, 185, 129, 0.15)');  // Zona verde ottimale
+                disegnaBanda(0.2, 0.4, 'rgba(254, 240, 138, 0.25)'); // Zona gialla pre-allarme
+                disegnaBanda(0.4, 1.0, 'rgba(239, 68, 68, 0.12)');   // Zona rossa fuori limite
+            }
+            ctx.restore();
+        }
+    };
 
     let ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -412,11 +444,11 @@ function apriGrafico(parametro, tipoRegistro) {
                 datasets: [{
                     label: parametro,
                     data: valori,
-                    borderColor: '#0284c7',
-                    backgroundColor: tipoGrafico === 'bar' ? 'rgba(2, 132, 199, 0.7)' : 'rgba(2, 132, 199, 0.1)',
+                    borderColor: '#1e293b',
+                    backgroundColor: 'rgba(30, 41, 59, 0.1)',
                     borderWidth: 2,
-                    pointRadius: tipoGrafico === 'bar' ? 0 : 2,         
-                    pointHoverRadius: 5,      
+                    pointRadius: 3,         
+                    pointHoverRadius: 6,      
                     tension: 0.15             
                 }]
             },
@@ -427,7 +459,8 @@ function apriGrafico(parametro, tipoRegistro) {
                 plugins: {
                     legend: { display: false }
                 }
-            }
+            },
+            plugins: [pluginSfondoFasce]
         });
     }, 60);
 }
