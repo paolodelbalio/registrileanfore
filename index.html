@@ -26,7 +26,7 @@
             margin: 0 auto;
         }
 
-        /* --- INTESTAZIONE BLU DI IERI --- */
+        /* --- INTESTAZIONE BLU --- */
         header {
             text-align: center;
             margin-bottom: 25px;
@@ -48,7 +48,7 @@
             opacity: 0.9;
         }
 
-        /* --- PULSANTI DI NAVIGAZIONE (COLORAZIONE, FORMA E DIMENSIONI DI IERI) --- */
+        /* --- PULSANTI DI NAVIGAZIONE (AZZURRO IN TRASPARENZA) --- */
         .top-buttons {
             display: flex;
             justify-content: center;
@@ -61,16 +61,20 @@
             padding: 14px 28px;
             font-size: 1.05rem;
             font-weight: 600;
-            color: #1e3a8a; /* Blu scuro elegante di ieri */
-            background-color: #ffffff;
-            border: 2px solid #e2e8f0;
+            color: #004499; /* Testo blu scuro per leggibilità */
+            
+            /* Azzurro in trasparenza (effetto rgba con opacità al 15%) */
+            background-color: rgba(0, 153, 255, 0.15); 
+            
+            border: 2px solid rgba(0, 102, 204, 0.25); /* Bordo azzurro semi-trasparente */
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.15s ease-in-out;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03);
+            backdrop-filter: blur(4px); /* Effetto sfocatura sfondo sotto il pulsante */
         }
 
-        /* Effetto al passaggio del mouse di ieri (Cambia in Blu Intenso) */
+        /* Effetto al passaggio del mouse (diventa blu pieno e solido) */
         .top-buttons button:hover {
             background-color: #0066cc;
             color: #ffffff;
@@ -144,7 +148,7 @@
             white-space: nowrap;
         }
 
-        /* --- ASSISTENTE CHIMICO POPUP --- */
+        /* --- POPUP ASSISTENTE CHIMICO E GRAFICI --- */
         .overlay {
             position: fixed;
             top: 0;
@@ -227,7 +231,6 @@
             font-weight: 700 !important;
         }
 
-        /* Utility */
         .hidden {
             display: none !important;
         }
@@ -247,10 +250,10 @@
     </header>
 
     <div class="top-buttons">
-        <button onclick="mostraSezione('chimicoSection')">🧪 1. Registro Chimico</button>
-        <button onclick="mostraSezione('contatoriSection')">💧 2. Consumo Idrico</button>
-        <button onclick="mostraSezione('pulizieSection')">🧹 3. Registro Pulizie</button>
-        <button onclick="mostraSezione('manutenzioniSection')">🛠️ 4. Manutenzioni</button>
+        <button onclick="mostraSezione('chimicoSection')">🧪 Chimico</button>
+        <button onclick="mostraSezione('contatoriSection')">💧 Contatori</button>
+        <button onclick="mostraSezione('pulizieSection')">🧹 Pulizie</button>
+        <button onclick="mostraSezione('manutenzioniSection')">🛠️ Manutenzioni</button>
     </div>
 
     <section id="chimicoSection" class="register-section">
