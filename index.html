@@ -3,17 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assistente Chimico - Tabella</title>
+    <title>Dashboard Piscina 2026</title>
     <style>
+        /* Stili Generali di Base */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #f4f6f9;
+            margin: 0;
             padding: 20px;
-            display: flex;
-            justify-content: center;
+            color: #333;
+        }
+        .main-wrapper {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        h2 {
+            color: #1e3a8a;
+            font-size: 22px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
         }
 
-        /* Contenitore principale della tabella con la linea rossa a sinistra */
+        /* --- STILI ASSISTENTE CHIMICO --- */
+        .assistant-card {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            margin-bottom: 30px;
+        }
+        .assistant-title {
+            margin-top: 0;
+            color: #1e293b;
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
         .assistant-table-container {
             display: flex;
             background-color: #ffffff;
@@ -21,26 +50,18 @@
             border-radius: 6px;
             overflow: hidden;
             width: 100%;
-            max-width: 900px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
-
-        /* Indicatore rosso verticale */
         .status-indicator-bar {
             width: 6px;
-            background-color: #dc3545; /* Rosso per stato basso/allarme */
+            background-color: #dc3545; /* Rosso allarme */
             flex-shrink: 0;
         }
-
-        /* Tabella effettiva */
         .assistant-table {
             border-collapse: collapse;
             width: 100%;
             font-size: 14px;
             color: #333333;
         }
-
-        /* Intestazione */
         .assistant-table th {
             background-color: #eef4f9;
             color: #3a506b;
@@ -50,28 +71,19 @@
             border-bottom: 1px solid #dbe3eb;
             border-right: 1px solid #dbe3eb;
         }
-
-        /* Celle del corpo */
         .assistant-table td {
             padding: 16px 12px;
             border-right: 1px solid #e1e8ed;
             vertical-align: middle;
             line-height: 1.4;
         }
-
-        /* Rimuove il bordo destro dall'ultima colonna */
-        .assistant-table th:last-child, 
-        .assistant-table td:last-child {
+        .assistant-table th:last-child, .assistant-table td:last-child {
             border-right: none;
         }
-
-        /* Testo in grassetto per i parametri */
         .param-name {
             font-weight: bold;
             color: #1a1a1a;
         }
-
-        /* Badge Stato Basso (Rosa/Rosso) */
         .badge-low {
             background-color: #fff0f1;
             border: 1px solid #fecdd3;
@@ -81,10 +93,7 @@
             text-align: center;
             font-weight: bold;
             font-size: 13px;
-            line-height: 1.3;
         }
-
-        /* Box Dose Richiesta (Azzurro) */
         .dose-box {
             background-color: #e0f2fe;
             border: 1px solid #bae6fd;
@@ -96,64 +105,237 @@
             text-align: center;
             white-space: nowrap;
         }
+        .product-text { font-style: italic; color: #4b5563; }
+        .objective-text, .instruction-text { color: #4b5563; }
 
-        /* Testo corsivo per il prodotto */
-        .product-text {
-            font-style: italic;
-            color: #4b5563;
+        /* --- STILI REGISTRO STORICO --- */
+        .registro-container {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
         }
-
-        /* Testo istruzioni e obiettivo */
-        .instruction-text, .objective-text {
-            color: #4b5563;
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .registro-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            text-align: left;
+        }
+        .registro-table th, .registro-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .registro-table th {
+            background-color: #f8fafc;
+            color: #64748b;
+            font-weight: 600;
+        }
+        
+        /* --- STILI GRAFICI --- */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 20px;
+        }
+        .chart-card {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-<div class="assistant-table-container">
-    <div class="status-indicator-bar"></div>
-    
-    <table class="assistant-table">
-        <thead>
-            <tr>
-                <th style="width: 14%;">Parametro</th>
-                <th style="width: 12%;">Stato</th>
-                <th style="width: 24%;">Obiettivo</th>
-                <th style="width: 16%;">Prodotto</th>
-                <th style="width: 14%;">Dose Richiesta</th>
-                <th style="width: 20%;">Istruzioni</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>
-                    <span class="param-name">Cloro<br>Libero</span>
-                </td>
-                <td>
-                    <div class="badge-low">
-                        Basso<br>
-                        <span style="font-size: 12px; font-weight: normal;">(0.51 ppm)</span>
-                    </div>
-                </td>
-                <td class="objective-text">
-                    Aumentare di 0.99 ppm per raggiungere la quota ideale di 1.5 ppm
-                </td>
-                <td class="product-text">
-                    Cloro Granulare (Ipoclorito)
-                </td>
-                <td>
-                    <div class="dose-box">
-                        182 grammi
-                    </div>
-                </td>
-                <td class="instruction-text">
-                    Dosaggio rapido granulare. Aggiungere negli skimmer o premiscelare.
-                </td>
-            </tr>
-        </tbody>
-    </table>
+<div class="main-wrapper">
+
+    <div id="container-assistente-chimico" style="display: none;"></div>
+
+    <div class="registro-container" id="sezione-registro-storico">
+        <h2>Registro Chimico</h2>
+        <div class="table-responsive">
+            <table class="registro-table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>pH</th>
+                        <th>Cloro Libero (ppm)</th>
+                        <th>Acido Cianurico (ppm)</th>
+                        <th>Note / Operazioni</th>
+                    </tr>
+                </thead>
+                <tbody id="registro-corpo-tabella">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="charts-grid" id="sezione-grafici">
+        <div class="chart-card">
+            <h2>Andamento Cloro Libero</h2>
+            <canvas id="chartCloro"></canvas>
+        </div>
+        <div class="chart-card">
+            <h2>Andamento pH</h2>
+            <canvas id="chartPh"></canvas>
+        </div>
+    </div>
+
 </div>
+
+<script>
+    // 1. Dati simulati dello storico (es. letture caricate dal file o dal cloud Pool LAB)
+    const datiRegistri = [
+        { data: "gio 2 lug 2026", ph: 7.3, cloro: 1.2, cya: 45, note: "pH- 100 g ipo Temporali" },
+        { data: "ven 3 lug 2026", ph: 7.4, cloro: 1.1, cya: 45, note: "pH- 100 g Alg" },
+        { data: "sab 4 lug 2026 ore 07:00", ph: 7.3, cloro: 0.51, cya: 45, note: "Analisi mattutina" },
+        { data: "dom 5 lug 2026", ph: 7.3, cloro: 1.1, cya: 45, note: "Aggiunto 175g Cloro" }
+    ];
+
+    // Costanti di Configurazione e Parametri Ideali
+    const TARGET_CLORO = 1.1;
+    const TARGET_PH = 7.3;
+    const SOGLIA_ALLARME_CYA = 60;
+    const VOLUME_PISCINA = 92; // 92 metri cubi
+
+    // 2. Esecuzione principale al caricamento della pagina
+    document.addEventListener("DOMContentLoaded", function() {
+        popolaTabellaStorica(datiRegistri);
+        inizializzaGrafici(datiRegistri);
+        
+        // Prendiamo l'ultima lettura disponibile nell'array per l'assistente chimico
+        const ultimaLettura = datiRegistri[datiRegistri.length - 2]; // In questo esempio sab 4 lug ha il cloro basso
+        controllaParametriEGeneraAssistente(ultimaLettura);
+    });
+
+    // 3. Funzione per generare l'Assistente Chimico in modo isolato
+    function controllaParametriEGeneraAssistente(lettura) {
+        const container = document.getElementById('container-assistente-chimico');
+        const cloroCl = parseFloat(lettura.cloro);
+        const phVal = parseFloat(lettura.ph);
+        const cyaVal = parseFloat(lettura.cya);
+        
+        let righeHTML = '';
+        let haAnomalie = false;
+
+        // Verifica Cloro Libero
+        if (cloroCl < TARGET_CLORO) {
+            haAnomalie = true;
+            const carenza = (TARGET_CLORO - cloroCl).toFixed(2);
+            // Formula basata su ipoclorito di calcio granulare per 92 m³
+            const grammiDose = Math.round(carenza * 15 * VOLUME_PISCINA); 
+
+            righeHTML += `
+                <tr>
+                    <td><span class="param-name">Cloro<br>Libero</span></td>
+                    <td>
+                        <div class="badge-low">Basso<br><span style="font-size: 11px; font-weight: normal;">(${cloroCl} ppm)</span></div>
+                    </td>
+                    <td class="objective-text">Aumentare di ${carenza} ppm per raggiungere la quota ideale di ${TARGET_CLORO} ppm</td>
+                    <td class="product-text">Cloro Granulare (Ipoclorito)</td>
+                    <td><div class="dose-box">${grammiDose} grammi</div></td>
+                    <td class="instruction-text">Dosaggio rapido granulare. Aggiungere negli skimmer o premiscelare.</td>
+                </tr>
+            `;
+        }
+
+        // Se ci sono problemi, mostra il blocco compilato senza sovrascrivere il resto della pagina
+        if (haAnomalie) {
+            container.innerHTML = `
+                <div class="assistant-card">
+                    <div class="assistant-title">
+                        🧪 Assistente Chimico - Dosaggio Cloro (${lettura.data})
+                    </div>
+                    <div class="assistant-table-container">
+                        <div class="status-indicator-bar"></div>
+                        <table class="assistant-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 14%;">Parametro</th>
+                                    <th style="width: 12%;">Stato</th>
+                                    <th style="width: 24%;">Obiettivo</th>
+                                    <th style="width: 16%;">Prodotto</th>
+                                    <th style="width: 14%;">Dose Richiesta</th>
+                                    <th style="width: 20%;">Istruzioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${righeHTML}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            container.style.display = 'block';
+        } else {
+            container.style.display = 'none';
+        }
+    }
+
+    // 4. Funzione per popolare la tabella dei registri storici
+    function popolaTabellaStorica(dati) {
+        const corpoTabella = document.getElementById('registro-corpo-tabella');
+        corpoTabella.innerHTML = ''; // Svuota prima di inserire
+        
+        dati.forEach(item => {
+            const riga = document.createElement('tr');
+            riga.innerHTML = `
+                <td><strong>${item.data}</strong></td>
+                <td>${item.ph}</td>
+                <td>${item.cloro}</td>
+                <td>${item.cya}</td>
+                <td>${item.note}</td>
+            `;
+            corpoTabella.appendChild(riga);
+        });
+    }
+
+    // 5. Funzione per inizializzare i grafici con Chart.js
+    function inizializzaGrafici(dati) {
+        const etichette = dati.map(d => d.data);
+        const valoriCloro = dati.map(d => d.cloro);
+        const valoriPh = dati.map(d => d.ph);
+
+        // Grafico Cloro
+        new Chart(document.getElementById('chartCloro'), {
+            type: 'line',
+            data: {
+                labels: etichette,
+                datasets: [{
+                    label: 'Cloro Libero (ppm)',
+                    data: valoriCloro,
+                    borderColor: '#0284c7',
+                    backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.1
+                }]
+            },
+            options: { responsive: true }
+        });
+
+        // Grafico pH
+        new Chart(document.getElementById('chartPh'), {
+            type: 'line',
+            data: {
+                labels: etichette,
+                datasets: [{
+                    label: 'Valore pH',
+                    data: valoriPh,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.1
+                }]
+            },
+            options: { responsive: true }
+        });
+    }
+</script>
 
 </body>
 </html>
