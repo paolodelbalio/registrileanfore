@@ -109,38 +109,69 @@ function eseguiScorrimentoRegistro(sezioneId) {
         // Criterio Chimico: ultimo valore presente nella colonna pH (colonna indice 1)
         for (let i = righeDati.length - 1; i >= 1; i--) {
             if (righeDati[i][1] && righeDati[i][1].trim() !== "") {
-                rigaTargetIndice = i + 2; // Scorri due righe sotto
+// LOGICA DI SCROLLING AUTOMATICO PERSONALIZZATO FINO ALLA DATA ODIERNA O ULTIMO DATO
+function eseguiScorrimentoRegistro(sezioneId) {
+    let tabellaId = "";
+    let righeDati = [];
+    let rigaTargetIndice = -1;
+
+    if (sezioneId === 'chimicoSection') {
+        tabellaId = "chimicoTable";
+        righeDati = datiRegistriGlobali.chimico;
+        // Criterio Chimico: scorre fino al 09/07 (o l'ultimo giorno con modifiche)
+        // Cerca l'indice della riga che contiene la data del 09/07 o l'ultima riga compilata vicino ad essa
+        for (let i = 1; i < righeDati.length; i++) {
+            if (righeDati[i][0] && (righeDati[i][0].includes("09 Lug") || righeDati[i][0].includes("09/07"))) {
+                rigaTargetIndice = i + 2; // Mostra la riga del 9 e lascia le 2 righe vuote sotto
                 break;
+            }
+        }
+        // Se non trova la data specifica del 9, prende l'ultima riga con il pH compilato
+        if (rigaTargetIndice === -1) {
+            for (let i = righeDati.length - 1; i >= 1; i--) {
+                if (righeDati[i][1] && righeDati[i][1].trim() !== "") {
+                    rigaTargetIndice = i + 2;
+                    break;
+                }
             }
         }
     } else if (sezioneId === 'contatoriSection') {
         tabellaId = "contatoriTable";
         righeDati = datiRegistriGlobali.contatori;
-        // Criterio Contatori: ultima cella colonna contatore reintegro (colonna indice 2)
+        // Criterio Contatori: guarda solo l'ultima riga con i dati (colonna Reintegro)
         for (let i = righeDati.length - 1; i >= 1; i--) {
             if (righeDati[i][2] && righeDati[i][2].trim() !== "") {
-                rigaTargetIndice = i + 2; // Scorri due righe sotto
+                rigaTargetIndice = i + 2; // Si ferma sull'ultimo dato e mostra due righe vuote sotto
                 break;
             }
         }
     } else if (sezioneId === 'pulizieSection') {
         tabellaId = "pulizieTable";
         righeDati = datiRegistriGlobali.pulizie;
-        // Criterio Pulizie: ultima cella della terza colonna con dentro le lettere (colonna indice 2)
-        const regexLettere = /[a-zA-Z]/;
-        for (let i = righeDati.length - 1; i >= 1; i--) {
-            if (righeDati[i][2] && regexLettere.test(righeDati[i][2])) {
-                rigaTargetIndice = i + 2; // Scorri due righe sotto
+        // Criterio Pulizie: scorre fino al 09/07
+        for (let i = 1; i < righeDati.length; i++) {
+            if (righeDati[i][0] && (righeDati[i][0].includes("09 Lug") || righeDati[i][0].includes("09/07"))) {
+                rigaTargetIndice = i + 2; // Lascia due righe vuote sotto
                 break;
+            }
+        }
+        // Se non trova il 9, usa il vecchio metodo del testo nella terza colonna
+        if (rigaTargetIndice === -1) {
+            const regexLettere = /[a-zA-Z]/;
+            for (let i = righeDati.length - 1; i >= 1; i--) {
+                if (righeDati[i][2] && regexLettere.test(righeDati[i][2])) {
+                    rigaTargetIndice = i + 2;
+                    break;
+                }
             }
         }
     } else if (sezioneId === 'manutenzioniSection') {
         tabellaId = "manutenzioniTable";
         righeDati = datiRegistriGlobali.manutenzioni;
-        // Criterio Manutenzioni: ultima cella con scritto tasto della colonna impianto/area (colonna indice 1)
+        // Criterio Manutenzioni: guarda solo l'ultima riga con i dati (dove c'è scritto "tasto")
         for (let i = righeDati.length - 1; i >= 1; i--) {
             if (righeDati[i][1] && righeDati[i][1].toLowerCase().includes("tasto")) {
-                rigaTargetIndice = i + 2; // Scorri due righe sotto
+                rigaTargetIndice = i + 2; // Si ferma lì e mostra due righe vuote sotto
                 break;
             }
         }
@@ -152,26 +183,17 @@ function eseguiScorrimentoRegistro(sezioneId) {
     const contenitoreSfondo = tabella.closest('.table-responsive');
     if (!contenitoreSfondo) return;
 
-    // Se l'indice calcolato supera la lunghezza massima delle righe, si ancora all'ultima riga disponibile
+    // Se l'indice calcolato supera le righe totali della tabella, si ferma all'ultima riga
     if (rigaTargetIndice >= tabella.rows.length) {
         rigaTargetIndice = tabella.rows.length - 1;
     }
 
     if (rigaTargetIndice > 0 && tabella.rows[rigaTargetIndice]) {
         const rigaElemento = tabella.rows[rigaTargetIndice];
-        // Calcola l'altezza di scorrimento corretta considerando l'intestazione fissa
+        // Fa lo scroll preciso tenendo conto dell'altezza dell'intestazione fissa
         contenitoreSfondo.scrollTop = rigaElemento.offsetTop - tabella.rows[0].offsetHeight;
     }
 }
-
-// Navigazione tra le sezioni tramite i bottoni principali
-function mostraSezione(sezioneId) {
-    document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
-    
-    const sezioneSelezionata = document.getElementById(sezioneId);
-    if (sezioneSelezionata) {
-        sezioneSelezionata.classList.remove('hidden');
-        // Attiva lo scorrimento specifico per la sezione appena visualizzata
         setTimeout(() => {
             eseguiScorrimentoRegistro(sezioneId);
         }, 50);
