@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Piscina 2026</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <h1>Dashboard Piscina 2026</h1>
+        <p>Analisi automatica dei registri e diagnostica di vasca</p>
+    </header>
+
+    <nav class="top-buttons">
+        <button onclick="mostraSezione('chimicoSection')">Chimico</button>
+        <button onclick="mostraSezione('contatoriSection')">Contatori</button>
+        <button onclick="mostraSezione('pulizieSection')">Pulizie</button>
+        <button onclick="mostraSezione('manutenzioniSection')">Manutenzioni</button>
+    </nav>
+
+    <section id="chimicoSection" class="register-section hidden">
+        <h2>Registro Chimico</h2>
+        <div class="table-wrapper">
+            <table id="chimicoTable"></table>
+        </div>
+    </section>
+
+    <section id="contatoriSection" class="register-section hidden">
+        <h2>Registro Contatori</h2>
+        <div class="table-wrapper">
+            <table id="contatoriTable"></table>
+        </div>
+    </section>
+
+    <section id="pulizieSection" class="register-section hidden">
+        <h2>Registro Pulizie</h2>
+        <div class="table-wrapper">
+            <table id="pulizieTable"></table>
+        </div>
+    </section>
+
+    <section id="manutenzioniSection" class="register-section hidden">
+        <h2>Registro Manutenzioni</h2>
+        <div class="table-wrapper">
+            <table id="manutenzioniTable"></table>
+        </div>
+    </section>
+
+    <div id="chartOverlay" class="overlay hidden">
+        <div class="overlay-content">
+            <span class="overlay-close" onclick="closeOverlay()">✖</span>
+            <h3 id="overlayTitle">Andamento Storico</h3>
+            <div style="flex-grow:1; position:relative; width:100%; height:calc(100% - 40px);">
+                <canvas id="overlayCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="dosageModal" class="overlay hidden">
+        <div class="dosage-card">
+            <span class="overlay-close" onclick="chiudiDosaggio()">✖</span>
+            <div id="dosageContent"></div>
+            <button class="dosage-close-btn" onclick="chiudiDosaggio()">Chiudi Finestra</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
