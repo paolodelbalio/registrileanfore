@@ -3,8 +3,7 @@ let mioGrafico = null;
 let datiRegistriGlobali = {
     chimico: [],
     contatori: [],
-    pulizie: [],
-    manutenzioni: []
+    pulizie: []
 }; 
 
 const VOL_PISCINA = 92; // Volume vasca in m³
@@ -12,8 +11,7 @@ const VOL_PISCINA = 92; // Volume vasca in m³
 const REGISTRI_FILES = {
     chimico: { file: "REGISTRO CHIMICO 2026.csv", tableId: "chimicoTable" },
     contatori: { file: "REGISTRO CONTATORI.csv", tableId: "contatoriTable" },
-    pulizie: { file: "REGISTRO PULIZIE PISCINA 2026.csv", tableId: "pulizieTable" },
-    manutenzioni: { file: "REGISTRO MANUTENZIONE INTERVENTI .csv", tableId: "manutenzioniTable" }
+    pulizie: { file: "REGISTRO PULIZIE PISCINA 2026.csv", tableId: "pulizieTable" }
 };
 
 // Avvia il caricamento quando la pagina è pronta
@@ -94,78 +92,54 @@ function generaTabellaHTML(chiave, righe, tableId) {
     });
 }
 
-// LOGICA SCROLLING PRECISA FINO AL 9 LUGLIO O ALL'ULTIMO DATO COMPILATO
+// LOGICA DI SCROLLING FINO ALL'ULTIMA RIGA EFFETTIVAMENTE MODIFICATA
 function eseguiScorrimentoRegistro(sezioneId) {
     let tabellaId = "";
     let righeDati = [];
-    let rigaTargetIndice = -1;
-
+    
     if (sezioneId === 'chimicoSection') {
         tabellaId = "chimicoTable";
         righeDati = datiRegistriGlobali.chimico;
-        // Criterio Chimico: scorre fino al 09/07
-        for (let i = 1; i < righeDati.length; i++) {
-            if (righeDati[i][0] && (righeDati[i][0].includes("09 Lug") || righeDati[i][0].includes("09/07") || righeDati[i][0].includes("09-07"))) {
-                rigaTargetIndice = i + 2; 
-                break;
-            }
-        }
-        // Alternativa se non trova la data esatta del 9
-        if (rigaTargetIndice === -1) {
-            for (let i = righeDati.length - 1; i >= 1; i--) {
-                if (righeDati[i][1] && righeDati[i][1].trim() !== "") {
-                    rigaTargetIndice = i + 2;
-                    break;
-                }
-            }
-        }
     } else if (sezioneId === 'contatoriSection') {
         tabellaId = "contatoriTable";
         righeDati = datiRegistriGlobali.contatori;
-        // Criterio Contatori: guarda l'ultima riga con i dati immessi (colonna 2)
-        for (let i = righeDati.length - 1; i >= 1; i--) {
-            if (righeDati[i][2] && righeDati[i][2].trim() !== "") {
-                rigaTargetIndice = i + 2; 
-                break;
-            }
-        }
     } else if (sezioneId === 'pulizieSection') {
         tabellaId = "pulizieTable";
         righeDati = datiRegistriGlobali.pulizie;
-        // Criterio Pulizie: scorre fino al 09/07
-        for (let i = 1; i < righeDati.length; i++) {
-            if (righeDati[i][0] && (righeDati[i][0].includes("09 Lug") || righeDati[i][0].includes("09/07") || righeDati[i][0].includes("09-07"))) {
-                rigaTargetIndice = i + 2; 
-                break;
-            }
-        }
-        if (rigaTargetIndice === -1) {
-            const regexLettere = /[a-zA-Z]/;
-            for (let i = righeDati.length - 1; i >= 1; i--) {
-                if (righeDati[i][2] && regexLettere.test(righeDati[i][2])) {
-                    rigaTargetIndice = i + 2;
-                    break;
-                }
-            }
-        }
-    } else if (sezioneId === 'manutenzioniSection') {
-        tabellaId = "manutenzioniTable";
-        righeDati = datiRegistriGlobali.manutenzioni;
-        // Criterio Manutenzioni: guarda l'ultima riga con i dati compilati (colonna 1 contiene "tasto")
-        for (let i = righeDati.length - 1; i >= 1; i--) {
-            if (righeDati[i][1] && righeDati[i][1].toLowerCase().includes("tasto")) {
-                rigaTargetIndice = i + 2; 
-                break;
-            }
-        }
     }
 
     const tabella = document.getElementById(tabellaId);
-    if (!tabella) return;
+    if (!tabella || !righeDati || righeDati.length === 0) return;
 
     const contenitoreSfondo = tabella.closest('.table-responsive');
     if (!contenitoreSfondo) return;
 
+    let rigaTargetIndice = -1;
+
+    // Scansiona dal basso verso l'alto cercandola prima riga compilata (esclusa la colonna data alla posizione 0)
+    for (let i = righeDati.length - 1; i >= 1; i--) {
+        let rigaModificata = false;
+        
+        for (let j = 1; j < righeDati[i].length; j++) {
+            let contenutoCella = righeDati[i][j];
+            if (contenutoCella && contenutoCella.toString().trim() !== "") {
+                rigaModificata = true;
+                break;
+            }
+        }
+        
+        if (rigaModificata) {
+            rigaTargetIndice = i + 2; // Mostra le 2 righe vuote sotto l'ultima modifica!
+            break;
+        }
+    }
+
+    // Se non trova alcuna riga compilata, si posiziona in alto
+    if (rigaTargetIndice === -1) {
+        rigaTargetIndice = 1;
+    }
+
+    // Limita l'indice al numero massimo di righe per evitare errori
     if (rigaTargetIndice >= tabella.rows.length) {
         rigaTargetIndice = tabella.rows.length - 1;
     }
