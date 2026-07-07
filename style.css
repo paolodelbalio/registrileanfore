@@ -1,0 +1,236 @@
+/* ==========================================================================
+   1. STRUTTURA GENERALE
+   ========================================================================== */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background-color: #f4f7f6;
+    color: #333333;
+    padding: 20px;
+    line-height: 1.5;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 25px;
+    background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
+    color: #ffffff;
+    padding: 25px 20px;
+    border-radius: 6px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+header h1 {
+    font-size: 2rem;
+    margin-bottom: 5px;
+}
+
+/* ==========================================================================
+   2. BARRA PULSANTI SUPERIORE (AZZURRO TRASPARENTE + STICKY)
+   ========================================================================== */
+.top-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    padding: 15px;
+    background: rgba(233, 242, 251, 0.95);
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    position: sticky;
+    top: 10px;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    backdrop-filter: blur(4px);
+    margin-bottom: 25px;
+}
+
+.top-buttons button {
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: 1px solid rgba(0, 102, 204, 0.4);
+    background: rgba(188, 224, 253, 0.5); /* Azzurro in trasparenza */
+    color: #004085;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.top-buttons button:hover {
+    background: rgba(0, 102, 204, 0.9);
+    color: #ffffff;
+    border-color: #0066cc;
+    transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   3. TABELLE E CONTENITORI
+   ========================================================================== */
+.register-section {
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    margin-bottom: 30px;
+}
+
+.register-section h2 {
+    color: #1e293b;
+    margin-bottom: 15px;
+    font-size: 1.5rem;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 8px;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    max-height: 65vh;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+th {
+    background-color: #f1f5f9;
+    color: #334155;
+    font-weight: 700;
+    padding: 12px 10px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    border-bottom: 2px solid #cbd5e1;
+}
+
+td {
+    padding: 10px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Intestazioni per grafici */
+.clickable-header {
+    cursor: pointer;
+    background: #dbeafe !important;
+    color: #1e40af;
+    font-weight: bold;
+}
+.clickable-header:hover {
+    background: #2563eb !important;
+    color: white;
+}
+
+/* Diagnostica celle */
+.cell-ok {
+    background-color: #d1fae5 !important;
+    color: #065f46 !important;
+}
+.cell-alarm {
+    background-color: #fee2e2 !important;
+    color: #991b1b !important;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* ==========================================================================
+   4. FINESTRE OVERLAY E SCHEDE (STILE FOTO 1)
+   ========================================================================== */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(2px);
+}
+
+.overlay-content {
+    background: #ffffff;
+    padding: 25px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 850px;
+    height: 75vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.15);
+    position: relative;
+}
+
+/* STRUTTURA DEL COPIATA DALLA FOTO 1 */
+.dosage-card {
+    background: #ffffff !important;
+    padding: 35px 40px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+    width: 90% !important;
+    max-width: 520px !important;
+    position: relative !important;
+    text-align: left !important;
+    border-top: 5px solid #ef4444;
+}
+
+.overlay-close {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 22px;
+    cursor: pointer;
+    color: #94a3b8;
+}
+.overlay-close:hover {
+    color: #334155;
+}
+
+.dosage-card h3 {
+    color: #1e293b;
+    font-size: 1.35rem;
+    margin-bottom: 18px;
+    font-weight: 700;
+}
+
+.dosage-card p {
+    font-size: 1rem;
+    color: #475569;
+    margin-bottom: 12px;
+    line-height: 1.6;
+}
+
+.dosage-card strong {
+    color: #0f172a;
+}
+
+.dosage-close-btn {
+    margin-top: 20px;
+    width: 100%;
+    padding: 11px;
+    background-color: #0f172a;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.dosage-close-btn:hover {
+    background-color: #1e293b;
+}
