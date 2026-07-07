@@ -16,12 +16,11 @@ const REGISTRI_FILES = {
     manutenzioni: { file: "REGISTRO MANUTENZIONE INTERVENTI .csv", tableId: "manutenzioniTable" }
 };
 
-// Avvia il caricamento al caricamento della pagina
+// Avvia il caricamento quando la pagina è pronta
 document.addEventListener("DOMContentLoaded", function() {
     caricaTuttiIRegistri();
 });
 
-// Carica tutti i file CSV
 function caricaTuttiIRegistri() {
     let conteggioCaricati = 0;
     const chiavi = Object.keys(REGISTRI_FILES);
@@ -40,18 +39,16 @@ function caricaTuttiIRegistri() {
                 generaTabellaHTML(chiave, righeGrezze, config.tableId);
                 
                 conteggioCaricati++;
-                // Quando tutte le tabelle sono pronte nel DOM, esegui lo scrolling iniziale sulla sezione attiva
                 if (conteggioCaricati === chiavi.length) {
                     setTimeout(() => {
                         eseguiScorrimentoRegistro('chimicoSection');
-                    }, 300);
+                    }, 400);
                 }
             }
         });
     });
 }
 
-// Genera la struttura delle tabelle inserendo i dati dei CSV
 function generaTabellaHTML(chiave, righe, tableId) {
     const tabella = document.getElementById(tableId);
     if (!tabella) return;
@@ -64,7 +61,7 @@ function generaTabellaHTML(chiave, righe, tableId) {
         riga.forEach((cella, indiceColonna) => {
             const elCell = (indiceRiga === 0) ? document.createElement("th") : document.createElement("td");
             
-            // Gestione dei bottoni grafici nelle intestazioni (Colonne Cloro, pH, CYA, Contatore)
+            // Bottoni grafici nelle intestazioni
             if (indiceRiga === 0 && chiave === 'chimico' && (indiceColonna === 1 || indiceColonna === 2 || indiceColonna === 3)) {
                 let nomeParametro = cella.split("(")[0].trim();
                 elCell.innerHTML = `${cella} <br><button class="table-th-btn" onclick="apriGrafico('${nomeParametro}', 'line')">📊 Grafico</button>`;
@@ -74,7 +71,7 @@ function generaTabellaHTML(chiave, righe, tableId) {
                 elCell.textContent = cella;
             }
 
-            // Logica colorazione parametri Chimici (Target: pH 7.3, Cloro >= 1.1, CYA < 60)
+            // Colorazione celle parametri Chimici (Target precisi)
             if (indiceRiga > 0 && chiave === 'chimico') {
                 if (indiceColonna === 1) { // pH
                     let val = parseFloat(cella.replace(",", "."));
@@ -97,7 +94,7 @@ function generaTabellaHTML(chiave, righe, tableId) {
     });
 }
 
-// LOGICA DI SCROLLING AUTOMATICO PERSONALIZZATO PER OGNI REGISTRO
+// LOGICA SCROLLING PRECISA FINO AL 9 LUGLIO O ALL'ULTIMO DATO COMPILATO
 function eseguiScorrimentoRegistro(sezioneId) {
     let tabellaId = "";
     let righeDati = [];
@@ -106,27 +103,14 @@ function eseguiScorrimentoRegistro(sezioneId) {
     if (sezioneId === 'chimicoSection') {
         tabellaId = "chimicoTable";
         righeDati = datiRegistriGlobali.chimico;
-        // Criterio Chimico: ultimo valore presente nella colonna pH (colonna indice 1)
-        for (let i = righeDati.length - 1; i >= 1; i--) {
-            if (righeDati[i][1] && righeDati[i][1].trim() !== "") {
-// LOGICA DI SCROLLING AUTOMATICO PERSONALIZZATO FINO ALLA DATA ODIERNA O ULTIMO DATO
-function eseguiScorrimentoRegistro(sezioneId) {
-    let tabellaId = "";
-    let righeDati = [];
-    let rigaTargetIndice = -1;
-
-    if (sezioneId === 'chimicoSection') {
-        tabellaId = "chimicoTable";
-        righeDati = datiRegistriGlobali.chimico;
-        // Criterio Chimico: scorre fino al 09/07 (o l'ultimo giorno con modifiche)
-        // Cerca l'indice della riga che contiene la data del 09/07 o l'ultima riga compilata vicino ad essa
+        // Criterio Chimico: scorre fino al 09/07
         for (let i = 1; i < righeDati.length; i++) {
-            if (righeDati[i][0] && (righeDati[i][0].includes("09 Lug") || righeDati[i][0].includes("09/07"))) {
-                rigaTargetIndice = i + 2; // Mostra la riga del 9 e lascia le 2 righe vuote sotto
+            if (righeDati[i][0] && (righeDati[i][0].includes("09 Lug") || righeDati[i][0].includes("09/07") || righeDati[i][0].includes("09-07"))) {
+                rigaTargetIndice = i + 2; 
                 break;
             }
         }
-        // Se non trova la data specifica del 9, prende l'ultima riga con il pH compilato
+        // Alternativa se non trova la data esatta del 9
         if (rigaTargetIndice === -1) {
             for (let i = righeDati.length - 1; i >= 1; i--) {
                 if (righeDati[i][1] && righeDati[i][1].trim() !== "") {
@@ -138,10 +122,10 @@ function eseguiScorrimentoRegistro(sezioneId) {
     } else if (sezioneId === 'contatoriSection') {
         tabellaId = "contatoriTable";
         righeDati = datiRegistriGlobali.contatori;
-        // Criterio Contatori: guarda solo l'ultima riga con i dati (colonna Reintegro)
+        // Criterio Contatori: guarda l'ultima riga con i dati immessi (colonna 2)
         for (let i = righeDati.length - 1; i >= 1; i--) {
             if (righeDati[i][2] && righeDati[i][2].trim() !== "") {
-                rigaTargetIndice = i + 2; // Si ferma sull'ultimo dato e mostra due righe vuote sotto
+                rigaTargetIndice = i + 2; 
                 break;
             }
         }
@@ -150,12 +134,11 @@ function eseguiScorrimentoRegistro(sezioneId) {
         righeDati = datiRegistriGlobali.pulizie;
         // Criterio Pulizie: scorre fino al 09/07
         for (let i = 1; i < righeDati.length; i++) {
-            if (righeDati[i][0] && (righeDati[i][0].includes("09 Lug") || righeDati[i][0].includes("09/07"))) {
-                rigaTargetIndice = i + 2; // Lascia due righe vuote sotto
+            if (righeDati[i][0] && (righeDati[i][0].includes("09 Lug") || righeDati[i][0].includes("09/07") || righeDati[i][0].includes("09-07"))) {
+                rigaTargetIndice = i + 2; 
                 break;
             }
         }
-        // Se non trova il 9, usa il vecchio metodo del testo nella terza colonna
         if (rigaTargetIndice === -1) {
             const regexLettere = /[a-zA-Z]/;
             for (let i = righeDati.length - 1; i >= 1; i--) {
@@ -168,10 +151,10 @@ function eseguiScorrimentoRegistro(sezioneId) {
     } else if (sezioneId === 'manutenzioniSection') {
         tabellaId = "manutenzioniTable";
         righeDati = datiRegistriGlobali.manutenzioni;
-        // Criterio Manutenzioni: guarda solo l'ultima riga con i dati (dove c'è scritto "tasto")
+        // Criterio Manutenzioni: guarda l'ultima riga con i dati compilati (colonna 1 contiene "tasto")
         for (let i = righeDati.length - 1; i >= 1; i--) {
             if (righeDati[i][1] && righeDati[i][1].toLowerCase().includes("tasto")) {
-                rigaTargetIndice = i + 2; // Si ferma lì e mostra due righe vuote sotto
+                rigaTargetIndice = i + 2; 
                 break;
             }
         }
@@ -183,24 +166,27 @@ function eseguiScorrimentoRegistro(sezioneId) {
     const contenitoreSfondo = tabella.closest('.table-responsive');
     if (!contenitoreSfondo) return;
 
-    // Se l'indice calcolato supera le righe totali della tabella, si ferma all'ultima riga
     if (rigaTargetIndice >= tabella.rows.length) {
         rigaTargetIndice = tabella.rows.length - 1;
     }
 
     if (rigaTargetIndice > 0 && tabella.rows[rigaTargetIndice]) {
         const rigaElemento = tabella.rows[rigaTargetIndice];
-        // Fa lo scroll preciso tenendo conto dell'altezza dell'intestazione fissa
         contenitoreSfondo.scrollTop = rigaElemento.offsetTop - tabella.rows[0].offsetHeight;
     }
 }
+
+function mostraSezione(sezioneId) {
+    document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
+    const sezioneSelezionata = document.getElementById(sezioneId);
+    if (sezioneSelezionata) {
+        sezioneSelezionata.classList.remove('hidden');
         setTimeout(() => {
             eseguiScorrimentoRegistro(sezioneId);
-        }, 50);
+        }, 60);
     }
 }
 
-// Funzioni di supporto per la chiusura dei Popup Modali
 function chiudiDosaggio() {
     document.getElementById('dosageModal').classList.add('hidden');
 }
@@ -209,7 +195,6 @@ function closeOverlay() {
     document.getElementById('chartOverlay').classList.add('hidden');
 }
 
-// Logica di rendering dei grafici d'andamento storici all'interno dell'overlay
 function apriGrafico(parametro, tipoGrafico) {
     const overlay = document.getElementById('chartOverlay');
     overlay.classList.remove('hidden');
