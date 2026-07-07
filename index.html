@@ -61,20 +61,16 @@
             padding: 14px 28px;
             font-size: 1.05rem;
             font-weight: 600;
-            color: #004499; /* Testo blu scuro per leggibilità */
-            
-            /* Azzurro in trasparenza (effetto rgba con opacità al 15%) */
+            color: #004499; 
             background-color: rgba(0, 153, 255, 0.15); 
-            
-            border: 2px solid rgba(0, 102, 204, 0.25); /* Bordo azzurro semi-trasparente */
+            border: 2px solid rgba(0, 102, 204, 0.25); 
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.15s ease-in-out;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03);
-            backdrop-filter: blur(4px); /* Effetto sfocatura sfondo sotto il pulsante */
+            backdrop-filter: blur(4px);
         }
 
-        /* Effetto al passaggio del mouse (diventa blu pieno e solido) */
         .top-buttons button:hover {
             background-color: #0066cc;
             color: #ffffff;
@@ -148,7 +144,20 @@
             white-space: nowrap;
         }
 
-        /* --- POPUP ASSISTENTE CHIMICO E GRAFICI --- */
+        /* --- COLORAZIONE CELLE DINAMICHE --- */
+        .cell-green {
+            background-color: #d1fae5 !important;
+            color: #065f46 !important;
+            font-weight: bold;
+        }
+
+        .cell-red {
+            background-color: #fee2e2 !important;
+            color: #991b1b !important;
+            font-weight: bold;
+        }
+
+        /* --- OVERLAY POPUP --- */
         .overlay {
             position: fixed;
             top: 0;
@@ -210,25 +219,6 @@
             position: relative !important;
             text-align: left !important;
             box-sizing: border-box !important;
-        }
-
-        .dosage-card h3 {
-            font-size: 1.35rem !important;
-            font-weight: bold !important;
-            color: #000000 !important;
-            margin-bottom: 18px !important;
-        }
-
-        .dosage-card p {
-            font-size: 0.98rem !important;
-            color: #333333 !important;
-            margin-bottom: 14px !important;
-            line-height: 1.45 !important;
-        }
-
-        .dosage-card strong {
-            color: #000000 !important;
-            font-weight: 700 !important;
         }
 
         .hidden {
