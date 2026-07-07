@@ -84,9 +84,9 @@ function caricaTuttiIRegistri() {
                 datiRegistriGlobali[chiave] = datiFiltrati;
                 popolaTabellaHtml(datiFiltrati, config.tableId, chiave, headers);
                 
-                // All'avvio, fa scorrere la pagina fino in fondo sul registro chimico reale
+                // All'avvio scorre sull'ultima riga del registro chimico
                 if (chiave === 'chimico') {
-                    setTimeout(scollaAdUltimaRiga, 300);
+                    setTimeout(() => scollaAdUltimaRiga('chimicoSection'), 300);
                 }
             }
         });
@@ -178,10 +178,23 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     });
 }
 
-// Funzione di scorrimento automatico verso il fondo effettivo della pagina
-function scollaAdUltimaRiga() {
+// NUOVA LOGICA SCORRIMENTO: Trova l'ultima riga della tabella attiva e si ferma lasciando lo spazio di due righe sotto
+function scollaAdUltimaRiga(sezioneId) {
+    const sezione = document.getElementById(sezioneId);
+    if (!sezione) return;
+
+    const tabella = sezione.querySelector('table');
+    if (!tabella || tabella.rows.length <= 1) return;
+
+    const righe = tabella.rows;
+    const ultimaRiga = righe[righe.length - 1];
+    
+    // Calcola l'altezza di una singola riga per stabilire lo spazio esatto di due righe sotto (circa 80px)
+    const altezzaRiga = ultimaRiga.offsetHeight || 40; 
+    const offsetTarget = (ultimaRiga.getBoundingClientRect().top + window.pageYOffset) - window.innerHeight + (altezzaRiga * 3);
+
     window.scrollTo({
-        top: document.body.scrollHeight,
+        top: Math.max(0, offsetTarget),
         behavior: 'smooth'
     });
 }
@@ -363,7 +376,8 @@ function mostraSezione(sezioneId) {
     const sez = document.getElementById(sezioneId);
     if (sez) {
         sez.classList.remove('hidden');
-        setTimeout(scollaAdUltimaRiga, 100); 
+        // Ora passa dinamicamente la sezione corrente per focalizzare lo scroll corretto
+        setTimeout(() => scollaAdUltimaRiga(sezioneId), 100); 
     }
 }
 
