@@ -144,7 +144,7 @@
             white-space: nowrap;
         }
 
-        /* --- COLORAZIONE CELLE DINAMICHE --- */
+        /* --- COLORAZIONE CELLE --- */
         .cell-green {
             background-color: #d1fae5 !important;
             color: #065f46 !important;
@@ -221,6 +221,10 @@
             box-sizing: border-box !important;
         }
 
+        .dosage-card h3 { font-size: 1.35rem !important; font-weight: bold !important; color: #000 !important; margin-bottom: 18px !important; }
+        .dosage-card p { font-size: 0.98rem !important; color: #333 !important; margin-bottom: 14px !important; line-height: 1.45 !important; }
+        .dosage-card strong { color: #000 !important; font-weight: 700 !important; }
+
         .hidden {
             display: none !important;
         }
@@ -242,7 +246,8 @@
     <div class="top-buttons">
         <button onclick="mostraSezione('chimicoSection')">🧪 Chimico</button>
         <button onclick="mostraSezione('contatoriSection')">💧 Contatori</button>
-        <button onclick="mostraSezione('pulizieSection')">🧹 Pulizie Manutenzioni</button>
+        <button onclick="mostraSezione('pulizieSection')">🧹 Pulizie</button>
+        <button onclick="mostraSezione('manutenzioniSection')">🛠️ Manutenzioni</button>
     </div>
 
     <section id="chimicoSection" class="register-section">
@@ -260,9 +265,16 @@
     </section>
 
     <section id="pulizieSection" class="register-section hidden">
-        <h2>3. Registro Pulizie e Manutenzioni</h2>
+        <h2>3. Registro Lavaggio Filtri e Pulizie Vasca</h2>
         <div class="table-responsive">
             <table id="pulizieTable" class="registro-table"></table>
+        </div>
+    </section>
+
+    <section id="manutenzioniSection" class="register-section hidden">
+        <h2>4. Registro Interventi e Manutenzione Strutturale</h2>
+        <div class="table-responsive">
+            <table id="manutenzioniTable" class="registro-table"></table>
         </div>
     </section>
 
