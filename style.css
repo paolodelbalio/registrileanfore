@@ -38,12 +38,12 @@ header p {
 }
 
 /* ==========================================================================
-   2. BOTTONI DI NAVIGAZIONE
+   2. BOTTONI DI NAVIGAZIONE (VERSIONE DI IERI)
    ========================================================================== */
 .top-buttons {
     display: flex;
     justify-content: center;
-    gap: 10px;
+    gap: 12px;
     margin-bottom: 25px;
     flex-wrap: wrap;
 }
@@ -52,15 +52,16 @@ header p {
     padding: 12px 24px;
     font-size: 1rem;
     font-weight: 600;
-    color: #333333;
+    color: #2c3e50;
     background-color: #ffffff;
     border: 2px solid #e2e8f0;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s ease-in-out;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
+/* Effetto al passaggio del mouse di ieri */
 .top-buttons button:hover {
     background-color: #0066cc;
     color: #ffffff;
