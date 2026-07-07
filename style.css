@@ -38,35 +38,34 @@ header p {
 }
 
 /* ==========================================================================
-   2. BOTTONI DI NAVIGAZIONE (RIPRISTINO DI IERI)
+   2. BOTTONI DI NAVIGAZIONE
    ========================================================================== */
 .top-buttons {
     display: flex;
     justify-content: center;
-    gap: 15px;
-    margin-bottom: 30px;
+    gap: 10px;
+    margin-bottom: 25px;
     flex-wrap: wrap;
 }
 
 .top-buttons button {
-    padding: 14px 28px;
-    font-size: 1.05rem;
+    padding: 12px 24px;
+    font-size: 1rem;
     font-weight: 600;
-    color: #1e3a8a;
+    color: #333333;
     background-color: #ffffff;
     border: 2px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s ease-in-out;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
 }
 
 .top-buttons button:hover {
     background-color: #0066cc;
     color: #ffffff;
     border-color: #0066cc;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 68, 153, 0.2);
+    transform: translateY(-1px);
 }
 
 /* ==========================================================================
@@ -138,7 +137,7 @@ tr:hover td {
 }
 
 /* ==========================================================================
-   4. FINESTRE OVERLAY (GRAFICI E CONSIGLI)
+   4. FINESTRE OVERLAY (GRAFICI E CONSIGLI FOTO 1)
    ========================================================================== */
 .overlay {
     position: fixed;
@@ -191,6 +190,7 @@ tr:hover td {
     height: calc(100% - 60px) !important;
 }
 
+/* BLINDATO: Stile minimale, pulito e arioso della Foto 1 */
 .dosage-card {
     background: #ffffff !important;
     padding: 30px 35px !important;
@@ -223,6 +223,7 @@ tr:hover td {
     font-weight: 700 !important;
 }
 
+/* Utility */
 .hidden {
     display: none !important;
 }
