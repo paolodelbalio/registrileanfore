@@ -41,15 +41,14 @@ function caricaTuttiIRegistri() {
                 let datiFiltrati = [];
                 let ultimaDataValida = "";
 
-                // Individua gli indici chiave per il controllo del blocco righe vuote
-                let idxData = headers.findIndex(h => h.toLowerCase().trim() === 'data');
+                // Individua in modo dinamico gli indici chiave per il controllo del blocco
                 let idxPH = headers.findIndex(h => h.toLowerCase().trim() === 'ph');
                 let idxOra = headers.findIndex(h => h.toLowerCase().trim() === 'ora');
                 
-                // Indici per gli altri registri
-                let idxContatore = headers.findIndex(h => h.toLowerCase().trim().includes('contatore'));
-                let idxFiltri = headers.findIndex(h => h.toLowerCase().trim().includes('filtri') || h.toLowerCase().trim().includes('operazione'));
-                let idxTipoIntervento = headers.findIndex(h => h.toLowerCase().trim().includes('intervento') || h.toLowerCase().trim().includes('tipo'));
+                // Cerca indici flessibili per evitare disallineamenti di intestazione nei CSV
+                let idxContatore = headers.findIndex(h => h.toLowerCase().trim().includes('contatore') || h.toLowerCase().trim().includes('lettura') || h.toLowerCase().trim().includes('m³'));
+                let idxPulizie = headers.findIndex(h => h.toLowerCase().trim().includes('filtri') || h.toLowerCase().trim().includes('operazione') || h.toLowerCase().trim().includes('pulizia') || h.toLowerCase().trim().includes('lavaggio'));
+                let idxManutenzioni = headers.findIndex(h => h.toLowerCase().trim().includes('intervento') || h.toLowerCase().trim().includes('tipo') || h.toLowerCase().trim().includes('lavori') || h.toLowerCase().trim().includes('note'));
 
                 for (let i = indiceHeader + 1; i < righeGrezze.length; i++) {
                     let rigaCorrente = righeGrezze[i];
@@ -57,31 +56,33 @@ function caricaTuttiIRegistri() {
                     
                     let valoriTrimmati = rigaCorrente.map(v => v ? v.trim() : "");
                     
-                    // CONTROLLO BLOCCO RIGHE VUOTE PER TUTTI I REGISTRI
+                    // CONTROLLO BLOCCO RIGHE VUOTE FUTURE (Arresto alla data corrente)
                     if (chiave === 'chimico' && idxPH !== -1 && idxOra !== -1) {
                         let oraCorrente = valoriTrimmati[idxOra];
                         let valorePH = valoriTrimmati[idxPH];
                         if (oraCorrente === "07:00" && (valorePH === "" || valorePH === undefined)) {
-                            break; // Si ferma alla data di oggi
+                            break; 
                         }
                     } 
                     else if (chiave === 'contatori' && idxContatore !== -1) {
                         if (valoriTrimmati[idxContatore] === "" || valoriTrimmati[idxContatore] === undefined) {
-                            break; // Si ferma se il contatore è vuoto
+                            break; 
                         }
                     }
-                    else if (chiave === 'pulizie' && idxFiltri !== -1) {
-                        if (valoriTrimmati[idxFiltri] === "" || valoriTrimmati[idxFiltri] === undefined) {
-                            break; // Si ferma se la descrizione pulizia è vuota
+                    else if (chiave === 'pulizie' && idxPulizie !== -1) {
+                        if (valoriTrimmati[idxPulizie] === "" || valoriTrimmati[idxPulizie] === undefined) {
+                            break; 
                         }
                     }
-                    else if (chiave === 'manutenzioni' && idxTipoIntervento !== -1) {
-                        if (valoriTrimmati[idxTipoIntervento] === "" || valoriTrimmati[idxTipoIntervento] === undefined) {
-                            break; // Si ferma se la descrizione intervento è vuota
+                    else if (chiave === 'manutenzioni' && idxManutenzioni !== -1) {
+                        // Se la riga non ha una descrizione dell'intervento o è vuota nei campi operativi, ci fermiamo
+                        let rigaVuotaManutenzione = valoriTrimmati.slice(1).join('').trim() === "";
+                        if (valoriTrimmati[idxManutenzioni] === "" || valoriTrimmati[idxManutenzioni] === undefined || rigaVuotaManutenzione) {
+                            break; 
                         }
                     }
 
-                    // Salto di sicurezza se la riga è completamente priva di testo
+                    // Salto di sicurezza se l'intera riga è vuota
                     let rigaUnita = valoriTrimmati.join('').replace(/,/g, '').trim();
                     if (rigaUnita === "") continue;
 
@@ -196,7 +197,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     });
 }
 
-// LOGICA SCORRIMENTO: Trova l'ultima riga reale popolata e si ferma lasciando lo spazio visivo di due righe sotto
+// LOGICA SCORRIMENTO: Si posiziona sull'ultima riga reale lasciando due righe di margine sotto
 function scollaAdUltimaRiga(sezioneId) {
     const sezione = document.getElementById(sezioneId);
     if (!sezione) return;
