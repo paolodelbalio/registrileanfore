@@ -5,236 +5,212 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: #f4f7f6;
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
     color: #333333;
     padding: 20px;
-    line-height: 1.5;
 }
 
 header {
+    background-color: #0066cc;
+    color: white;
+    padding: 20px;
     text-align: center;
-    margin-bottom: 25px;
-    background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
-    color: #ffffff;
-    padding: 30px 20px;
-    border-radius: 6px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    margin-bottom: 20px;
 }
 
 header h1 {
-    font-size: 2.2rem;
-    margin-bottom: 8px;
-    font-weight: 700;
+    font-size: 2rem;
+    margin-bottom: 5px;
 }
 
-/* BARRA PULSANTI DINAMICA - SCOMPARE IN DISCESA, APPARE IN SALITA */
+/* BARRA PULSANTI STICKY */
 .top-buttons {
     display: flex;
     justify-content: center;
-    gap: 12px;
-    padding: 15px;
-    background: rgba(233, 242, 251, 0.98);
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #e9f2fb;
+    border-bottom: 1px solid #d0d7de;
     position: sticky;
-    top: 10px;
+    top: 0;
     z-index: 1000;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    backdrop-filter: blur(8px);
-    margin-bottom: 25px;
-    transition: top 0.3s ease-in-out;
+    margin-bottom: 20px;
+    transition: top 0.2s ease-in-out;
 }
 
 .top-buttons.nav-hidden {
-    top: -80px;
+    top: -60px;
 }
 
 .top-buttons button {
-    padding: 10px 22px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    border: 1px solid rgba(0, 102, 204, 0.4);
-    background: rgba(188, 224, 253, 0.5);
-    color: #004085;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    border: 1px solid #0066cc;
+    background: #fff;
+    color: #0066cc;
     border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    font-weight: bold;
 }
 
 .top-buttons button:hover {
-    background: rgba(0, 102, 204, 0.9);
-    color: #ffffff;
-    border-color: #0066cc;
-    transform: translateY(-1px);
+    background: #0066cc;
+    color: #fff;
 }
 
-/* STILE TABELLA IDENTICO ALLA FOTO ORIGINALE */
+/* SEZIONI E TABELLA IDENTICA ALLA FOTO ORIGINALE */
 .register-section {
     background: #ffffff;
-    padding: 24px;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-    margin-bottom: 30px;
+    padding: 15px;
+    margin-bottom: 25px;
 }
 
 .register-section h2 {
-    color: #1e293b;
-    margin-bottom: 18px;
-    font-size: 1.6rem;
-    border-bottom: 2px solid #e2e8f0;
-    padding-bottom: 8px;
+    font-size: 1.4rem;
+    color: #333;
+    margin-bottom: 12px;
 }
 
 .table-wrapper {
     overflow-x: auto;
-    max-height: 70vh;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    max-height: 65vh;
+    border: 1px solid #cccccc;
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.88rem;
-    text-align: left;
+    font-size: 0.9rem;
 }
 
+/* INTESTAZIONE AZZURRA COME DA FOTO 1 */
 th {
-    background-color: #f1f5f9;
-    color: #334155;
-    font-weight: 700;
-    padding: 14px 12px;
+    background-color: #bce0fd;
+    color: #004085;
+    font-weight: bold;
+    padding: 8px 10px;
+    border: 1px solid #aaaaaa;
+    text-align: center;
+    white-space: nowrap;
     position: sticky;
     top: 0;
     z-index: 5;
-    border-bottom: 2px solid #cbd5e1;
 }
 
+/* CELLE CON BORDO COMPLETO E TESTO CENTRATO */
 td {
-    padding: 11px 12px;
-    border-bottom: 1px solid #e2e8f0;
-    color: #475569;
+    padding: 6px 10px;
+    border: 1px solid #cccccc;
+    text-align: center;
+    color: #333333;
     white-space: nowrap;
 }
 
-tr:hover td {
-    background-color: #f8fafc;
+tr:nth-child(even) td {
+    background-color: #fafafa;
 }
 
-/* CELLE FUNZIONALI */
+/* COLONNE CLICCABILI (GRAFICI ATTIVI) */
 .clickable-header {
     cursor: pointer;
-    background: #dbeafe !important;
-    color: #1e40af;
-    font-weight: 700;
 }
 .clickable-header:hover {
-    background: #2563eb !important;
-    color: white;
+    background-color: #0066cc !important;
+    color: white !important;
 }
 
+/* STATI ALLARME E OK */
 .cell-ok {
-    background-color: #d1fae5 !important;
-    color: #065f46 !important;
+    background-color: #d4edda !important;
+    color: #155724 !important;
 }
 
 .cell-alarm {
-    background-color: #fee2e2 !important;
-    color: #991b1b !important;
+    background-color: #f8d7da !important;
+    color: #721c24 !important;
     font-weight: bold;
     cursor: pointer;
-    animation: pulseBorder 2s infinite alternate;
 }
 
-@keyframes pulseBorder {
-    0% { box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.2); }
-    100% { box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.6); }
+.cell-alarm:hover {
+    background-color: #f5c6cb !important;
 }
 
-/* OVERLAY E FINESTRE DI DIALOGO */
+/* FINESTRE DI OVERLAY */
 .overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(15, 23, 42, 0.65);
+    background: rgba(0, 0, 0, 0.6);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 9999;
-    backdrop-filter: blur(3px);
 }
 
 .overlay-content {
-    background: #ffffff;
-    padding: 25px;
-    border-radius: 10px;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
     width: 90%;
-    max-width: 850px;
-    height: 75vh;
+    max-width: 800px;
+    height: 70vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.15);
     position: relative;
 }
 
 .dosage-card {
-    background: #ffffff !important;
-    padding: 35px 40px !important;
-    border-radius: 8px !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25) !important;
-    width: 90% !important;
-    max-width: 550px !important;
-    position: relative !important;
-    text-align: left !important;
-    border-top: 5px solid #ef4444;
+    background: #ffffff;
+    padding: 25px;
+    border-radius: 6px;
+    border-top: 4px solid #721c24;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    text-align: left;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
 
 .overlay-close {
     position: absolute;
-    top: 15px;
-    right: 20px;
-    font-size: 22px;
+    top: 10px;
+    right: 15px;
+    font-size: 20px;
     cursor: pointer;
-    color: #94a3b8;
+    color: #999;
 }
 .overlay-close:hover {
-    color: #334155;
+    color: #333;
 }
 
 .dosage-card h3 {
-    color: #1e293b;
-    font-size: 1.4rem;
-    margin-bottom: 18px;
-    font-weight: 700;
+    margin-bottom: 15px;
+    color: #333;
 }
 
 .dosage-card p {
-    font-size: 1rem;
-    color: #475569;
-    margin-bottom: 14px;
-    line-height: 1.6;
-}
-
-.dosage-card strong {
-    color: #0f172a;
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+    line-height: 1.4;
 }
 
 .dosage-close-btn {
-    margin-top: 20px;
+    margin-top: 15px;
     width: 100%;
-    padding: 12px;
-    background-color: #0f172a;
+    padding: 10px;
+    background-color: #333;
     color: white;
     border: none;
-    border-radius: 6px;
-    font-weight: 600;
+    border-radius: 4px;
     cursor: pointer;
+    font-weight: bold;
 }
 .dosage-close-btn:hover {
-    background-color: #1e293b;
+    background-color: #000;
 }
 
 .hidden {
