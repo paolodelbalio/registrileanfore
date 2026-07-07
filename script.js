@@ -3,21 +3,20 @@ let datiRegistriGlobali = { chimico: [], contatori: [], pulizie: [], manutenzion
 
 const VOL_PISCINA = 92; // Volume vasca in m³
 
-// Mappatura file CSV reali
+// Mappatura dei file CSV reali con i nomi esatti presenti sul disco
 const FILES = {
-    chimico: "REGISTRO CHIMICO 2026.csv?t=" + new Date().getTime(),
-    contatori: "REGISTRO CONTATORI.csv?t=" + new Date().getTime(),
-    pulizie: "REGISTRO PULIZIE PISCINA 2026.csv?t=" + new Date().getTime(),
-    manutenzioni: "REGISTRO MANUTENZIONE INTERVENTI .csv?t=" + new Date().getTime()
+    chimico: "REGISTRO CHIMICO 2026.csv",
+    contatori: "REGISTRO CONTATORI.csv",
+    pulizie: "REGISTRO PULIZIE PISCINA 2026.csv",
+    manutenzioni: "REGISTRO MANUTENZIONE INTERVENTI .csv"
 };
 
-// Limiti di conformità aggiornati
 const LEGAL_RANGES = {
     "ph": { min: 6.5, max: 7.5, target: 7.3 },
     "cl. lib": { min: 0.7, max: 1.5, target: 1.1 },
     "cl. com": { min: 0.0, max: 0.4 },
     "temp": { min: 24.0, max: 30.0 },
-    "cya": { min: 0.0, max: 60.0 } // Allarme impostato a 60 ppm
+    "cya": { min: 0.0, max: 60.0 }
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -32,18 +31,20 @@ function caricaTuttiIRegistri() {
             skipEmptyLines: true,
             complete: function(results) {
                 elaboraDatiTabella(chiave, results.data);
+            },
+            error: function(err) {
+                console.error("Errore nel caricamento del file " + chiave + ":", err);
             }
         });
     });
 }
 
-// CORREZIONE ANOMALIA SLITTAMENTO DATI (SCREENSHOT)
 function elaboraDatiTabella(chiave, righeGrezze) {
     if (!righeGrezze || righeGrezze.length === 0) return;
 
     let indiceIntestazione = -1;
     
-    // Trova la riga corretta che contiene le intestazioni saltando scritte esterne
+    // Scansione per intercettare la riga di testa reale
     for (let i = 0; i < righeGrezze.length; i++) {
         let primaCella = (righeGrezze[i][0] || "").trim().toLowerCase();
         if (primaCella.startsWith("data")) {
@@ -52,7 +53,6 @@ function elaboraDatiTabella(chiave, righeGrezze) {
         }
     }
 
-    // Se non trova una riga valida usa la prima riga disponibile
     if (indiceIntestazione === -1) indiceIntestazione = 0;
 
     let intestazioni = righeGrezze[indiceIntestazione].map(h => (h || "").trim());
@@ -60,16 +60,14 @@ function elaboraDatiTabella(chiave, righeGrezze) {
 
     let righePulite = [];
     righeDati.forEach(riga => {
-        // Verifica se la riga è completamente vuota
         let rigaVuota = riga.every(cella => !cella || cella.trim() === "");
         if (rigaVuota) return;
 
-        // Pulizia dei testi dai ritorni a capo interni (\n)
         let rigaFormattata = riga.map(cella => cella ? cella.replace(/\r?\n|\r/g, " ").trim() : "");
         righePulite.push(rigaFormattata);
     });
 
-    // Taglio righe vuote del Registro Pulizie basandosi sulla colonna C ("Area Pulita")
+    // Taglio righe di coda per il registro pulizie basato su dati effettivi
     if (chiave === "pulizie") {
         let ultimoIndiceValido = -1;
         for (let i = 0; i < righePulite.length; i++) {
@@ -93,7 +91,8 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
 
     let html = "<thead><tr>";
     intestazioni.forEach(h => {
-        let classeClick = ["ph", "cl. lib", "cl. com", "temp", "cya", "reintegro  (l)"].includes(h.toLowerCase()) ? "class='clickable-header'" : "";
+        let hLower = h.toLowerCase();
+        let classeClick = ["ph", "cl. lib", "cl. com", "temp", "cya", "reintegro  (l)"].includes(hLower) ? "class='clickable-header'" : "";
         html += `<th ${classeClick} onclick="gestisciClickIntestazione('${chiave}', '${h}')">${h}</th>`;
     });
     html += "</tr></thead><tbody>";
@@ -127,8 +126,8 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
     table.innerHTML = html;
 }
 
-// Gestione dell'apertura e dello scorrimento preciso fino all'ultimo record inserito
 function mostraSezione(sezioneId) {
+    // Nasconde tutte le sezioni
     document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
     
     const sezione = document.getElementById(sezioneId);
@@ -139,35 +138,35 @@ function mostraSezione(sezioneId) {
     let chiave = sezioneId.replace("Section", "");
     let dati = datiRegistriGlobali[chiave];
 
-    if (!dati || dati.rows.length === 0) return;
+    if (!dati || !dati.rows || dati.rows.length === 0) return;
 
     let rigaTargetIndice = dati.rows.length - 1;
 
-    // Logiche millimetriche per trovare l'ultima cella compilata reale
+    // Rilevamento ultima riga reale per ciascun registro
     if (chiave === "chimico") {
         for (let i = dati.rows.length - 1; i >= 0; i--) {
-            if (dati.rows[i][2] && dati.rows[i][2].trim() !== "") { // colonna pH
+            if (dati.rows[i][2] && dati.rows[i][2].trim() !== "") {
                 rigaTargetIndice = i;
                 break;
             }
         }
     } else if (chiave === "contatori") {
         for (let i = dati.rows.length - 1; i >= 0; i--) {
-            if (dati.rows[i][1] && dati.rows[i][1].trim() !== "" && dati.rows[i][1].trim() !== "0") { // Reintegro
+            if (dati.rows[i][1] && dati.rows[i][1].trim() !== "" && dati.rows[i][1].trim() !== "0") {
                 rigaTargetIndice = i;
                 break;
             }
         }
     } else if (chiave === "manutenzioni") {
         for (let i = dati.rows.length - 1; i >= 0; i--) {
-            if (dati.rows[i][1] && dati.rows[i][1].trim() !== "") { // Impianto/Area
+            if (dati.rows[i][1] && dati.rows[i][1].trim() !== "") {
                 rigaTargetIndice = i;
                 break;
             }
         }
     }
 
-    // Scroll armonico immediato verso l'ultima riga reale
+    // Scroll fluido automatico sulla riga attiva
     setTimeout(() => {
         const tabella = document.getElementById(chiave + "Table");
         if (tabella) {
@@ -176,10 +175,9 @@ function mostraSezione(sezioneId) {
                 righeTabella[rigaTargetIndice].scrollIntoView({ behavior: "smooth", block: "center" });
             }
         }
-    }, 100);
+    }, 80);
 }
 
-// Finestra Unica di Diagnostica Bloccata sullo Stile Foto 1
 function apriFinestraDosaggio(parametro, valore) {
     const modal = document.getElementById("dosageModal");
     const content = document.getElementById("dosageContent");
