@@ -3,72 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Piscina 2026</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Assistente Chimico - Tabella</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f9;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Contenitore principale della tabella con la linea rossa a sinistra */
+        .assistant-table-container {
+            display: flex;
+            background-color: #ffffff;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            overflow: hidden;
+            width: 100%;
+            max-width: 900px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        /* Indicatore rosso verticale */
+        .status-indicator-bar {
+            width: 6px;
+            background-color: #dc3545; /* Rosso per stato basso/allarme */
+            flex-shrink: 0;
+        }
+
+        /* Tabella effettiva */
+        .assistant-table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 14px;
+            color: #333333;
+        }
+
+        /* Intestazione */
+        .assistant-table th {
+            background-color: #eef4f9;
+            color: #3a506b;
+            font-weight: 600;
+            text-align: left;
+            padding: 16px 12px;
+            border-bottom: 1px solid #dbe3eb;
+            border-right: 1px solid #dbe3eb;
+        }
+
+        /* Celle del corpo */
+        .assistant-table td {
+            padding: 16px 12px;
+            border-right: 1px solid #e1e8ed;
+            vertical-align: middle;
+            line-height: 1.4;
+        }
+
+        /* Rimuove il bordo destro dall'ultima colonna */
+        .assistant-table th:last-child, 
+        .assistant-table td:last-child {
+            border-right: none;
+        }
+
+        /* Testo in grassetto per i parametri */
+        .param-name {
+            font-weight: bold;
+            color: #1a1a1a;
+        }
+
+        /* Badge Stato Basso (Rosa/Rosso) */
+        .badge-low {
+            background-color: #fff0f1;
+            border: 1px solid #fecdd3;
+            color: #b91c1c;
+            padding: 10px 8px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 13px;
+            line-height: 1.3;
+        }
+
+        /* Box Dose Richiesta (Azzurro) */
+        .dose-box {
+            background-color: #e0f2fe;
+            border: 1px solid #bae6fd;
+            color: #0369a1;
+            font-weight: bold;
+            font-size: 15px;
+            padding: 12px 10px;
+            border-radius: 4px;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        /* Testo corsivo per il prodotto */
+        .product-text {
+            font-style: italic;
+            color: #4b5563;
+        }
+
+        /* Testo istruzioni e obiettivo */
+        .instruction-text, .objective-text {
+            color: #4b5563;
+        }
+    </style>
 </head>
 <body>
 
-    <header>
-        <h1>Dashboard Piscina 2026</h1>
-        <p>Analisi automatica e diagnostica interattiva dei registri di vasca</p>
-    </header>
+<div class="assistant-table-container">
+    <div class="status-indicator-bar"></div>
+    
+    <table class="assistant-table">
+        <thead>
+            <tr>
+                <th style="width: 14%;">Parametro</th>
+                <th style="width: 12%;">Stato</th>
+                <th style="width: 24%;">Obiettivo</th>
+                <th style="width: 16%;">Prodotto</th>
+                <th style="width: 14%;">Dose Richiesta</th>
+                <th style="width: 20%;">Istruzioni</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    <span class="param-name">Cloro<br>Libero</span>
+                </td>
+                <td>
+                    <div class="badge-low">
+                        Basso<br>
+                        <span style="font-size: 12px; font-weight: normal;">(0.51 ppm)</span>
+                    </div>
+                </td>
+                <td class="objective-text">
+                    Aumentare di 0.99 ppm per raggiungere la quota ideale di 1.5 ppm
+                </td>
+                <td class="product-text">
+                    Cloro Granulare (Ipoclorito)
+                </td>
+                <td>
+                    <div class="dose-box">
+                        182 grammi
+                    </div>
+                </td>
+                <td class="instruction-text">
+                    Dosaggio rapido granulare. Aggiungere negli skimmer o premiscelare.
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 
-    <div class="top-buttons">
-        <button onclick="mostraSezione('chimicoSection')">Chimico</button>
-        <button onclick="mostraSezione('contatoriSection')">Contatori</button>
-        <button onclick="mostraSezione('pulizieSection')">Pulizie</button>
-        <button onclick="mostraSezione('manutenzioniSection')">Manutenzioni</button>
-    </div>
-
-    <section id="chimicoSection" class="register-section">
-        <h2>Registro Chimico</h2>
-        <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">
-            💡 <em>Suggerimento: Le celle evidenziate in rosso indicano parametri fuori soglia. Clicca sopra le celle rosse di <strong>pH</strong>, <strong>Cl. Lib</strong>, <strong>Cl. Com</strong> o <strong>Cya</strong> per aprire i consigli sul trattamento dell'acqua.</em>
-        </p>
-        <div class="table-wrapper">
-            <table id="chimicoTable"></table>
-        </div>
-    </section>
-
-    <section id="contatoriSection" class="register-section hidden">
-        <h2>Registro Contatori</h2>
-        <div class="table-wrapper">
-            <table id="contatoriTable"></table>
-        </div>
-    </section>
-
-    <section id="pulizieSection" class="register-section hidden">
-        <h2>Registro Pulizie</h2>
-        <div class="table-wrapper">
-            <table id="pulizieTable"></table>
-        </div>
-    </section>
-
-    <section id="manutenzioniSection" class="register-section hidden">
-        <h2>Registro Manutenzioni</h2>
-        <div class="table-wrapper">
-            <table id="manutenzioniTable"></table>
-        </div>
-    </section>
-
-    <div id="chartOverlay" class="overlay hidden">
-        <div class="overlay-content">
-            <span class="overlay-close" onclick="closeOverlay()">✖</span>
-            <h3 id="overlayTitle">Andamento Storico</h3>
-            <canvas id="overlayCanvas"></canvas>
-        </div>
-    </div>
-
-    <div id="dosageModal" class="overlay hidden">
-        <div class="dosage-card">
-            <span class="overlay-close" onclick="chiudiDosaggio()">✖</span>
-            <div id="dosageContent"></div>
-            <button class="dosage-close-btn" onclick="chiudiDosaggio()">Ho capito, chiudi</button>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
 </body>
 </html>
