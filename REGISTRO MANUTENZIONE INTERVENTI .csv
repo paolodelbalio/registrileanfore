@@ -3,50 +3,50 @@ Data,Impianto/Area, Intervento,Tecnico,Note,Firma
 ,,,,,
 lun 04/mag 26,Vasca,Scoperto Vasca,Paolo,Acqua torbida,
 mar 05/mag 26,Vasca,Riparato Skimmer,Paolo,Riparato skimmer nord. Tamponato perdita ,
-mer 06/mag 26,Filtro,Rabboccato Vetro,Paolo,"Pulito letto filtrante, effettuato rabbocco vetro AMF, 25 Kg",
-gio 07/mag 26,Vasca,Aspirato Fondo,Paolo,"Acqua torbida,Messo flocculante ",
-ven 08/mag 26,Vasca,Aspirato Fondo,Paolo,"Acqua torbida,Aspirato fondo in posizione scarico ",
-lun 11/mag 26,Vasca,Aspirato Fondo,Paolo,"Acqua torbida,Aspirato fondo in posizione scarico ",
-mar 12/mag 26,Vasca,Aspirato Fondo,Paolo,"Acqua torbida,Aspirato fondo in posizione scarico ",
-gio 14/mag 26,"
-Filtro","
-Controlavaggio",Paolo,Ristabilito Pressione,
+"mer 06/mag 26,Filtro,Rabboccato Vetro,Paolo,""Pulito letto filtrante, effettuato rabbocco vetro AMF, 25 Kg"","
+"gio 07/mag 26,Vasca,Aspirato Fondo,Paolo,""Acqua torbida,Messo flocculante "","
+"ven 08/mag 26,Vasca,Aspirato Fondo,Paolo,""Acqua torbida,Aspirato fondo in posizione scarico "","
+"lun 11/mag 26,Vasca,Aspirato Fondo,Paolo,""Acqua torbida,Aspirato fondo in posizione scarico "","
+"mar 12/mag 26,Vasca,Aspirato Fondo,Paolo,""Acqua torbida,Aspirato fondo in posizione scarico "","
+"gio 14/mag 26,"""
+"Filtro"","""
+"Controlavaggio"",Paolo,Ristabilito Pressione,"
 mer 20/mag 26,Robot,Riparato Cavo Robot Aspiratore,Paolo,Sostituito Cavo ,
-lun 25/mag 26,"
-Filtro","
-Controlavaggio",Paolo,"Finito livello, Cianurico 59",
-mer 27/mag 26,"Vasca
-Filtro","Reintegro
-Controlavaggio",Paolo,riportato a livello,
+"lun 25/mag 26,"""
+"Filtro"","""
+"Controlavaggio"",Paolo,""Finito livello, Cianurico 59"","
+"mer 27/mag 26,""Vasca"
+"Filtro"",""Reintegro"
+"Controlavaggio"",Paolo,riportato a livello,"
 gio 28/mag 26,Locale Tecnico,Aspirato Foglie,Paolo,,
-dom 31/mag 26,"Filtro
-Skimmer","
-Controlavaggio",Paolo,Pulito Prefiltri       Ristabilito Pressione,
-gio 04/giu 26,"
-Filtro","
-Controspionaggio",Paolo,cya da 74 a 69 ppm,
-lun 08/giu 26,"
-Filtro",Controlavaggio  Pulizia prefiltri ,Paolo,Riportato a livello,
-gio 11/giu 26,"
-Filtro", Controlavaggio,Paolo,Portato Livello,
-lun 15/giu 26,"Filtro
-Skimmer","
+"dom 31/mag 26,""Filtro"
+"Skimmer"","""
+"Controlavaggio"",Paolo,Pulito Prefiltri       Ristabilito Pressione,"
+"gio 04/giu 26,"""
+"Filtro"","""
+"Controspionaggio"",Paolo,cya da 74 a 69 ppm,"
+"lun 08/giu 26,"""
+"Filtro"",Controlavaggio  Pulizia prefiltri ,Paolo,Riportato a livello,"
+"gio 11/giu 26,"""
+"Filtro"", Controlavaggio,Paolo,Portato Livello,"
+"lun 15/giu 26,""Filtro"
+"Skimmer"","""
 Controspionaggio
 Rabbocco Sabbia
-Riparato Ombrellone ",Paolo,"Pulito Prefiltri       Ristabilito Pressione
-Aggiunto 25 Kg",
-mar 16/giu 26,"
-Locale tecnico","
-Riparato Presa  Pompa",Paolo,,
-ven 19/giu 26,"
-Filtro","
-Controlavaggio",Paolo,Ristabilito Pressione,
-mar 23/giu 26,"
+"Riparato Ombrellone "",Paolo,""Pulito Prefiltri       Ristabilito Pressione"
+"Aggiunto 25 Kg"","
+"mar 16/giu 26,"""
+"Locale tecnico"","""
+"Riparato Presa  Pompa"",Paolo,,"
+"ven 19/giu 26,"""
+"Filtro"","""
+"Controlavaggio"",Paolo,Ristabilito Pressione,"
+"mar 23/giu 26,"""
 Filtro
-Impianto","
+"Impianto"","""
 Controlavaggio
-Valvola Multivie",Paolo,Ristabilito PressioneSostituito Oring ,
+"Valvola Multivie"",Paolo,Ristabilito PressioneSostituito Oring ,"
 ven 26/giu 26,Filtro,Controlavaggio,Paolo,Ristabilito Pressione,
-mar 30/giu 26,"Filtro
-Skimmer",Controlavaggio,Paolo,Pulito Prefiltri       Ristabilito Pressione,
+"mar 30/giu 26,""Filtro"
+"Skimmer"",Controlavaggio,Paolo,Pulito Prefiltri       Ristabilito Pressione,"
 ven 03/lug 26,Filtro,Controlavaggio,Paolo,Ristabilito Pressione,
