@@ -41,9 +41,15 @@ function caricaTuttiIRegistri() {
                 let datiFiltrati = [];
                 let ultimaDataValida = "";
 
-                // Trova gli indici delle colonne pH e Ora per il controllo di blocco
+                // Individua gli indici chiave per il controllo del blocco righe vuote
+                let idxData = headers.findIndex(h => h.toLowerCase().trim() === 'data');
                 let idxPH = headers.findIndex(h => h.toLowerCase().trim() === 'ph');
                 let idxOra = headers.findIndex(h => h.toLowerCase().trim() === 'ora');
+                
+                // Indici per gli altri registri
+                let idxContatore = headers.findIndex(h => h.toLowerCase().trim().includes('contatore'));
+                let idxFiltri = headers.findIndex(h => h.toLowerCase().trim().includes('filtri') || h.toLowerCase().trim().includes('operazione'));
+                let idxTipoIntervento = headers.findIndex(h => h.toLowerCase().trim().includes('intervento') || h.toLowerCase().trim().includes('tipo'));
 
                 for (let i = indiceHeader + 1; i < righeGrezze.length; i++) {
                     let rigaCorrente = righeGrezze[i];
@@ -51,18 +57,31 @@ function caricaTuttiIRegistri() {
                     
                     let valoriTrimmati = rigaCorrente.map(v => v ? v.trim() : "");
                     
-                    // RIFERIMENTO PRIMA LETTURA PH: Se siamo nel registro chimico, controlliamo la riga delle 07:00
+                    // CONTROLLO BLOCCO RIGHE VUOTE PER TUTTI I REGISTRI
                     if (chiave === 'chimico' && idxPH !== -1 && idxOra !== -1) {
                         let oraCorrente = valoriTrimmati[idxOra];
                         let valorePH = valoriTrimmati[idxPH];
-                        
-                        // Se la riga è quella della mattina (07:00) e il pH è vuoto, i dati inseriti sono finiti. Ci fermiamo!
                         if (oraCorrente === "07:00" && (valorePH === "" || valorePH === undefined)) {
-                            break; 
+                            break; // Si ferma alla data di oggi
+                        }
+                    } 
+                    else if (chiave === 'contatori' && idxContatore !== -1) {
+                        if (valoriTrimmati[idxContatore] === "" || valoriTrimmati[idxContatore] === undefined) {
+                            break; // Si ferma se il contatore è vuoto
+                        }
+                    }
+                    else if (chiave === 'pulizie' && idxFiltri !== -1) {
+                        if (valoriTrimmati[idxFiltri] === "" || valoriTrimmati[idxFiltri] === undefined) {
+                            break; // Si ferma se la descrizione pulizia è vuota
+                        }
+                    }
+                    else if (chiave === 'manutenzioni' && idxTipoIntervento !== -1) {
+                        if (valoriTrimmati[idxTipoIntervento] === "" || valoriTrimmati[idxTipoIntervento] === undefined) {
+                            break; // Si ferma se la descrizione intervento è vuota
                         }
                     }
 
-                    // Per gli altri registri, saltiamo solo se la riga è totalmente vuota
+                    // Salto di sicurezza se la riga è completamente priva di testo
                     let rigaUnita = valoriTrimmati.join('').replace(/,/g, '').trim();
                     if (rigaUnita === "") continue;
 
@@ -84,7 +103,6 @@ function caricaTuttiIRegistri() {
                 datiRegistriGlobali[chiave] = datiFiltrati;
                 popolaTabellaHtml(datiFiltrati, config.tableId, chiave, headers);
                 
-                // All'avvio scorre sull'ultima riga del registro chimico
                 if (chiave === 'chimico') {
                     setTimeout(() => scollaAdUltimaRiga('chimicoSection'), 300);
                 }
@@ -178,7 +196,7 @@ function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
     });
 }
 
-// NUOVA LOGICA SCORRIMENTO: Trova l'ultima riga della tabella attiva e si ferma lasciando lo spazio di due righe sotto
+// LOGICA SCORRIMENTO: Trova l'ultima riga reale popolata e si ferma lasciando lo spazio visivo di due righe sotto
 function scollaAdUltimaRiga(sezioneId) {
     const sezione = document.getElementById(sezioneId);
     if (!sezione) return;
@@ -189,7 +207,6 @@ function scollaAdUltimaRiga(sezioneId) {
     const righe = tabella.rows;
     const ultimaRiga = righe[righe.length - 1];
     
-    // Calcola l'altezza di una singola riga per stabilire lo spazio esatto di due righe sotto (circa 80px)
     const altezzaRiga = ultimaRiga.offsetHeight || 40; 
     const offsetTarget = (ultimaRiga.getBoundingClientRect().top + window.pageYOffset) - window.innerHeight + (altezzaRiga * 3);
 
@@ -376,7 +393,6 @@ function mostraSezione(sezioneId) {
     const sez = document.getElementById(sezioneId);
     if (sez) {
         sez.classList.remove('hidden');
-        // Ora passa dinamicamente la sezione corrente per focalizzare lo scroll corretto
         setTimeout(() => scollaAdUltimaRiga(sezioneId), 100); 
     }
 }
