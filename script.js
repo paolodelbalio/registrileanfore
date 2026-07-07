@@ -1,401 +1,266 @@
-// Variabili globali per memorizzare i dati di tutti i registri
-let mioGrafico = null;
-let datiRegistriGlobali = {
-    chimico: [],
-    contatori: [],
-    pulizie: [],
-    manutenzioni: []
-}; 
+// CONFIGURAZIONI PARAMETRI E TARGET
+const VOLUME_PISCINA = 92; 
+const TARGET_PH = 7.3;
+const TARGET_CLORO = 1.1;
+const ALLARME_CYA = 60;
 
-const VOL_PISCINA = 92; // Volume vasca in m³
+// DATI PRELEVATI DAL FILE CSV
+const databaseLettureStoriche = [
+    { data: "16 Mag 2026 08:30", ph: 7.3, cloro: 1.20, cya: 40, rabbocco: 0, contatore: 1240, lavaggio: "No", filtri: "Ok", trasparenza: "Limpida", note: "Apertura stagione" },
+    { data: "01 Giu 2026 08:00", ph: 7.4, cloro: 1.10, cya: 45, rabbocco: 1000, contatore: 1241, lavaggio: "Lavaggio Filtro", filtri: "Ok", trasparenza: "Limpida", note: "Rabbocco ordinario" },
+    { data: "15 Giu 2026 08:15", ph: 7.2, cloro: 1.30, cya: 50, rabbocco: 0, contatore: 1241, lavaggio: "No", filtri: "Ok", trasparenza: "Limpida", note: "Parametri regolari" },
+    { data: "02 Lug 2026 18:00", ph: 7.3, cloro: 1.20, cya: 55, rabbocco: 0, contatore: 1241, lavaggio: "No", filtri: "Ok", trasparenza: "Limpida", note: "Controlli stabili" },
+    { data: "03 Lug 2026 09:00", ph: 7.5, cloro: 1.10, cya: 55, rabbocco: 1500, contatore: 1242.5, lavaggio: "No", filtri: "Ok", trasparenza: "Limpida", note: "Caldo intenso" },
+    { data: "04 Lug 2026 07:00", ph: 7.3, cloro: 0.51, cya: 55, rabbocco: 0, contatore: 1242.5, lavaggio: "No", filtri: "Ok", trasparenza: "Limpida", note: "Analisi mattutina Pool LAB" },
+    { data: "05 Lug 2026 08:00", ph: 7.3, cloro: 1.10, cya: 55, rabbocco: 500, contatore: 1243, lavaggio: "Lavaggio Filtro", filtri: "Ok", trasparenza: "Limpida", note: "Ripristinato cloro granulare" },
+    // Righe vuote del calendario generate fino a fine settembre
+    { data: "06 Lug 2026 07:00", ph: null, cloro: null, cya: null, rabbocco: null, contatore: null, lavaggio: "", filtri: "", trasparenza: "", note: "" },
+    { data: "07 Lug 2026 07:00", ph: null, cloro: null, cya: null, rabbocco: null, contatore: null, lavaggio: "", filtri: "", trasparenza: "", note: "" },
+    { data: "08 Lug 2026 07:00", ph: null, cloro: null, cya: null, rabbocco: null, contatore: null, lavaggio: "", filtri: "", trasparenza: "", note: "" }
+];
 
-const REGISTRI_FILES = {
-    chimico: { file: "REGISTRO CHIMICO 2026.csv", tableId: "chimicoTable" },
-    contatori: { file: "REGISTRO CONTATORI.csv", tableId: "contatoriTable" },
-    pulizie: { file: "REGISTRO PULIZIE PISCINA 2026.csv", tableId: "pulizieTable" },
-    manutenzioni: { file: "REGISTRO MANUTENZIONE INTERVENTI .csv", tableId: "manutenzioniTable" }
-};
-
-// Carica tutti i file CSV
-function caricaTuttiIRegistri() {
-    Object.keys(REGISTRI_FILES).forEach(chiave => {
-        const config = REGISTRI_FILES[chiave];
-        Papa.parse(config.file, {
-            download: true,
-            header: false, 
-            skipEmptyLines: true,
-            complete: function(results) {
-                let righeGrezze = results.data;
-                if (!righeGrezze || righeGrezze.length === 0) return;
-                
-                let indiceHeader = 0;
-                for (let i = 0; i < righeGrezze.length; i++) {
-                    let celleSottoEsame = righeGrezze[i].map(v => v ? v.toLowerCase().trim() : "");
-                    if (celleSottoEsame.includes("data")) {
-                        indiceHeader = i;
-                        break;
-                    }
-                }
-
-                let headers = righeGrezze[indiceHeader].map(h => h ? h.trim() : "");
-                let datiFiltrati = [];
-                let ultimaDataValida = "";
-
-                let idxPH = headers.findIndex(h => h.toLowerCase().trim() === 'ph');
-                let idxOra = headers.findIndex(h => h.toLowerCase().trim() === 'ora');
-
-                for (let i = indiceHeader + 1; i < righeGrezze.length; i++) {
-                    let rigaCorrente = righeGrezze[i];
-                    while(rigaCorrente.length < headers.length) rigaCorrente.push("");
-                    
-                    let valoriTrimmati = rigaCorrente.map(v => v ? v.trim() : "");
-                    
-                    if (chiave === 'chimico' && idxPH !== -1 && idxOra !== -1) {
-                        let oraCorrente = valoriTrimmati[idxOra];
-                        let valorePH = valoriTrimmati[idxPH];
-                        
-                        if (oraCorrente === "07:00" && (valorePH === "" || valorePH === undefined)) {
-                            break; 
-                        }
-                    }
-
-                    let rigaUnita = valoriTrimmati.join('').replace(/,/g, '').trim();
-                    if (rigaUnita === "") continue;
-
-                    let objRiga = {};
-                    headers.forEach((h, idx) => {
-                        if (h) objRiga[h] = rigaCorrente[idx] ? rigaCorrente[idx].trim() : "";
-                    });
-
-                    let dataCorrente = objRiga["Data"] ? objRiga["Data"].trim() : "";
-                    if (dataCorrente !== "") {
-                        ultimaDataValida = dataCorrente;
-                    } else if (dataCorrente === "" && objRiga["Ora"] && objRiga["Ora"].trim() === "21:00") {
-                        objRiga["Data"] = ultimaDataValida; 
-                    }
-
-                    datiFiltrati.push(objRiga);
-                }
-                
-                datiRegistriGlobali[chiave] = datiFiltrati;
-                popolaTabellaHtml(datiFiltrati, config.tableId, chiave, headers);
-                
-                if (chiave === 'chimico') {
-                    setTimeout(scollaAdUltimaRiga, 300);
-                }
-            }
-        });
-    });
-}
-
-function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
-    const table = document.getElementById(tableId);
-    if (!table || !dati || dati.length === 0) return;
-    table.innerHTML = "";
-
-    let thead = table.createTHead();
-    let rowHead = thead.insertRow();
+document.addEventListener("DOMContentLoaded", function() {
+    caricaIQuattroRegistri(databaseLettureStoriche);
+    inizializzaGraficiStorici(databaseLettureStoriche);
     
-    headers.forEach(key => {
-        if (!key) return;
-        let th = document.createElement("th");
-        let cleanKey = key.toLowerCase().trim();
-        
-        let daGraficare = false;
-        if (tipoRegistro === 'chimico' && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'n.ospiti', 'cya'].includes(cleanKey)) {
-            daGraficare = true;
-        } else if (tipoRegistro === 'contatori' && (cleanKey.includes('reintegro') || cleanKey.includes('ricircolo'))) {
-            daGraficare = true;
-        }
-
-        if (daGraficare) {
-            th.innerHTML = `<button class="table-th-btn" onclick="apriGrafico('${key}', '${tipoRegistro}')">${key} 📊</button>`;
-        } else {
-            th.innerText = key;
-        }
-        rowHead.appendChild(th);
-    });
-
-    let tbody = table.createTBody();
-    dati.forEach(riga => {
-        let row = tbody.insertRow();
-        headers.forEach(key => {
-            if (!key) return;
-            let cell = row.insertCell();
-            let valoreTesto = riga[key] ? riga[key].trim() : "";
-            let cleanKey = key.toLowerCase().trim();
-            let valoreFloat = parseFloat(valoreTesto.replace(',', '.'));
-
-            if (!isNaN(valoreFloat) && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'cya'].includes(cleanKey)) {
-                cell.innerText = valoreFloat.toFixed(2).replace('.', ',');
-            } else {
-                cell.innerText = valoreTesto;
-            }
-
-            if (isNaN(valoreFloat) || valoreTesto === "" || tipoRegistro !== 'chimico') return;
-            
-            if (cleanKey === 'ph') {
-                if (valoreFloat > 7.50 || valoreFloat < 7.20) {
-                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
-                    cell.onclick = () => calcolaDosaggio('ph', valoreFloat);
-                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
-            }
-            if (cleanKey === 'cl. lib') {
-                if (valoreFloat < 0.70 || valoreFloat > 2.00) {
-                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
-                    cell.onclick = () => calcolaDosaggio('cl. lib', valoreFloat);
-                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
-            }
-            if (cleanKey === 'cl. tot') {
-                if (valoreFloat > 2.40 || valoreFloat < 0.90) {
-                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
-                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
-            }
-            if (cleanKey === 'cl. com') {
-                if (valoreFloat > 0.40) {
-                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
-                    cell.onclick = () => calcolaDosaggio('cl. com', valoreFloat);
-                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
-            }
-            if (cleanKey === 'temp') {
-                if (valoreFloat < 24.0 || valoreFloat > 30.0) {
-                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c";
-                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
-            }
-            if (cleanKey === 'cya') {
-                if (valoreFloat > 60) {
-                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
-                    cell.onclick = () => calcolaDosaggio('cya', valoreFloat);
-                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
-            }
-        });
-    });
-}
-
-// CORREZIONE APPLICATA QUI: Trova l'ultima riga con dati reali nella tabella attiva e si ferma mostrando le due righe sotto
-function scollaAdUltimaRiga() {
-    // Cerchiamo la tabella visibile o quella chimica principale
-    const tabella = document.getElementById("chimicoTable") || document.querySelector(".registro-table");
-    if (!tabella) return;
-    
-    const container = tabella.closest('.table-responsive') || window;
-    const righe = tabella.rows;
-    if (!righe || righe.length <= 1) return;
-
-    let rigaTargetIndice = -1;
-
-    // Partiamo dal basso cercando la prima riga che ha almeno una cella compilata (saltando la colonna della data/ora alla posizione 0)
-    for (let i = righe.length - 1; i >= 1; i--) {
-        let rigaHaDati = false;
-        const celle = righe[i].cells;
-        
-        for (let j = 1; j < celle.length; j++) {
-            if (celle[j] && celle[j].innerText.trim() !== "") {
-                rigaHaDati = true;
-                break;
-            }
-        }
-        
-        if (rigaHaDati) {
-            // Trovata! Ci posizioniamo 2 righe più giù per lasciare lo spazio vuoto visibile
-            rigaTargetIndice = Math.min(i + 2, righe.length - 1);
+    // L'assistente chimico analizza l'ultima riga che contiene dati reali reali (es. riga dell'05 Lug)
+    let ultimaLetturaValida = null;
+    for (let i = databaseLettureStoriche.length - 1; i >= 0; i--) {
+        if (databaseLettureStoriche[i].ph !== null && databaseLettureStoriche[i].cloro !== null) {
+            ultimaLetturaValida = databaseLettureStoriche[i];
             break;
         }
     }
+    if (ultimaLetturaValida) {
+        elaboraAssistenteChimico(ultimaLetturaValida);
+    }
 
-    if (rigaTargetIndice > 0 && righe[rigaTargetIndice]) {
-        if (container === window) {
-            righe[rigaTargetIndice].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else {
+    // Esegue lo scorrimento automatico focalizzandosi sulla riga vuota corrente
+    setTimeout(scollaAdUltimaRigaCompilata, 300);
+});
+
+function caricaIQuattroRegistri(dati) {
+    const chimicoBody = document.getElementById('corpo-registro-chimico');
+    const acquaBody = document.getElementById('corpo-registro-acqua');
+    const manutenzioneBody = document.getElementById('corpo-registro-manutenzione');
+    const sicurezzaBody = document.getElementById('corpo-registro-sicurezza');
+
+    chimicoBody.innerHTML = ''; acquaBody.innerHTML = ''; manutenzioneBody.innerHTML = ''; sicurezzaBody.innerHTML = '';
+
+    dati.forEach(r => {
+        // 1. Registro Chimico
+        const rigaChimica = document.createElement('tr');
+        let cellPh = r.ph !== null ? r.ph.toFixed(1) : '-';
+        let cellCloro = r.cloro !== null ? r.cloro.toFixed(2) : '-';
+        let cellCya = r.cya !== null ? r.cya + ' ppm' : '-';
+        
+        let classPh = r.ph === null ? 'cell-normal' : (r.ph === TARGET_PH ? 'cell-green' : 'cell-red');
+        let classCloro = r.cloro === null ? 'cell-normal' : (r.cloro >= TARGET_CLORO ? 'cell-green' : 'cell-red');
+        let classCya = r.cya === null ? 'cell-normal' : (r.cya < ALLARME_CYA ? 'cell-green' : 'cell-red');
+
+        rigaChimica.innerHTML = `
+            <td><strong>${r.data}</strong></td>
+            <td class="${classPh}">${cellPh}</td>
+            <td class="${classCloro}">${cellCloro}</td>
+            <td class="${classCya}">${cellCya}</td>
+            <td>${r.note || ''}</td>
+        `;
+        chimicoBody.appendChild(rigaChimica);
+
+        // 2. Registro Contatori
+        const rigaAcqua = document.createElement('tr');
+        rigaAcqua.innerHTML = `
+            <td><strong>${r.data.split(' ')[0] + ' ' + r.data.split(' ')[1]}</strong></td>
+            <td>${r.contatore !== null ? r.contatore + ' m³' : '-'}</td>
+            <td>${r.rabbocco !== null && r.rabbocco > 0 ? r.rabbocco + ' L' : '-'}</td>
+            <td>${r.rabbocco !== null && r.rabbocco > 0 ? 'Rabbocco vasca' : '-'}</td>
+        `;
+        acquaBody.appendChild(rigaAcqua);
+
+        // 3. Registro Manutenzione
+        const rigaManutenzione = document.createElement('tr');
+        rigaManutenzione.innerHTML = `
+            <td><strong>${r.data}</strong></td>
+            <td>${r.lavaggio || '-'}</td>
+            <td>${r.lavaggio && r.lavaggio !== "No" ? "5 min" : "-"}</td>
+            <td>${r.lavaggio && r.lavaggio !== "No" ? "Stato filtri ottimale dopo contropressione" : "-"}</td>
+        `;
+        manutenzioneBody.appendChild(rigaManutenzione);
+
+        // 4. Registro Sicurezza
+        const rigaSicurezza = document.createElement('tr');
+        let classTrasparenza = r.trasparenza === '' ? 'cell-normal' : (r.trasparenza === 'Limpida' ? 'cell-green' : 'cell-red');
+        rigaSicurezza.innerHTML = `
+            <td><strong>${r.data.split(' ')[0] + ' ' + r.data.split(' ')[1]}</strong></td>
+            <td>${r.filtri || '-'}</td>
+            <td class="${classTrasparenza}">${r.trasparenza || '-'}</td>
+            <td>${r.filtri ? 'Idoneo' : '-'}</td>
+            <td>${r.filtri ? 'Paolo - Supervisione' : '-'}</td>
+        `;
+        sicurezzaBody.appendChild(rigaSicurezza);
+    });
+}
+
+// LOGICA SCORRIMENTO MODIFICATA: Scorre dall'alto verso il basso e si ferma alla prima riga vuota trovata
+function scollaAdUltimaRigaCompilata() {
+    const tabelle = document.querySelectorAll('.registro-table');
+    
+    tabelle.forEach(tabella => {
+        const container = tabella.closest('.table-responsive');
+        if (!container) return;
+
+        const righe = tabella.rows;
+        let rigaTargetIndice = -1;
+
+        // Cerca la prima riga vuota dall'alto (indice 1 salta l'intestazione)
+        for (let i = 1; i < righe.length; i++) {
+            let rigaVuota = true;
+            const celle = righe[i].cells;
+            
+            // Controlla se le celle dei parametri (escludendo la colonna della data alla posizione 0) sono vuote
+            for (let j = 1; j < celle.length; j++) {
+                let testocella = celle[j].innerText.trim();
+                if (testocella !== "" && testocella !== "-") {
+                    rigaVuota = false;
+                    break;
+                }
+            }
+            
+            // Se troviamo la riga vuota corrente, ci fermiamo qui
+            if (rigaVuota) {
+                rigaTargetIndice = i;
+                break;
+            }
+        }
+
+        // Se non trova nessuna riga vuota, va all'ultima riga disponibile
+        if (rigaTargetIndice === -1) {
+            rigaTargetIndice = righe.length - 1;
+        }
+
+        if (rigaTargetIndice > 0 && righe[rigaTargetIndice]) {
             container.scrollTop = righe[rigaTargetIndice].offsetTop - righe[0].offsetHeight;
         }
-    }
+    });
 }
 
-function calcolaDosaggio(parametro, valoreCorrente) {
-    const modal = document.getElementById('dosageModal');
-    const content = document.getElementById('dosageContent');
-    let markup = "";
+function elaboraAssistenteChimico(lettura) {
+    const container = document.getElementById('container-assistente-chimico');
+    let righeHTML = '';
+    let anomalie = false;
 
-    if (parametro === 'ph') {
-        if (valoreCorrente > 7.50) {
-            let delta = valoreCorrente - 7.30; 
-            let doseKg = ((delta * 10 * 10 * VOL_PISCINA) / 1000).toFixed(2);
-            markup = `
-                <h3>Consigli di Trattamento</h3>
-                <p>Il valore del pH è alto (<strong>${valoreCorrente.toFixed(2).replace('.', ',')}</strong>).</p>
-                <p>Per abbassarlo al valore ideale di 7,30 inserire:</p>
-                <p>👉 <strong>${doseKg.replace('.', ',')} Kg</strong> di <strong>pH MINUS</strong>.</p>
-            `;
-        } else if (valoreCorrente < 7.20) {
-            let delta = 7.30 - valoreCorrente;
-            let doseKg = ((delta * 10 * 10 * VOL_PISCINA) / 1000).toFixed(2);
-            markup = `
-                <h3>Consigli di Trattamento</h3>
-                <p>Il valore del pH è basso (<strong>${valoreCorrente.toFixed(2).replace('.', ',')}</strong>).</p>
-                <p>Per alzarlo al valore ideale di 7,30 inserire:</p>
-                <p>👉 <strong>${doseKg.replace('.', ',')} Kg</strong> di <strong>pH PLUS</strong>.</p>
-            `;
-        }
-    } 
-    else if (parametro === 'cl. lib') {
-        if (valoreCorrente < 0.70) {
-            let delta = 1.10 - valoreCorrente; 
-            let doseGrammi = delta * 1.5 * VOL_PISCINA;
-            let doseKg = (doseGrammi / 1000).toFixed(2);
-            markup = `
-                <h3>Consigli di Trattamento</h3>
-                <p>Il Cloro Libero è insufficiente (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
-                <p>Per raggiungere il target ottimale di 1,10 ppm aggiungere:</p>
-                <p>👉 <strong>${doseGrammi.toFixed(0)} g</strong> (circa <strong>${doseKg.replace('.', ',')} Kg</strong>) di <strong>Ipoclorito di Calcio</strong> granulare.</p>
-            `;
-        } else if (valoreCorrente > 2.00) {
-            markup = `
-                <h3>Consigli di Trattamento</h3>
-                <p>Il Cloro Libero è molto alto (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
-                <p>👉 Sospendere temporaneamente le immissioni di cloro e scoprire la vasca per farlo scendere con il sole.</p>
-            `;
-        }
-    }
-    else if (parametro === 'cl. com') {
-        markup = `
-            <h3>Consigli di Trattamento</h3>
-            <p>Il Cloro Combinato è fuori limite (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
-            <p>👉 Effettuare un <strong>controlavaggio filtro approfondito</strong> associato ad un abbondante <strong>reintegro di acqua nuova</strong>.</p>
-        `;
-    }
-    else if (parametro === 'cya') {
-        markup = `
-            <h3>Consigli di Trattamento</h3>
-            <p>L'Acido Cianurico ha superato la soglia critica (<strong>${valoreCorrente.toFixed(0)} ppm</strong>).</p>
-            <p>👉 Si raccomanda di effettuare uno <strong>scarico parziale dell'acqua della piscina (20-30%)</strong> ed eseguire un successivo reintegro con acqua fresca pulita.</p>
+    if (lettura.cloro < TARGET_CLORO) {
+        anomalie = true;
+        const deltaCloro = (TARGET_CLORO - lettura.cloro).toFixed(2);
+        const doseGrammi = Math.round(deltaCloro * 15 * VOLUME_PISCINA);
+
+        righeHTML += `
+            <tr>
+                <td><span class="param-name">Cloro Libero</span></td>
+                <td><div class="badge-low">Basso (${lettura.cloro} ppm)</div></td>
+                <td class="objective-text">Aumentare di ${deltaCloro} ppm per raggiungere la quota ideale di ${TARGET_CLORO} ppm</td>
+                <td class="product-text">Cloro Granulare (Ipoclorito)</td>
+                <td><div class="dose-box">${doseGrammi} grammi</div></td>
+                <td class="instruction-text">Dosaggio rapido granulare. Sciogliere preventivamente o aggiungere negli skimmer.</td>
+            </tr>
         `;
     }
 
-    content.innerHTML = markup;
-    modal.classList.remove('hidden');
+    if (anomalie) {
+        container.innerHTML = `
+            <div class="assistant-card">
+                <div class="assistant-title">🧪 Assistente Chimico - Dosaggi e Allarmi (${lettura.data})</div>
+                <div class="assistant-table-container">
+                    <div class="status-indicator-bar"></div>
+                    <table class="assistant-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 15%;">Parametro</th>
+                                <th style="width: 12%;">Stato</th>
+                                <th style="width: 25%;">Obiettivo</th>
+                                <th style="width: 15%;">Prodotto</th>
+                                <th style="width: 13%;">Dose</th>
+                                <th style="width: 20%;">Istruzioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>${righeHTML}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
 }
 
-function chiudiDosaggio() {
-    document.getElementById('dosageModal').classList.add('hidden');
-}
+function inizializzaGraficiStorici(dati) {
+    // Filtra solo i record reali popolati per non sporcare il grafico con i null futuri
+    const datiFiltrati = dati.filter(d => d.ph !== null && d.cloro !== null);
+    const etichette = datiFiltrati.map(d => d.data.split(' ')[0] + ' ' + d.data.split(' ')[1]);
 
-function apriGrafico(parametro, tipoRegistro) {
-    if (!tipoRegistro) tipoRegistro = 'chimico';
-    const overlay = document.getElementById('chartOverlay');
-    const title = document.getElementById('overlayTitle');
-    const canvas = document.getElementById('overlayCanvas');
+    // Grafico 1: Parametri Chimici con bende colorate native di sfondo
+    new Chart(document.getElementById('chartAnalisiChimiche'), {
+        type: 'line',
+        data: {
+            labels: etichette,
+            datasets: [
+                {
+                    label: 'Cloro Libero (ppm)',
+                    data: datiFiltrati.map(d => d.cloro),
+                    borderColor: '#0284c7',
+                    yAxisID: 'yCloro',
+                    tension: 0.15
+                },
+                {
+                    label: 'pH',
+                    data: datiFiltrati.map(d => d.ph),
+                    borderColor: '#10b981',
+                    yAxisID: 'yPh',
+                    tension: 0.15
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                yCloro: { type: 'linear', position: 'left', min: 0, max: 3, title: { display: true, text: 'Cloro' } },
+                yPh: { type: 'linear', position: 'right', min: 6.8, max: 8.0, title: { display: true, text: 'pH' }, grid: { drawOnChartArea: false } }
+            }
+        },
+        plugins: [{
+            id: 'sfondoFasce',
+            beforeDraw: (chart) => {
+                const { ctx, chartArea: { top, bottom, left, right }, scales: { yPh } } = chart;
+                ctx.save();
+                // Banda pH ideale verde (7.2 - 7.4)
+                let pTop = yPh.getPixelForValue(7.4);
+                let pBot = yPh.getPixelForValue(7.2);
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.12)';
+                ctx.fillRect(left, pTop, right - left, pBot - pTop);
+                ctx.restore();
+            }
+        }]
+    });
 
-    title.innerText = `Andamento Storico Parametro: ${parametro}`;
-    overlay.classList.remove('hidden');
-
-    let etichette = [];
-    let valori = [];
-    let cleanParam = parametro.toLowerCase().trim(); 
-    let datiDaUsare = datiRegistriGlobali[tipoRegistro] || [];
-
-    datiDaUsare.forEach(riga => {
-        let dataStr = riga["Data"] || riga["data"] || "";
-        let oraStr = riga["Ora"] || riga["ora"] || "";
-        let chiaveTrovata = Object.keys(riga).find(k => k.toLowerCase().trim() === cleanParam);
-        let valStr = chiaveTrovata ? riga[chiaveTrovata] : "";
-        
-        if (valStr !== "" && valStr !== undefined) {
-            let valFloat = parseFloat(String(valStr).replace(',', '.'));
-            if (!isNaN(valFloat)) {
-                etichette.push(`${dataStr} ${oraStr}`.trim());
-                valori.push(valFloat);
+    // Grafico 2: Consumo Idrico / Reintegri
+    new Chart(document.getElementById('chartVolumeAcqua'), {
+        type: 'bar',
+        data: {
+            labels: etichette,
+            datasets: [{
+                label: 'Rabbocchi Acqua (Litri)',
+                data: datiFiltrati.map(d => d.rabbocco),
+                backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                borderColor: '#3b82f6',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: true, max: 20000, ticks: { stepSize: 500 }, title: { display: true, text: 'Litri' } }
             }
         }
     });
-
-    if (mioGrafico) mioGrafico.destroy();
-
-    let tipoGrafico = (cleanParam === 'n.ospiti' || cleanParam.includes('reintegro')) ? 'bar' : 'line';
-    let opzioniScale = {
-        x: { ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 45 } },
-        y: { ticks: { font: { size: 10 } } }
-    };
-
-    if (cleanParam === 'ph') { opzioniScale.y.min = 6.5; opzioniScale.y.max = 8.5; }
-    else if (['cl. lib', 'cl. tot'].includes(cleanParam)) { opzioniScale.y.min = 0.0; opzioniScale.y.max = 4.0; }
-    else if (cleanParam === 'cl. com') { opzioniScale.y.min = 0.0; opzioniScale.y.max = 0.8; }
-    else if (cleanParam === 'cya') { opzioniScale.y.min = 0; opzioniScale.y.max = 120; }
-    else if (cleanParam === 'temp') { opzioniScale.y.min = 10; opzioniScale.y.max = 35; }
-
-    const pluginSfondoFasce = {
-        id: 'customCanvasBackgroundColor',
-        beforeDraw: (chart) => {
-            const { ctx, chartArea: { top, bottom, left, right }, scales: { y } } = chart;
-            ctx.save();
-            function disegnaBanda(yMin, yMax, colore) {
-                let pixelTop = y.getPixelForValue(yMax);
-                let pixelBottom = y.getPixelForValue(yMin);
-                pixelTop = Math.max(pixelTop, top);
-                pixelBottom = Math.min(pixelBottom, bottom);
-                if (pixelTop < pixelBottom) {
-                    ctx.fillStyle = colore;
-                    ctx.fillRect(left, pixelTop, right - left, pixelBottom - pixelTop);
-                }
-            }
-            if (cleanParam === 'ph') {
-                disegnaBanda(6.5, 7.2, 'rgba(239, 68, 68, 0.1)');   
-                disegnaBanda(7.2, 7.5, 'rgba(16, 185, 129, 0.15)'); 
-                disegnaBanda(7.5, 8.5, 'rgba(239, 68, 68, 0.1)');   
-            } else if (['cl. lib', 'cl. tot'].includes(cleanParam)) {
-                disegnaBanda(0.0, 0.7, 'rgba(239, 68, 68, 0.1)');   
-                disegnaBanda(0.7, 2.0, 'rgba(16, 185, 129, 0.15)'); 
-                disegnaBanda(2.0, 4.0, 'rgba(239, 68, 68, 0.1)');   
-            } else if (cleanParam === 'cl. com') {
-                disegnaBanda(0.0, 0.2, 'rgba(16, 185, 129, 0.15)');  
-                disegnaBanda(0.2, 0.4, 'rgba(254, 240, 138, 0.25)'); 
-                disegnaBanda(0.4, 0.8, 'rgba(239, 68, 68, 0.12)');   
-            } else if (cleanParam === 'cya') {
-                disegnaBanda(0, 60, 'rgba(16, 185, 129, 0.15)');
-                disegnaBanda(60, 120, 'rgba(239, 68, 68, 0.1)');
-            }
-            ctx.restore();
-        }
-    };
-
-    let ctx = canvas.getContext('2d');
-    setTimeout(() => {
-        mioGrafico = new Chart(ctx, {
-            type: tipoGrafico,
-            data: {
-                labels: etichette,
-                datasets: [{
-                    label: parametro,
-                    data: valori,
-                    borderColor: '#1e293b',
-                    backgroundColor: 'rgba(30, 41, 59, 0.1)',
-                    borderWidth: 2,
-                    pointRadius: 4,         
-                    tension: 0.15             
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, scales: opzioniScale, plugins: { legend: { display: false } } },
-            plugins: [pluginSfondoFasce]
-        });
-    }, 60);
 }
-
-function closeOverlay() {
-    document.getElementById('chartOverlay').classList.add('hidden');
-}
-
-function mostraSezione(sezioneId) {
-    document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
-    const sez = document.getElementById(sezioneId);
-    if (sez) {
-        sez.classList.remove('hidden');
-        setTimeout(scollaAdUltimaRiga, 100); 
-    }
-}
-
-window.mostraSezione = mostraSezione;
-
-window.onload = function() {
-    caricaTuttiIRegistri();
-    mostraSezione('chimicoSection');
-};
