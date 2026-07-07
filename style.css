@@ -5,7 +5,7 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: #f4f7f6;
     color: #333333;
     padding: 20px;
@@ -17,35 +17,41 @@ header {
     margin-bottom: 25px;
     background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
     color: #ffffff;
-    padding: 25px 20px;
+    padding: 30px 20px;
     border-radius: 6px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
 header h1 {
-    font-size: 2rem;
-    margin-bottom: 5px;
+    font-size: 2.2rem;
+    margin-bottom: 8px;
+    font-weight: 700;
 }
 
-/* BARRA PULSANTI SUPERIORE */
+/* BARRA PULSANTI DINAMICA - SCOMPARE IN DISCESA, APPARE IN SALITA */
 .top-buttons {
     display: flex;
     justify-content: center;
     gap: 12px;
     padding: 15px;
-    background: rgba(233, 242, 251, 0.95);
+    background: rgba(233, 242, 251, 0.98);
     border: 1px solid #cbd5e1;
     border-radius: 6px;
     position: sticky;
     top: 10px;
     z-index: 1000;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    backdrop-filter: blur(4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    backdrop-filter: blur(8px);
     margin-bottom: 25px;
+    transition: top 0.3s ease-in-out;
+}
+
+.top-buttons.nav-hidden {
+    top: -80px;
 }
 
 .top-buttons button {
-    padding: 10px 20px;
+    padding: 10px 22px;
     font-size: 0.95rem;
     font-weight: 600;
     border: 1px solid rgba(0, 102, 204, 0.4);
@@ -63,10 +69,10 @@ header h1 {
     transform: translateY(-1px);
 }
 
-/* TABELLE */
+/* STILE TABELLA IDENTICO ALLA FOTO ORIGINALE */
 .register-section {
     background: #ffffff;
-    padding: 20px;
+    padding: 24px;
     border-radius: 8px;
     box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     margin-bottom: 30px;
@@ -74,15 +80,15 @@ header h1 {
 
 .register-section h2 {
     color: #1e293b;
-    margin-bottom: 15px;
-    font-size: 1.5rem;
+    margin-bottom: 18px;
+    font-size: 1.6rem;
     border-bottom: 2px solid #e2e8f0;
     padding-bottom: 8px;
 }
 
 .table-wrapper {
     overflow-x: auto;
-    max-height: 65vh;
+    max-height: 70vh;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
 }
@@ -90,7 +96,7 @@ header h1 {
 table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     text-align: left;
 }
 
@@ -98,7 +104,7 @@ th {
     background-color: #f1f5f9;
     color: #334155;
     font-weight: 700;
-    padding: 12px 10px;
+    padding: 14px 12px;
     position: sticky;
     top: 0;
     z-index: 5;
@@ -106,21 +112,22 @@ th {
 }
 
 td {
-    padding: 10px;
+    padding: 11px 12px;
     border-bottom: 1px solid #e2e8f0;
     color: #475569;
     white-space: nowrap;
 }
 
-.hidden {
-    display: none !important;
+tr:hover td {
+    background-color: #f8fafc;
 }
 
+/* CELLE FUNZIONALI */
 .clickable-header {
     cursor: pointer;
     background: #dbeafe !important;
     color: #1e40af;
-    font-weight: bold;
+    font-weight: 700;
 }
 .clickable-header:hover {
     background: #2563eb !important;
@@ -131,26 +138,33 @@ td {
     background-color: #d1fae5 !important;
     color: #065f46 !important;
 }
+
 .cell-alarm {
     background-color: #fee2e2 !important;
     color: #991b1b !important;
     font-weight: bold;
     cursor: pointer;
+    animation: pulseBorder 2s infinite alternate;
 }
 
-/* FINESTRE OVERLAY */
+@keyframes pulseBorder {
+    0% { box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.2); }
+    100% { box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.6); }
+}
+
+/* OVERLAY E FINESTRE DI DIALOGO */
 .overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(15, 23, 42, 0.65);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 9999;
-    backdrop-filter: blur(2px);
+    backdrop-filter: blur(3px);
 }
 
 .overlay-content {
@@ -170,9 +184,9 @@ td {
     background: #ffffff !important;
     padding: 35px 40px !important;
     border-radius: 8px !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25) !important;
     width: 90% !important;
-    max-width: 520px !important;
+    max-width: 550px !important;
     position: relative !important;
     text-align: left !important;
     border-top: 5px solid #ef4444;
@@ -192,7 +206,7 @@ td {
 
 .dosage-card h3 {
     color: #1e293b;
-    font-size: 1.35rem;
+    font-size: 1.4rem;
     margin-bottom: 18px;
     font-weight: 700;
 }
@@ -200,7 +214,7 @@ td {
 .dosage-card p {
     font-size: 1rem;
     color: #475569;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     line-height: 1.6;
 }
 
@@ -211,7 +225,7 @@ td {
 .dosage-close-btn {
     margin-top: 20px;
     width: 100%;
-    padding: 11px;
+    padding: 12px;
     background-color: #0f172a;
     color: white;
     border: none;
@@ -221,4 +235,8 @@ td {
 }
 .dosage-close-btn:hover {
     background-color: #1e293b;
+}
+
+.hidden {
+    display: none !important;
 }
