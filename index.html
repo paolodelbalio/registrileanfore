@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Piscina 2026</title>
     <style>
-        /* Stili Generali di Base */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #f4f6f9;
@@ -14,7 +13,7 @@
             color: #333;
         }
         .main-wrapper {
-            max-width: 1100px;
+            max-width: 1200px;
             margin: 0 auto;
         }
         h2 {
@@ -25,12 +24,12 @@
             padding-bottom: 8px;
         }
 
-        /* --- STILI ASSISTENTE CHIMICO --- */
+        /* --- STILI ASSISTENTE CHIMICO (POP-UP / ALERT) --- */
         .assistant-card {
             background-color: #ffffff;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             margin-bottom: 30px;
         }
         .assistant-title {
@@ -53,7 +52,7 @@
         }
         .status-indicator-bar {
             width: 6px;
-            background-color: #dc3545; /* Rosso allarme */
+            background-color: #dc3545;
             flex-shrink: 0;
         }
         .assistant-table {
@@ -80,14 +79,22 @@
         .assistant-table th:last-child, .assistant-table td:last-child {
             border-right: none;
         }
-        .param-name {
-            font-weight: bold;
-            color: #1a1a1a;
-        }
+        .param-name { font-weight: bold; color: #1a1a1a; }
+        
         .badge-low {
             background-color: #fff0f1;
             border: 1px solid #fecdd3;
             color: #b91c1c;
+            padding: 10px 8px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 13px;
+        }
+        .badge-warning {
+            background-color: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #b45309;
             padding: 10px 8px;
             border-radius: 4px;
             text-align: center;
@@ -108,7 +115,7 @@
         .product-text { font-style: italic; color: #4b5563; }
         .objective-text, .instruction-text { color: #4b5563; }
 
-        /* --- STILI REGISTRO STORICO --- */
+        /* --- STILI TABELLA REGISTRI --- */
         .registro-container {
             background-color: #ffffff;
             padding: 20px;
@@ -116,9 +123,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             margin-bottom: 30px;
         }
-        .table-responsive {
-            overflow-x: auto;
-        }
+        .table-responsive { overflow-x: auto; }
         .registro-table {
             width: 100%;
             border-collapse: collapse;
@@ -135,15 +140,15 @@
             font-weight: 600;
         }
         
-        /* --- STILI GRAFICI --- */
+        /* --- STILI GRIGLIA GRAFICI --- */
         .charts-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
             gap: 20px;
         }
         .chart-card {
             background-color: #ffffff;
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
@@ -156,16 +161,17 @@
 
     <div id="container-assistente-chimico" style="display: none;"></div>
 
-    <div class="registro-container" id="sezione-registro-storico">
+    <div class="registro-container">
         <h2>Registro Chimico</h2>
         <div class="table-responsive">
             <table class="registro-table">
                 <thead>
                     <tr>
-                        <th>Data</th>
+                        <th>Data Analisi</th>
                         <th>pH</th>
                         <th>Cloro Libero (ppm)</th>
                         <th>Acido Cianurico (ppm)</th>
+                        <th>Rabbocco (Litri)</th>
                         <th>Note / Operazioni</th>
                     </tr>
                 </thead>
@@ -175,92 +181,115 @@
         </div>
     </div>
 
-    <div class="charts-grid" id="sezione-grafici">
+    <div class="charts-grid">
         <div class="chart-card">
-            <h2>Andamento Cloro Libero</h2>
-            <canvas id="chartCloro"></canvas>
+            <h2>Andamento Cloro Libero e pH</h2>
+            <canvas id="chartParametri"></canvas>
         </div>
         <div class="chart-card">
-            <h2>Andamento pH</h2>
-            <canvas id="chartPh"></canvas>
+            <h2>Registro Contatore Acqua (Rabbocchi)</h2>
+            <canvas id="chartRabbocchi"></canvas>
         </div>
     </div>
 
 </div>
 
 <script>
-    // 1. Dati simulati dello storico (es. letture caricate dal file o dal cloud Pool LAB)
-    const datiRegistri = [
-        { data: "gio 2 lug 2026", ph: 7.3, cloro: 1.2, cya: 45, note: "pH- 100 g ipo Temporali" },
-        { data: "ven 3 lug 2026", ph: 7.4, cloro: 1.1, cya: 45, note: "pH- 100 g Alg" },
-        { data: "sab 4 lug 2026 ore 07:00", ph: 7.3, cloro: 0.51, cya: 45, note: "Analisi mattutina" },
-        { data: "dom 5 lug 2026", ph: 7.3, cloro: 1.1, cya: 45, note: "Aggiunto 175g Cloro" }
+    // Configurazione Costanti Globali della Piscina
+    const VOLUME_PISCINA = 92; 
+    const TARGET_PH = 7.3;
+    const TARGET_CLORO = 1.1;
+    const ALLARME_CYA = 60;
+
+    // Array Dati Storici (Esempio allineato con le tue ultime letture)
+    const datiPiscina = [
+        { data: "gio 2 lug 2026", ph: 7.3, cloro: 1.20, cya: 45, rabbocco: 0, note: "Parametri stabili" },
+        { data: "ven 3 lug 2026", ph: 7.4, cloro: 1.10, cya: 45, rabbocco: 1500, note: "Rabbocco serale" },
+        { data: "sab 4 lug 2026 ore 07:00", ph: 7.3, cloro: 0.51, cya: 45, rabbocco: 0, note: "Analisi Pool LAB" },
+        { data: "dom 5 lug 2026", ph: 7.3, cloro: 1.10, cya: 45, rabbocco: 500, note: "Aggiunto Cloro granulare" }
     ];
 
-    // Costanti di Configurazione e Parametri Ideali
-    const TARGET_CLORO = 1.1;
-    const TARGET_PH = 7.3;
-    const SOGLIA_ALLARME_CYA = 60;
-    const VOLUME_PISCINA = 92; // 92 metri cubi
-
-    // 2. Esecuzione principale al caricamento della pagina
     document.addEventListener("DOMContentLoaded", function() {
-        popolaTabellaStorica(datiRegistri);
-        inizializzaGrafici(datiRegistri);
+        popolaTabella(datiPiscina);
+        inizializzaGrafici(datiPiscina);
         
-        // Prendiamo l'ultima lettura disponibile nell'array per l'assistente chimico
-        const ultimaLettura = datiRegistri[datiRegistri.length - 2]; // In questo esempio sab 4 lug ha il cloro basso
-        controllaParametriEGeneraAssistente(ultimaLettura);
+        // Eseguiamo il controllo sull'analisi del 4 luglio (quella con cloro a 0.51)
+        const analisiDaControllare = datiPiscina[2]; 
+        elaboraAssistenteChimico(analisiDaControllare);
     });
 
-    // 3. Funzione per generare l'Assistente Chimico in modo isolato
-    function controllaParametriEGeneraAssistente(lettura) {
-        const container = document.getElementById('container-assistente-chimico');
-        const cloroCl = parseFloat(lettura.cloro);
-        const phVal = parseFloat(lettura.ph);
-        const cyaVal = parseFloat(lettura.cya);
-        
-        let righeHTML = '';
-        let haAnomalie = false;
+    // Funzione per popolare il registro storico delle righe
+    function popolaTabella(dati) {
+        const corpo = document.getElementById('registro-corpo-tabella');
+        corpo.innerHTML = '';
+        dati.forEach(r => {
+            const riga = document.createElement('tr');
+            riga.innerHTML = `
+                <td><strong>${r.data}</strong></td>
+                <td>${r.ph}</td>
+                <td>${r.cloro.toFixed(2)}</td>
+                <td>${r.cya}</td>
+                <td>${r.rabbocco > 0 ? r.rabbocco + ' L' : '-'}</td>
+                <td>${r.note}</td>
+            `;
+            corpo.appendChild(riga);
+        });
+    }
 
-        // Verifica Cloro Libero
-        if (cloroCl < TARGET_CLORO) {
-            haAnomalie = true;
-            const carenza = (TARGET_CLORO - cloroCl).toFixed(2);
-            // Formula basata su ipoclorito di calcio granulare per 92 m³
-            const grammiDose = Math.round(carenza * 15 * VOLUME_PISCINA); 
+    // Funzione logica dell'Assistente Chimico
+    function elaboraAssistenteChimico(lettura) {
+        const container = document.getElementById('container-assistente-chimico');
+        let righeHTML = '';
+        let anomalie = false;
+
+        // Controllo Cloro Libero
+        if (lettura.cloro < TARGET_CLORO) {
+            anomalie = true;
+            const deltaCloro = (TARGET_CLORO - lettura.cloro).toFixed(2);
+            // Formula ipoclorito di calcio granulare: ~15g per m3 per alzare di 1 ppm
+            const doseGrammi = Math.round(deltaCloro * 15 * VOLUME_PISCINA);
 
             righeHTML += `
                 <tr>
-                    <td><span class="param-name">Cloro<br>Libero</span></td>
-                    <td>
-                        <div class="badge-low">Basso<br><span style="font-size: 11px; font-weight: normal;">(${cloroCl} ppm)</span></div>
-                    </td>
-                    <td class="objective-text">Aumentare di ${carenza} ppm per raggiungere la quota ideale di ${TARGET_CLORO} ppm</td>
+                    <td><span class="param-name">Cloro Libero</span></td>
+                    <td><div class="badge-low">Basso<br>(${lettura.cloro} ppm)</div></td>
+                    <td class="objective-text">Aumentare di ${deltaCloro} ppm per raggiungere la quota ideale di ${TARGET_CLORO} ppm</td>
                     <td class="product-text">Cloro Granulare (Ipoclorito)</td>
-                    <td><div class="dose-box">${grammiDose} grammi</div></td>
-                    <td class="instruction-text">Dosaggio rapido granulare. Aggiungere negli skimmer o premiscelare.</td>
+                    <td><div class="dose-box">${doseGrammi} grammi</div></td>
+                    <td class="instruction-text">Dosaggio rapido granulare. Sciogliere preventivamente o aggiungere negli skimmer.</td>
                 </tr>
             `;
         }
 
-        // Se ci sono problemi, mostra il blocco compilato senza sovrascrivere il resto della pagina
-        if (haAnomalie) {
+        // Controllo Acido Cianurico (CYA)
+        if (lettura.cya >= ALLARME_CYA) {
+            anomalie = true;
+            righeHTML += `
+                <tr>
+                    <td><span class="param-name">Acido Cianurico</span></td>
+                    <td><div class="badge-warning">Alto<br>(${lettura.cya} ppm)</div></td>
+                    <td class="objective-text">Soglia critica superata (&ge; ${ALLARME_CYA} ppm)</td>
+                    <td class="product-text">Acqua Nuova</td>
+                    <td><div class="dose-box" style="background-color: #fffbeb; border: 1px solid #fde68a; color: #b45309;">Sostituzione</div></td>
+                    <td class="instruction-text">Evitare prodotti stabilizzati. Sospendere l'uso di dicloro/tricloro e pianificare un ricambio parziale d'acqua.</td>
+                </tr>
+            `;
+        }
+
+        if (anomalie) {
             container.innerHTML = `
                 <div class="assistant-card">
-                    <div class="assistant-title">
-                        🧪 Assistente Chimico - Dosaggio Cloro (${lettura.data})
-                    </div>
+                    <div class="assistant-title">🧪 Assistente Chimico - Dosaggi e Allarmi (${lettura.data})</div>
                     <div class="assistant-table-container">
                         <div class="status-indicator-bar"></div>
                         <table class="assistant-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 14%;">Parametro</th>
+                                    <th style="width: 15%;">Parametro</th>
                                     <th style="width: 12%;">Stato</th>
-                                    <th style="width: 24%;">Obiettivo</th>
-                                    <th style="width: 16%;">Prodotto</th>
-                                    <th style="width: 14%;">Dose Richiesta</th>
+                                    <th style="width: 25%;">Obiettivo</th>
+                                    <th style="width: 15%;">Prodotto</th>
+                                    <th style="width: 13%;">Dose</th>
                                     <th style="width: 20%;">Istruzioni</th>
                                 </tr>
                             </thead>
@@ -277,62 +306,82 @@
         }
     }
 
-    // 4. Funzione per popolare la tabella dei registri storici
-    function popolaTabellaStorica(dati) {
-        const corpoTabella = document.getElementById('registro-corpo-tabella');
-        corpoTabella.innerHTML = ''; // Svuota prima di inserire
-        
-        dati.forEach(item => {
-            const riga = document.createElement('tr');
-            riga.innerHTML = `
-                <td><strong>${item.data}</strong></td>
-                <td>${item.ph}</td>
-                <td>${item.cloro}</td>
-                <td>${item.cya}</td>
-                <td>${item.note}</td>
-            `;
-            corpoTabella.appendChild(riga);
-        });
-    }
-
-    // 5. Funzione per inizializzare i grafici con Chart.js
+    // Generazione dei grafici Chart.js con le scale concordate
     function inizializzaGrafici(dati) {
-        const etichette = dati.map(d => d.data);
-        const valoriCloro = dati.map(d => d.cloro);
-        const valoriPh = dati.map(d => d.ph);
+        const labels = dati.map(d => d.data);
 
-        // Grafico Cloro
-        new Chart(document.getElementById('chartCloro'), {
+        // 1. Grafico Parametri Chimici (Doppio Asse Y)
+        new Chart(document.getElementById('chartParametri'), {
             type: 'line',
             data: {
-                labels: etichette,
-                datasets: [{
-                    label: 'Cloro Libero (ppm)',
-                    data: valoriCloro,
-                    borderColor: '#0284c7',
-                    backgroundColor: 'rgba(2, 132, 199, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.1
-                }]
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Cloro Libero (ppm)',
+                        data: dati.map(d => d.cloro),
+                        borderColor: '#0284c7',
+                        backgroundColor: 'rgba(2, 132, 199, 0.05)',
+                        yAxisID: 'yCloro',
+                        tension: 0.15
+                    },
+                    {
+                        label: 'pH',
+                        data: dati.map(d => d.ph),
+                        borderColor: '#10b981',
+                        backgroundColor: 'transparent',
+                        yAxisID: 'yPh',
+                        tension: 0.15
+                    }
+                ]
             },
-            options: { responsive: true }
+            options: {
+                responsive: true,
+                scales: {
+                    yCloro: {
+                        type: 'linear',
+                        position: 'left',
+                        title: { display: true, text: 'Cloro (ppm)' },
+                        min: 0,
+                        max: 3
+                    },
+                    yPh: {
+                        type: 'linear',
+                        position: 'right',
+                        title: { display: true, text: 'pH' },
+                        min: 6.8,
+                        max: 8.0,
+                        grid: { drawOnChartArea: false }
+                    }
+                }
+            }
         });
 
-        // Grafico pH
-        new Chart(document.getElementById('chartPh'), {
-            type: 'line',
+        // 2. Grafico Contatore Acqua / Rabbocchi (Scala 20.000L, intervalli 500L)
+        new Chart(document.getElementById('chartRabbocchi'), {
+            type: 'bar',
             data: {
-                labels: etichette,
+                labels: labels,
                 datasets: [{
-                    label: 'Valore pH',
-                    data: valoriPh,
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.1
+                    label: 'Acqua integrata (Litri)',
+                    data: dati.map(d => d.rabbocco),
+                    backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1
                 }]
             },
-            options: { responsive: true }
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 20000,
+                        ticks: {
+                            stepSize: 500
+                        },
+                        title: { display: true, text: 'Litri d\'acqua' }
+                    }
+                }
+            }
         });
     }
 </script>
