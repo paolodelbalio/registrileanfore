@@ -1,3 +1,4 @@
+// Variabili globali per memorizzare i dati di tutti i registri
 let mioGrafico = null;
 let datiRegistriGlobali = {
     chimico: [],
@@ -6,7 +7,7 @@ let datiRegistriGlobali = {
     manutenzioni: []
 }; 
 
-const VOL_PISCINA = 92; 
+const VOL_PISCINA = 92; // Volume vasca in m³
 
 const REGISTRI_FILES = {
     chimico: { file: "REGISTRO CHIMICO 2026.csv", tableId: "chimicoTable" },
@@ -15,15 +16,9 @@ const REGISTRI_FILES = {
     manutenzioni: { file: "REGISTRO MANUTENZIONE INTERVENTI .csv", tableId: "manutenzioniTable" }
 };
 
-document.addEventListener("DOMContentLoaded", function() {
-    caricaTuttiIRegistri();
-});
-
+// Carica tutti i file CSV
 function caricaTuttiIRegistri() {
-    let conteggioCaricati = 0;
-    const chiavi = Object.keys(REGISTRI_FILES);
-
-    chiavi.forEach(chiave => {
+    Object.keys(REGISTRI_FILES).forEach(chiave => {
         const config = REGISTRI_FILES[chiave];
         Papa.parse(config.file, {
             download: true,
@@ -33,242 +28,331 @@ function caricaTuttiIRegistri() {
                 let righeGrezze = results.data;
                 if (!righeGrezze || righeGrezze.length === 0) return;
                 
-                datiRegistriGlobali[chiave] = righeGrezze;
-                generaTabellaHTML(chiave, righeGrezze, config.tableId);
+                let indiceHeader = 0;
+                for (let i = 0; i < righeGrezze.length; i++) {
+                    let celleSottoEsame = righeGrezze[i].map(v => v ? v.toLowerCase().trim() : "");
+                    if (celleSottoEsame.includes("data")) {
+                        indiceHeader = i;
+                        break;
+                    }
+                }
+
+                let headers = righeGrezze[indiceHeader].map(h => h ? h.trim() : "");
+                let datiFiltrati = [];
+                let ultimaDataValida = "";
+
+                let idxPH = headers.findIndex(h => h.toLowerCase().trim() === 'ph');
+                let idxOra = headers.findIndex(h => h.toLowerCase().trim() === 'ora');
+
+                for (let i = indiceHeader + 1; i < righeGrezze.length; i++) {
+                    let rigaCorrente = righeGrezze[i];
+                    while(rigaCorrente.length < headers.length) rigaCorrente.push("");
+                    
+                    let valoriTrimmati = rigaCorrente.map(v => v ? v.trim() : "");
+                    
+                    if (chiave === 'chimico' && idxPH !== -1 && idxOra !== -1) {
+                        let oraCorrente = valoriTrimmati[idxOra];
+                        let valorePH = valoriTrimmati[idxPH];
+                        
+                        if (oraCorrente === "07:00" && (valorePH === "" || valorePH === undefined)) {
+                            break; 
+                        }
+                    }
+
+                    let rigaUnita = valoriTrimmati.join('').replace(/,/g, '').trim();
+                    if (rigaUnita === "") continue;
+
+                    let objRiga = {};
+                    headers.forEach((h, idx) => {
+                        if (h) objRiga[h] = rigaCorrente[idx] ? rigaCorrente[idx].trim() : "";
+                    });
+
+                    let dataCorrente = objRiga["Data"] ? objRiga["Data"].trim() : "";
+                    if (dataCorrente !== "") {
+                        ultimaDataValida = dataCorrente;
+                    } else if (dataCorrente === "" && objRiga["Ora"] && objRiga["Ora"].trim() === "21:00") {
+                        objRiga["Data"] = ultimaDataValida; 
+                    }
+
+                    datiFiltrati.push(objRiga);
+                }
                 
-                conteggioCaricati++;
-                if (conteggioCaricati === chiavi.length) {
-                    setTimeout(() => {
-                        eseguiScorrimentoRegistro('chimicoSection');
-                        analizzaUltimoDatoChimico();
-                    }, 400);
+                datiRegistriGlobali[chiave] = datiFiltrati;
+                popolaTabellaHtml(datiFiltrati, config.tableId, chiave, headers);
+                
+                if (chiave === 'chimico') {
+                    setTimeout(scollaAdUltimaRiga, 300);
                 }
             }
         });
     });
 }
 
-function generaTabellaHTML(chiave, righe, tableId) {
-    const tabella = document.getElementById(tableId);
+function popolaTabellaHtml(dati, tableId, tipoRegistro, headers) {
+    const table = document.getElementById(tableId);
+    if (!table || !dati || dati.length === 0) return;
+    table.innerHTML = "";
+
+    let thead = table.createTHead();
+    let rowHead = thead.insertRow();
+    
+    headers.forEach(key => {
+        if (!key) return;
+        let th = document.createElement("th");
+        let cleanKey = key.toLowerCase().trim();
+        
+        let daGraficare = false;
+        if (tipoRegistro === 'chimico' && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'n.ospiti', 'cya'].includes(cleanKey)) {
+            daGraficare = true;
+        } else if (tipoRegistro === 'contatori' && (cleanKey.includes('reintegro') || cleanKey.includes('ricircolo'))) {
+            daGraficare = true;
+        }
+
+        if (daGraficare) {
+            th.innerHTML = `<button class="table-th-btn" onclick="apriGrafico('${key}', '${tipoRegistro}')">${key} 📊</button>`;
+        } else {
+            th.innerText = key;
+        }
+        rowHead.appendChild(th);
+    });
+
+    let tbody = table.createTBody();
+    dati.forEach(riga => {
+        let row = tbody.insertRow();
+        headers.forEach(key => {
+            if (!key) return;
+            let cell = row.insertCell();
+            let valoreTesto = riga[key] ? riga[key].trim() : "";
+            let cleanKey = key.toLowerCase().trim();
+            let valoreFloat = parseFloat(valoreTesto.replace(',', '.'));
+
+            if (!isNaN(valoreFloat) && ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp', 'cya'].includes(cleanKey)) {
+                cell.innerText = valoreFloat.toFixed(2).replace('.', ',');
+            } else {
+                cell.innerText = valoreTesto;
+            }
+
+            if (isNaN(valoreFloat) || valoreTesto === "" || tipoRegistro !== 'chimico') return;
+            
+            if (cleanKey === 'ph') {
+                if (valoreFloat > 7.50 || valoreFloat < 7.20) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
+                    cell.onclick = () => calcolaDosaggio('ph', valoreFloat);
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'cl. lib') {
+                if (valoreFloat < 0.70 || valoreFloat > 2.00) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
+                    cell.onclick = () => calcolaDosaggio('cl. lib', valoreFloat);
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'cl. tot') {
+                if (valoreFloat > 2.40 || valoreFloat < 0.90) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold";
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'cl. com') {
+                if (valoreFloat > 0.40) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
+                    cell.onclick = () => calcolaDosaggio('cl. com', valoreFloat);
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'temp') {
+                if (valoreFloat < 24.0 || valoreFloat > 30.0) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c";
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+            if (cleanKey === 'cya') {
+                if (valoreFloat > 60) {
+                    cell.style.backgroundColor = "#fee2e2"; cell.style.color = "#b91c1c"; cell.style.fontWeight = "bold"; cell.style.cursor = "pointer";
+                    cell.onclick = () => calcolaDosaggio('cya', valoreFloat);
+                } else { cell.style.backgroundColor = "#ecfdf5"; cell.style.color = "#047857"; }
+            }
+        });
+    });
+}
+
+// CORREZIONE APPLICATA QUI: Trova l'ultima riga con dati reali nella tabella attiva e si ferma mostrando le due righe sotto
+function scollaAdUltimaRiga() {
+    // Cerchiamo la tabella visibile o quella chimica principale
+    const tabella = document.getElementById("chimicoTable") || document.querySelector(".registro-table");
     if (!tabella) return;
     
-    tabella.innerHTML = "";
-    
-    righe.forEach((riga, indiceRiga) => {
-        const tr = document.createElement("tr");
-        
-        riga.forEach((cella, indiceColonna) => {
-            const elCell = (indiceRiga === 0) ? document.createElement("th") : document.createElement("td");
-            
-            if (indiceRiga === 0 && chiave === 'chimico' && (indiceColonna === 1 || indiceColonna === 2 || indiceColonna === 3)) {
-                let nomeParametro = cella.split("(")[0].trim();
-                elCell.innerHTML = `${cella} <br><button class="table-th-btn" onclick="apriGrafico('${nomeParametro}', 'line')">📊 Grafico</button>`;
-            } else if (indiceRiga === 0 && chiave === 'contatori' && indiceColonna === 2) {
-                elCell.innerHTML = `${cella} <br><button class="table-th-btn" onclick="apriGrafico('Reintegro', 'bar')">📊 Grafico</button>`;
-            } else {
-                elCell.textContent = cella;
-            }
-
-            if (indiceRiga > 0 && chiave === 'chimico') {
-                if (indiceColonna === 1) { 
-                    let val = parseFloat(cella.replace(",", "."));
-                    elCell.className = (!isNaN(val) && val === 7.3) ? "cell-green" : "cell-red";
-                }
-                if (indiceColonna === 2) { 
-                    let val = parseFloat(cella.replace(",", "."));
-                    elCell.className = (!isNaN(val) && val >= 1.1) ? "cell-green" : "cell-red";
-                }
-                if (indiceColonna === 3) { 
-                    let val = parseFloat(cella.replace(",", "."));
-                    elCell.className = (!isNaN(val) && val < 60) ? "cell-green" : "cell-red";
-                }
-            }
-            
-            tr.appendChild(elCell);
-        });
-        
-        tabella.appendChild(tr);
-    });
-}
-
-// LOGICA MODIFICATA: CORRE LUNGO TUTTO IL REGISTRO E SI FERMA ALLA PRIMA CELLA VUOTA TROVATA
-function eseguiScorrimentoRegistro(sezioneId) {
-    let tabellaId = "";
-    let righeDati = [];
-    
-    if (sezioneId === 'chimicoSection') { tabellaId = "chimicoTable"; righeDati = datiRegistriGlobali.chimico; }
-    else if (sezioneId === 'contatoriSection') { tabellaId = "contatoriTable"; righeDati = datiRegistriGlobali.contatori; }
-    else if (sezioneId === 'pulizieSection') { tabellaId = "pulizieTable"; righeDati = datiRegistriGlobali.pulizie; }
-    else if (sezioneId === 'manutenzioniSection') { tabellaId = "manutenzioniTable"; righeDati = datiRegistriGlobali.manutenzioni; }
-
-    const tabella = document.getElementById(tabellaId);
-    if (!tabella || !righeDati || righeDati.length === 0) return;
-
-    const contenitoreSfondo = tabella.closest('.table-responsive');
-    if (!contenitoreSfondo) return;
+    const container = tabella.closest('.table-responsive') || window;
+    const righe = tabella.rows;
+    if (!righe || righe.length <= 1) return;
 
     let rigaTargetIndice = -1;
 
-    // Scorre in avanti dall'inizio (riga 1) fino alla fine del calendario (30/09)
-    for (let i = 1; i < righeDati.length; i++) {
-        let rigaIncompleta = false;
+    // Partiamo dal basso cercando la prima riga che ha almeno una cella compilata (saltando la colonna della data/ora alla posizione 0)
+    for (let i = righe.length - 1; i >= 1; i--) {
+        let rigaHaDati = false;
+        const celle = righe[i].cells;
         
-        // Verifica se c'è almeno una cella vuota tra quelle destinate all'inserimento dei dati (dalla colonna 1 in poi)
-        for (let j = 1; j < righeDati[i].length; j++) {
-            let contenuto = righeDati[i][j];
-            if (!contenuto || contenuto.toString().trim() === "") {
-                rigaIncompleta = true;
+        for (let j = 1; j < celle.length; j++) {
+            if (celle[j] && celle[j].innerText.trim() !== "") {
+                rigaHaDati = true;
                 break;
             }
         }
         
-        // Se trova una riga non compilata, imposta il target lì per mostrare lei e lo spazio sotto
-        if (rigaIncompleta) {
-            rigaTargetIndice = i;
+        if (rigaHaDati) {
+            // Trovata! Ci posizioniamo 2 righe più giù per lasciare lo spazio vuoto visibile
+            rigaTargetIndice = Math.min(i + 2, righe.length - 1);
             break;
         }
     }
 
-    if (rigaTargetIndice === -1) {
-        rigaTargetIndice = tabella.rows.length - 1;
-    }
-
-    if (rigaTargetIndice > 0 && tabella.rows[rigaTargetIndice]) {
-        const rigaElemento = tabella.rows[rigaTargetIndice];
-        contenitoreSfondo.scrollTop = rigaElemento.offsetTop - tabella.rows[0].offsetHeight;
-    }
-}
-
-function mostraSezione(sezioneId) {
-    document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
-    const sezioneSelezionata = document.getElementById(sezioneId);
-    if (sezioneSelezionata) {
-        sezioneSelezionata.classList.remove('hidden');
-        setTimeout(() => {
-            eseguiScorrimentoRegistro(sezioneId);
-        }, 60);
-    }
-}
-
-// RIPRISTINATE TUTTE LE FUNZIONI LOGICHE DELL'ASSISTENTE CHIMICO
-function analizzaUltimoDatoChimico() {
-    let righe = datiRegistriGlobali.chimico;
-    if (righe.length < 2) return;
-
-    let ultimoPh = null, ultimoCloro = null, ultimoCya = null, dataRilevazione = "";
-
-    for (let i = righe.length - 1; i >= 1; i--) {
-        if (righe[i][1] && righe[i][1].trim() !== "" && ultimoPh === null) {
-            ultimoPh = parseFloat(righe[i][1].replace(",", "."));
-            dataRilevazione = righe[i][0];
+    if (rigaTargetIndice > 0 && righe[rigaTargetIndice]) {
+        if (container === window) {
+            righe[rigaTargetIndice].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            container.scrollTop = righe[rigaTargetIndice].offsetTop - righe[0].offsetHeight;
         }
-        if (righe[i][2] && righe[i][2].trim() !== "" && ultimoCloro === null) ultimoCloro = parseFloat(righe[i][2].replace(",", "."));
-        if (righe[i][3] && righe[i][3].trim() !== "" && ultimoCya === null) ultimoCya = parseFloat(righe[i][3].replace(",", "."));
+    }
+}
+
+function calcolaDosaggio(parametro, valoreCorrente) {
+    const modal = document.getElementById('dosageModal');
+    const content = document.getElementById('dosageContent');
+    let markup = "";
+
+    if (parametro === 'ph') {
+        if (valoreCorrente > 7.50) {
+            let delta = valoreCorrente - 7.30; 
+            let doseKg = ((delta * 10 * 10 * VOL_PISCINA) / 1000).toFixed(2);
+            markup = `
+                <h3>Consigli di Trattamento</h3>
+                <p>Il valore del pH è alto (<strong>${valoreCorrente.toFixed(2).replace('.', ',')}</strong>).</p>
+                <p>Per abbassarlo al valore ideale di 7,30 inserire:</p>
+                <p>👉 <strong>${doseKg.replace('.', ',')} Kg</strong> di <strong>pH MINUS</strong>.</p>
+            `;
+        } else if (valoreCorrente < 7.20) {
+            let delta = 7.30 - valoreCorrente;
+            let doseKg = ((delta * 10 * 10 * VOL_PISCINA) / 1000).toFixed(2);
+            markup = `
+                <h3>Consigli di Trattamento</h3>
+                <p>Il valore del pH è basso (<strong>${valoreCorrente.toFixed(2).replace('.', ',')}</strong>).</p>
+                <p>Per alzarlo al valore ideale di 7,30 inserire:</p>
+                <p>👉 <strong>${doseKg.replace('.', ',')} Kg</strong> di <strong>pH PLUS</strong>.</p>
+            `;
+        }
+    } 
+    else if (parametro === 'cl. lib') {
+        if (valoreCorrente < 0.70) {
+            let delta = 1.10 - valoreCorrente; 
+            let doseGrammi = delta * 1.5 * VOL_PISCINA;
+            let doseKg = (doseGrammi / 1000).toFixed(2);
+            markup = `
+                <h3>Consigli di Trattamento</h3>
+                <p>Il Cloro Libero è insufficiente (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
+                <p>Per raggiungere il target ottimale di 1,10 ppm aggiungere:</p>
+                <p>👉 <strong>${doseGrammi.toFixed(0)} g</strong> (circa <strong>${doseKg.replace('.', ',')} Kg</strong>) di <strong>Ipoclorito di Calcio</strong> granulare.</p>
+            `;
+        } else if (valoreCorrente > 2.00) {
+            markup = `
+                <h3>Consigli di Trattamento</h3>
+                <p>Il Cloro Libero è molto alto (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
+                <p>👉 Sospendere temporaneamente le immissioni di cloro e scoprire la vasca per farlo scendere con il sole.</p>
+            `;
+        }
+    }
+    else if (parametro === 'cl. com') {
+        markup = `
+            <h3>Consigli di Trattamento</h3>
+            <p>Il Cloro Combinato è fuori limite (<strong>${valoreCorrente.toFixed(2).replace('.', ',')} ppm</strong>).</p>
+            <p>👉 Effettuare un <strong>controlavaggio filtro approfondito</strong> associato ad un abbondante <strong>reintegro di acqua nuova</strong>.</p>
+        `;
+    }
+    else if (parametro === 'cya') {
+        markup = `
+            <h3>Consigli di Trattamento</h3>
+            <p>L'Acido Cianurico ha superato la soglia critica (<strong>${valoreCorrente.toFixed(0)} ppm</strong>).</p>
+            <p>👉 Si raccomanda di effettuare uno <strong>scarico parziale dell'acqua della piscina (20-30%)</strong> ed eseguire un successivo reintegro con acqua fresca pulita.</p>
+        `;
     }
 
-    if (ultimoPh === null || ultimoCloro === null) return;
-
-    let modal = document.getElementById("dosageModal");
-    let content = document.getElementById("dosageContent");
-    let testoDettaglio = `<h3>🤖 Assistente Trattamento Acqua</h3><p>Ultimo controllo registrato il: <strong>${dataRilevazione}</strong></p><br>`;
-
-    let serveIntervento = false;
-
-    if (ultimoPh > 7.3) {
-        serveIntervento = true;
-        let delta = ultimoPh - 7.3;
-        let dosePhMeno = Math.round(delta * 10 * VOL_PISCINA * 10); 
-        testoDettaglio += `<p>⚠️ <strong>pH Elevato (${ultimoPh.toFixed(1)}):</strong> Per abbassarlo al target ideale di <strong>7.3</strong>, immettere circa <strong>${dosePhMeno} grammi</strong> di pH- Meno granulare direttamente negli skimmer.</p><br>`;
-    } else if (ultimoPh < 7.3) {
-        serveIntervento = true;
-        let delta = 7.3 - ultimoPh;
-        let dosePhPlus = Math.round(delta * 10 * VOL_PISCINA * 10);
-        testoDettaglio += `<p>⚠️ <strong>pH Basso (${ultimoPh.toFixed(1)}):</strong> Per alzarlo al target ideale di <strong>7.3</strong>, immettere circa <strong>${dosePhPlus} grammi</strong> di pH+ Plus granulare.</p><br>`;
-    }
-
-    if (ultimoCloro < 1.1) {
-        serveIntervento = true;
-        let deltaCl = 1.1 - ultimoCloro;
-        let doseCloro = Math.round((deltaCl * VOL_PISCINA) / 0.65 * 1.4); 
-        testoDettaglio += `<p>⚠️ <strong>Cloro Insufficiente (${ultimoCloro.toFixed(1)} ppm):</strong> Per raggiungere il target di sicurezza minimo di <strong>1.1 ppm</strong>, dosare circa <strong>${doseCloro} grammi</strong> di Ipoclorito di Calcio granulare.</p><br>`;
-    }
-
-    if (ultimoCya >= 60) {
-        serveIntervento = true;
-        testoDettaglio += `<p>🚨 <strong>ALLARME Stabilizzante (${ultimoCya} ppm):</strong> L'Acido Cianurico ha superato la soglia critica di 60 ppm. Sospendere trattamenti stabilizzati ed effettuare parziali svuotamenti e reintegri di acqua pulita.</p><br>`;
-    }
-
-    if (serveIntervento) {
-        content.innerHTML = testoDettaglio;
-        modal.classList.remove("hidden");
-    }
+    content.innerHTML = markup;
+    modal.classList.remove('hidden');
 }
 
 function chiudiDosaggio() {
     document.getElementById('dosageModal').classList.add('hidden');
 }
 
-// RIPRISTINATO IL MOTORE DEI GRAFICI CON BENDE COLORATE DI SFONDO (FOTO 2/3)
-function apriGrafico(parametro, tipoGrafico) {
+function apriGrafico(parametro, tipoRegistro) {
+    if (!tipoRegistro) tipoRegistro = 'chimico';
     const overlay = document.getElementById('chartOverlay');
+    const title = document.getElementById('overlayTitle');
+    const canvas = document.getElementById('overlayCanvas');
+
+    title.innerText = `Andamento Storico Parametro: ${parametro}`;
     overlay.classList.remove('hidden');
-    document.getElementById('overlayTitle').textContent = `Andamento Storico: ${parametro}`;
-    
-    if (mioGrafico) { mioGrafico.destroy(); }
-    
+
     let etichette = [];
     let valori = [];
-    let opzioniScale = {};
-    
-    if (parametro === 'pH' || parametro === 'Cloro Libero' || parametro === 'Acido Cianurico') {
-        let indiceCol = (parametro === 'pH') ? 1 : (parametro === 'Cloro Libero' ? 2 : 3);
-        datiRegistriGlobali.chimico.forEach((r, idx) => {
-            if (idx > 0 && r[0] && r[indiceCol] && r[indiceCol].trim() !== "") {
-                etichette.push(r[0].split(" ")[0]);
-                valori.push(parseFloat(r[indiceCol].replace(",", ".")));
-            }
-        });
+    let cleanParam = parametro.toLowerCase().trim(); 
+    let datiDaUsare = datiRegistriGlobali[tipoRegistro] || [];
+
+    datiDaUsare.forEach(riga => {
+        let dataStr = riga["Data"] || riga["data"] || "";
+        let oraStr = riga["Ora"] || riga["ora"] || "";
+        let chiaveTrovata = Object.keys(riga).find(k => k.toLowerCase().trim() === cleanParam);
+        let valStr = chiaveTrovata ? riga[chiaveTrovata] : "";
         
-        if (parametro === 'pH') opzioniScale = { y: { min: 6.8, max: 8.2 } };
-        else if (parametro === 'Cloro Libero') opzioniScale = { y: { min: 0, max: 3.0 } };
-        else if (parametro === 'Acido Cianurico') opzioniScale = { y: { min: 0, max: 120 } };
-        
-    } else if (parametro === 'Reintegro') {
-        datiRegistriGlobali.contatori.forEach((r, idx) => {
-            if (idx > 0 && r[0] && r[2] && r[2].trim() !== "") {
-                etichette.push(r[0]);
-                valori.push(parseFloat(r[2].replace(",", ".")));
+        if (valStr !== "" && valStr !== undefined) {
+            let valFloat = parseFloat(String(valStr).replace(',', '.'));
+            if (!isNaN(valFloat)) {
+                etichette.push(`${dataStr} ${oraStr}`.trim());
+                valori.push(valFloat);
             }
-        });
-        opzioniScale = { y: { beginAtZero: true, max: 20000, ticks: { stepSize: 500 } } };
-    }
-    
-    const canvas = document.getElementById('overlayCanvas');
-    
+        }
+    });
+
+    if (mioGrafico) mioGrafico.destroy();
+
+    let tipoGrafico = (cleanParam === 'n.ospiti' || cleanParam.includes('reintegro')) ? 'bar' : 'line';
+    let opzioniScale = {
+        x: { ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 45 } },
+        y: { ticks: { font: { size: 10 } } }
+    };
+
+    if (cleanParam === 'ph') { opzioniScale.y.min = 6.5; opzioniScale.y.max = 8.5; }
+    else if (['cl. lib', 'cl. tot'].includes(cleanParam)) { opzioniScale.y.min = 0.0; opzioniScale.y.max = 4.0; }
+    else if (cleanParam === 'cl. com') { opzioniScale.y.min = 0.0; opzioniScale.y.max = 0.8; }
+    else if (cleanParam === 'cya') { opzioniScale.y.min = 0; opzioniScale.y.max = 120; }
+    else if (cleanParam === 'temp') { opzioniScale.y.min = 10; opzioniScale.y.max = 35; }
+
     const pluginSfondoFasce = {
-        id: 'pluginSfondoFasce',
+        id: 'customCanvasBackgroundColor',
         beforeDraw: (chart) => {
             const { ctx, chartArea: { top, bottom, left, right }, scales: { y } } = chart;
             ctx.save();
-            
-            function disegnaBanda(yStart, yEnd, colore) {
-                let pixelTop = y.getPixelForValue(yEnd);
-                let pixelBottom = y.getPixelForValue(yStart);
-                ctx.fillStyle = colore;
-                ctx.fillRect(left, pixelTop, right - left, pixelBottom - pixelTop);
+            function disegnaBanda(yMin, yMax, colore) {
+                let pixelTop = y.getPixelForValue(yMax);
+                let pixelBottom = y.getPixelForValue(yMin);
+                pixelTop = Math.max(pixelTop, top);
+                pixelBottom = Math.min(pixelBottom, bottom);
+                if (pixelTop < pixelBottom) {
+                    ctx.fillStyle = colore;
+                    ctx.fillRect(left, pixelTop, right - left, pixelBottom - pixelTop);
+                }
             }
-
-            if (parametro === 'pH') {
-                disegnaBanda(6.8, 7.2, 'rgba(239, 68, 68, 0.08)');  
-                disegnaBanda(7.2, 7.4, 'rgba(16, 185, 129, 0.15)'); 
-                disegnaBanda(7.4, 8.2, 'rgba(239, 68, 68, 0.08)');  
-            } else if (parametro === 'Cloro Libero') {
-                disegnaBanda(0, 1.1, 'rgba(239, 68, 68, 0.08)');   
-                disegnaBanda(1.1, 1.5, 'rgba(16, 185, 129, 0.15)'); 
-                disegnaBanda(1.5, 3.0, 'rgba(239, 68, 68, 0.08)');  
-            } else if (parametro === 'Acido Cianurico') {
-                disegnaBanda(0, 60, 'rgba(16, 185, 129, 0.15)');    
-                disegnaBanda(60, 120, 'rgba(239, 68, 68, 0.1)');   
+            if (cleanParam === 'ph') {
+                disegnaBanda(6.5, 7.2, 'rgba(239, 68, 68, 0.1)');   
+                disegnaBanda(7.2, 7.5, 'rgba(16, 185, 129, 0.15)'); 
+                disegnaBanda(7.5, 8.5, 'rgba(239, 68, 68, 0.1)');   
+            } else if (['cl. lib', 'cl. tot'].includes(cleanParam)) {
+                disegnaBanda(0.0, 0.7, 'rgba(239, 68, 68, 0.1)');   
+                disegnaBanda(0.7, 2.0, 'rgba(16, 185, 129, 0.15)'); 
+                disegnaBanda(2.0, 4.0, 'rgba(239, 68, 68, 0.1)');   
+            } else if (cleanParam === 'cl. com') {
+                disegnaBanda(0.0, 0.2, 'rgba(16, 185, 129, 0.15)');  
+                disegnaBanda(0.2, 0.4, 'rgba(254, 240, 138, 0.25)'); 
+                disegnaBanda(0.4, 0.8, 'rgba(239, 68, 68, 0.12)');   
+            } else if (cleanParam === 'cya') {
+                disegnaBanda(0, 60, 'rgba(16, 185, 129, 0.15)');
+                disegnaBanda(60, 120, 'rgba(239, 68, 68, 0.1)');
             }
             ctx.restore();
         }
@@ -284,10 +368,10 @@ function apriGrafico(parametro, tipoGrafico) {
                     label: parametro,
                     data: valori,
                     borderColor: '#1e293b',
-                    backgroundColor: tipoGrafico === 'bar' ? 'rgba(59, 130, 246, 0.6)' : 'rgba(30, 41, 59, 0.1)',
+                    backgroundColor: 'rgba(30, 41, 59, 0.1)',
                     borderWidth: 2,
-                    pointRadius: 4,
-                    tension: 0.15
+                    pointRadius: 4,         
+                    tension: 0.15             
                 }]
             },
             options: { responsive: true, maintainAspectRatio: false, scales: opzioniScale, plugins: { legend: { display: false } } },
@@ -299,3 +383,19 @@ function apriGrafico(parametro, tipoGrafico) {
 function closeOverlay() {
     document.getElementById('chartOverlay').classList.add('hidden');
 }
+
+function mostraSezione(sezioneId) {
+    document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
+    const sez = document.getElementById(sezioneId);
+    if (sez) {
+        sez.classList.remove('hidden');
+        setTimeout(scollaAdUltimaRiga, 100); 
+    }
+}
+
+window.mostraSezione = mostraSezione;
+
+window.onload = function() {
+    caricaTuttiIRegistri();
+    mostraSezione('chimicoSection');
+};
