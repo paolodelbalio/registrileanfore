@@ -4,12 +4,242 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Piscina 2026</title>
-    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        /* --- IMPOSTAZIONI GLOBALI --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .main-wrapper {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        /* --- INTESTAZIONE BLU DI IERI --- */
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
+            color: #ffffff;
+            padding: 30px 20px;
+            border-radius: 6px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* --- PULSANTI DI NAVIGAZIONE (COLORAZIONE, FORMA E DIMENSIONI DI IERI) --- */
+        .top-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .top-buttons button {
+            padding: 14px 28px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #1e3a8a; /* Blu scuro elegante di ieri */
+            background-color: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Effetto al passaggio del mouse di ieri (Cambia in Blu Intenso) */
+        .top-buttons button:hover {
+            background-color: #0066cc;
+            color: #ffffff;
+            border-color: #0066cc;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 68, 153, 0.2);
+        }
+
+        /* --- SEZIONI REGISTRI --- */
+        .register-section {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            color: #1e3a8a;
+            font-size: 22px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+
+        .table-responsive {
+            max-height: 480px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+
+        .registro-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            text-align: left;
+        }
+
+        .registro-table th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+            padding: 12px;
+            position: sticky;
+            top: 0;
+            border-bottom: 2px solid #e2e8f0;
+            z-index: 10;
+        }
+
+        .table-th-btn {
+            background-color: #e0f2fe;
+            border: 1px solid #bae6fd;
+            color: #0369a1;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .table-th-btn:hover {
+            background-color: #0284c7;
+            color: #ffffff;
+            border-color: #0284c7;
+        }
+
+        .registro-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        /* --- ASSISTENTE CHIMICO POPUP --- */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .overlay-content {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            width: 85%;
+            max-width: 900px;
+            height: 75vh;
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .overlay-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #888888;
+        }
+
+        .overlay-close:hover {
+            color: #333333;
+        }
+
+        .overlay-content h3 {
+            margin-bottom: 20px;
+            color: #333333;
+            font-size: 1.4rem;
+        }
+
+        .overlay-content canvas {
+            flex-grow: 1;
+            width: 100% !important;
+            height: calc(100% - 60px) !important;
+        }
+
+        .dosage-card {
+            background: #ffffff !important;
+            padding: 30px 35px !important;
+            border-radius: 8px !important;
+            box-shadow: 0 4px 25px rgba(0,0,0,0.15) !important;
+            width: 90% !important;
+            max-width: 480px !important;
+            position: relative !important;
+            text-align: left !important;
+            box-sizing: border-box !important;
+        }
+
+        .dosage-card h3 {
+            font-size: 1.35rem !important;
+            font-weight: bold !important;
+            color: #000000 !important;
+            margin-bottom: 18px !important;
+        }
+
+        .dosage-card p {
+            font-size: 0.98rem !important;
+            color: #333333 !important;
+            margin-bottom: 14px !important;
+            line-height: 1.45 !important;
+        }
+
+        .dosage-card strong {
+            color: #000000 !important;
+            font-weight: 700 !important;
+        }
+
+        /* Utility */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="script.js" defer></script>
 </head>
 <body>
+
+<div class="main-wrapper">
 
     <header>
         <h1>Dashboard Piscina 2026</h1>
@@ -23,50 +253,50 @@
         <button onclick="mostraSezione('manutenzioniSection')">🛠️ 4. Manutenzioni</button>
     </div>
 
-    <main>
-        <section id="chimicoSection" class="register-section">
-            <h2>1. Registro Parametri Chimici (pH, Cloro, CYA)</h2>
-            <div class="table-wrapper">
-                <table id="chimicoTable"></table>
-            </div>
-        </section>
-
-        <section id="contatoriSection" class="register-section hidden">
-            <h2>2. Registro Consumo Idrico (Letture e Reintegri)</h2>
-            <div class="table-wrapper">
-                <table id="contatoriTable"></table>
-            </div>
-        </section>
-
-        <section id="pulizieSection" class="register-section hidden">
-            <h2>3. Registro Lavaggio Filtri e Pulizie Vasca</h2>
-            <div class="table-wrapper">
-                <table id="pulizieTable"></table>
-            </div>
-        </section>
-
-        <section id="manutenzioniSection" class="register-section hidden">
-            <h2>4. Registro Interventi e Manutenzione Strutturale</h2>
-            <div class="table-wrapper">
-                <table id="manutenzioniTable"></table>
-            </div>
-        </section>
-    </main>
-
-    <div id="dosageModal" class="overlay hidden" onclick="chiudiDosaggio()">
-        <div class="dosage-card" onclick="event.stopPropagation()">
-            <span class="overlay-close" onclick="chiudiDosaggio()">&times;</span>
-            <div id="dosageContent"></div>
+    <section id="chimicoSection" class="register-section">
+        <h2>1. Registro Parametri Chimici (pH, Cloro, CYA)</h2>
+        <div class="table-responsive">
+            <table id="chimicoTable" class="registro-table"></table>
         </div>
-    </div>
+    </section>
 
-    <div id="chartOverlay" class="overlay hidden" onclick="closeOverlay()">
-        <div class="overlay-content" onclick="event.stopPropagation()">
-            <span class="overlay-close" onclick="closeOverlay()">&times;</span>
-            <h3 id="overlayTitle">Andamento Storico</h3>
-            <canvas id="overlayCanvas"></canvas>
+    <section id="contatoriSection" class="register-section hidden">
+        <h2>2. Registro Consumo Idrico (Letture e Reintegri)</h2>
+        <div class="table-responsive">
+            <table id="contatoriTable" class="registro-table"></table>
         </div>
+    </section>
+
+    <section id="pulizieSection" class="register-section hidden">
+        <h2>3. Registro Lavaggio Filtri e Pulizie Vasca</h2>
+        <div class="table-responsive">
+            <table id="pulizieTable" class="registro-table"></table>
+        </div>
+    </section>
+
+    <section id="manutenzioniSection" class="register-section hidden">
+        <h2>4. Registro Interventi e Manutenzione Strutturale</h2>
+        <div class="table-responsive">
+            <table id="manutenzioniTable" class="registro-table"></table>
+        </div>
+    </section>
+
+</div>
+
+<div id="dosageModal" class="overlay hidden" onclick="chiudiDosaggio()">
+    <div class="dosage-card" onclick="event.stopPropagation()">
+        <span class="overlay-close" onclick="chiudiDosaggio()">&times;</span>
+        <div id="dosageContent"></div>
     </div>
+</div>
+
+<div id="chartOverlay" class="overlay hidden" onclick="closeOverlay()">
+    <div class="overlay-content" onclick="event.stopPropagation()">
+        <span class="overlay-close" onclick="closeOverlay()">&times;</span>
+        <h3 id="overlayTitle">Andamento Storico</h3>
+        <canvas id="overlayCanvas"></canvas>
+    </div>
+</div>
 
 </body>
 </html>
