@@ -3,7 +3,6 @@ let datiRegistriGlobali = { chimico: [], contatori: [], pulizie: [], manutenzion
 
 const VOL_PISCINA = 92; // Volume vasca in m³
 
-// Nomi precisi dei file su disco
 const FILES = {
     chimico: "REGISTRO CHIMICO 2026.csv",
     contatori: "REGISTRO CONTATORI.csv",
@@ -19,16 +18,16 @@ const LEGAL_RANGES = {
     "cya": { min: 0.0, max: 60.0 }
 };
 
-// GESTIONE DELLA BARRA DI NAVIGAZIONE DINAMICA (SCOMPARE/RIPRARE)
+// GESTIONE DELLA BARRA DI NAVIGAZIONE DINAMICA
 let lastScrollTop = 0;
 window.addEventListener("scroll", () => {
     const navbar = document.getElementById("navbar");
     let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
     
     if (scrollTop > lastScrollTop && scrollTop > 150) {
-        navbar.classList.add("nav-hidden"); // Nasconde scendendo
+        navbar.classList.add("nav-hidden");
     } else {
-        navbar.classList.remove("nav-hidden"); // Mostra salendo
+        navbar.classList.remove("nav-hidden");
     }
     lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
 });
@@ -51,6 +50,14 @@ function caricaTuttiIRegistri() {
             }
         });
     });
+}
+
+function formattaValoreNumerico(valoreStringa) {
+    if (!valoreStringa || valoreStringa.trim() === "") return "";
+    let num = parseFloat(valoreStringa.replace(",", "."));
+    if (isNaN(num)) return valoreStringa; 
+    // Ritorna sempre il valore con esattamente 2 decimali e la virgola
+    return num.toFixed(2).replace(".", ",");
 }
 
 function elaboraDatiTabella(chiave, righeGrezze) {
@@ -104,11 +111,15 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
     righe.forEach((riga, rIdx) => {
         html += "<tr>";
         intestazioni.forEach((header, colIdx) => {
-            let valore = riga[colIdx] || "";
+            let valoreRaw = riga[colIdx] || "";
+            let hId = header.toLowerCase();
+            
+            // Applica la formattazione a due decimali per le colonne chimiche rilevanti
+            let valore = ["ph", "cl. lib", "cl. com", "temp", "cya"].includes(hId) ? formattaValoreNumerico(valoreRaw) : valoreRaw;
+            
             let classeCella = "";
             let attributiAggiuntivi = "";
 
-            let hId = header.toLowerCase();
             if (LEGAL_RANGES[hId]) {
                 let num = parseFloat(valore.replace(",", "."));
                 if (!isNaN(num)) {
@@ -162,7 +173,7 @@ function mostraSezione(sezioneId) {
     }, 80);
 }
 
-// STUDIO CHIMICO AVANZATO ED EVOLUTO DEI DOSAGGI (BASATO SU FOTO, METEO E BAGNANTI)
+// STUDIO QUANTITATIVO DEI DOSAGGI (BASATO SU VALORE IDEALE, TEMPERATURA E BAGNANTI)
 function apriFinestraDosaggio(parametro, valore, rigaIndice) {
     const modal = document.getElementById("dosageModal");
     const content = document.getElementById("dosageContent");
@@ -173,7 +184,7 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice) {
     let headers = chimico ? chimico.headers : [];
     let rigaCorrente = (chimico && chimico.rows) ? chimico.rows[rigaIndice] : [];
 
-    // Estrazione parametri di contesto ambientali
+    // Estrazione del contesto reale per lo studio dei consumi chimici
     let oraIdx = headers.findIndex(h => h.toLowerCase() === "ora");
     let tempIdx = headers.findIndex(h => h.toLowerCase() === "temp");
     let bagnantiIdx = headers.findIndex(h => h.toLowerCase() === "n.ospiti");
@@ -182,57 +193,64 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice) {
     let tempVasca = tempIdx !== -1 ? parseFloat((rigaCorrente[tempIdx] || "").replace(",", ".")) : 25;
     let numBagnanti = bagnantiIdx !== -1 ? parseInt(rigaCorrente[bagnantiIdx]) || 0 : 0;
 
-    let testoDettaglio = `<h3>⚠️ Diagnostica Avanzata Vasca: ${parametro}</h3>`;
-    testoDettaglio += `<p>Valore rilevato: <strong style="color:#ef4444; font-size:1.1rem;">${valore}</strong> (Target ideale: ${LEGAL_RANGES[pId]?.target || '-' })</p>`;
-    testoDettaglio += `<p style="font-size:0.9rem; background:#f1f5f9; padding:8px; border-radius:4px; margin-bottom:15px;">
-        Context Monitor: Rilevamento ore <strong>${oraRilevamento || 'N.D.'}</strong> | Temp. Acqua: <strong>${isNaN(tempVasca) ? '25' : tempVasca}°C</strong> | Presenza Bagnanti: <strong>${numBagnanti} ospiti</strong>
+    if (isNaN(tempVasca)) tempVasca = 25;
+
+    let testoDettaglio = `<h3>Diagnostica Dosaggio: ${parametro}</h3>`;
+    testoDettaglio += `<p>Valore inserito: <strong style="color:#721c24;">${valore}</strong> (Valore ideale: ${LEGAL_RANGES[pId]?.target || '-' })</p>`;
+    testoDettaglio += `<p style="font-size:0.85rem; background:#eee; padding:6px; margin-bottom:12px;">
+        Condizioni vasca: Rilevato ore ${oraRilevamento || 'N.D.'} | Temp: ${tempVasca}°C | Bagnanti registrati: ${numBagnanti}
     </p>`;
 
     if (pId === "ph") {
         if (valNum > 7.5) {
             let delta = valNum - 7.3;
             let doseBase = delta * 10 * 10 * VOL_PISCINA; 
-            if (tempVasca > 28) doseBase *= 1.15; // Correzione per acqua calda
+            if (tempVasca > 28) doseBase *= 1.15; // Correzione del consumo per calore aumentato
             let doseKg = (doseBase / 1000).toFixed(2);
-            testoDettaglio += `<p><strong>Diagnosi:</strong> Il pH elevato riduce l'efficacia disinfettante dell'ipoclorito di calcio, favorendo la precipitazione calcarea.</p>`;
-            testoDettaglio += `<p><strong>Azione Correttiva:</strong> Versare negli skimmer <strong>${doseKg} Kg</strong> di <strong>Correttore pH Meno (Acido Secco)</strong>.</p>`;
+            testoDettaglio += `<p><strong>Analisi:</strong> Il pH alto inibisce l'azione disinfettante del cloro. La temperatura a ${tempVasca}°C accelera questo fenomeno.</p>`;
+            testoDettaglio += `<p><strong>Quantità Prodotto:</strong> Aggiungere nello skimmer <strong>${doseKg.replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong>.</p>`;
         } else if (valNum < 6.5) {
             let delta = 7.3 - valNum;
             let doseBase = delta * 10 * 10 * VOL_PISCINA;
             let doseKg = (doseBase / 1000).toFixed(2);
-            testoDettaglio += `<p><strong>Diagnosi:</strong> Acqua acida e corrosiva. Rischio di irritazioni e danni strutturali alle condutture e ai metalli.</p>`;
-            testoDettaglio += `<p><strong>Azione Correttiva:</strong> Dosare in vasca <strong>${doseKg} Kg</strong> di <strong>Correttore pH Più (Carbonato di Sodio)</strong>.</p>`;
+            testoDettaglio += `<p><strong>Analisi:</strong> Acqua aggressiva. Rischio corrosione metalli e irritazioni cutanee.</p>`;
+            testoDettaglio += `<p><strong>Quantità Prodotto:</strong> Immettere in vasca <strong>${doseKg.replace(".", ",")} Kg</strong> di <strong>pH Più (Carbonato di Sodio)</strong>.</p>`;
         }
     } else if (pId === "cl. lib") {
         if (valNum < 0.7) {
             let delta = 1.1 - valNum;
+            // Formula base per l'ipoclorito di calcio al 65%
             let grammiIpoclorito = Math.round((delta / 0.65) * VOL_PISCINA);
             
-            // Incremento predittivo per consumo accelerato
-            if (tempVasca > 27) grammiIpoclorito = Math.round(grammiIpoclorito * 1.2);
-            if (numBagnanti > 15) grammiIpoclorito = Math.round(grammiIpoclorito * 1.25);
+            // Studio correttivo avanzato basato su Sole, Calore e Affluenza
+            if (tempVasca > 27) {
+                grammiIpoclorito = Math.round(grammiIpoclorito * 1.20); // +20% per evaporazione termica
+            }
+            if (numBagnanti > 12) {
+                grammiIpoclorito = Math.round(grammiIpoclorito * 1.25); // +25% per abbattimento organico
+            }
 
-            testoDettaglio += `<p><strong>Diagnosi:</strong> Copertura igienica insufficiente. Il sole e il carico organico attuale stanno consumando rapidamente il disinfettante.</p>`;
+            testoDettaglio += `<p><strong>Analisi:</strong> Mancanza di cloro libero. Con ${numBagnanti} bagnanti e un'acqua a ${tempVasca}°C, la proliferazione batterica è accelerata.</p>`;
             
             if (oraRilevamento.startsWith("07") || oraRilevamento.startsWith("08")) {
-                testoDettaglio += `<p style="color:#b56000; font-weight:600;">💡 Strategia Mattutina: Essendo inizio giornata, immettere subito il 40% della dose (${Math.round(grammiIpoclorito*0.4)}g) per non disturbare i bagnanti, e programmare il resto a impianto chiuso.</p>`;
+                testoDettaglio += `<p style="color:#856404; font-weight:bold;">⚠️ Strategia Mattutina: Per non sovraccaricare la vasca durante l'uso diurno, inserire subito il 40% (${Math.round(grammiIpoclorito*0.4)}g) e completare il trattamento la sera.</p>`;
             } else {
-                testoDettaglio += `<p style="color:#10b981; font-weight:600;">🌙 Strategia Serale: Momento perfetto per il ripristino. Versare l'intera dose senza l'azione fotolitica del sole.</p>`;
+                testoDettaglio += `<p style="color:#155724; font-weight:bold;">🌙 Strategia Serale: Trattamento ottimale. L'assenza di sole eviterà la fotolisi del prodotto chimico.</p>`;
             }
-            testoDettaglio += `<p><strong>Azione Correttiva:</strong> Trattare con <strong>${grammiIpoclorito} grammi</strong> di <strong>Ipoclorito di Calcio granulare</strong> sciolto preventivamente.</p>`;
+            testoDettaglio += `<p><strong>Quantità Prodotto:</strong> Sciogliere ed immettere <strong>${grammiIpoclorito} grammi</strong> di <strong>Ipoclorito di Calcio granulare</strong>.</p>`;
         } else if (valNum > 1.5) {
-            testoDettaglio += `<p><strong>Diagnosi:</strong> Livello superiore alla norma. Balneazione temporaneamente non ottimale.</p>`;
-            testoDettaglio += `<p><strong>Azione Correttiva:</strong> Arrestare l'apporto manuale di cloro. Sfruttare l'irraggiamento solare diurno e il ricircolo per abbattere naturalmente il valore prima della riapertura.</p>`;
+            testoDettaglio += `<p><strong>Analisi:</strong> Livello superiore ai parametri ottimali.</p>`;
+            testoDettaglio += `<p><strong>Strategia consigliata:</strong> Bloccare momentaneamente i reintegri di cloro. Lasciare che il sole e l'aerazione degradino naturalmente l'eccesso.</p>`;
         }
     } else if (pId === "cya") {
         if (valNum > 60.0) {
             let percentualeSvuotamento = Math.round(((valNum - 40) / valNum) * 100);
             let litriDaCambiare = Math.round((percentualeSvuotamento / 100) * VOL_PISCINA * 1000);
-            testoDettaglio += `<p><strong>Diagnosi Eccezionale:</strong> Sovrastabilizzazione critica. L'eccesso di acido cianurico causa il blocco del cloro.</p>`;
-            testoDettaglio += `<p><strong>Azione Strategica:</strong> È tassativo pianificare un ricambio parziale del <strong>${percentualeSvuotamento}%</strong> dell'acqua (pari a circa <strong>${litriDaCambiare.toLocaleString()} litri</strong>) attingendo da acqua di reintegro pulita.</p>`;
+            testoDettaglio += `<p><strong>Analisi Critica:</strong> Livello di acido cianurico fuori controllo (${valNum} ppm). Il cloro è completamente bloccato dal legame stabilizzante.</p>`;
+            testoDettaglio += `<p><strong>Azione Tassativa:</strong> È necessario rigenerare la massa d'acqua eseguendo un ricambio parziale del <strong>${percentualeSvuotamento}%</strong> (pari a circa <strong>${litriDaCambiary.toLocaleString()} litri</strong> di acqua nuova).</p>`;
         }
     } else {
-        testoDettaglio += `<p>Valore fuori intervallo standard. Monitorare attentamente l'evoluzione nelle prossime 12 ore.</p>`;
+        testoDettaglio += `<p>Valore fuori norma. Tenere monitorato nelle prossime ore.</p>`;
     }
 
     content.innerHTML = testoDettaglio;
@@ -280,9 +298,9 @@ function gestisciClickIntestazione(chiave, parametro) {
                 label: parametro,
                 data: valori,
                 borderColor: '#0066cc',
-                backgroundColor: 'rgba(0, 102, 204, 0.08)',
+                backgroundColor: 'rgba(0, 102, 204, 0.05)',
                 borderWidth: 2,
-                tension: 0.15,
+                tension: 0.1,
                 fill: true
             }]
         },
