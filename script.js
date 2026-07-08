@@ -88,6 +88,56 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
     });
     html += "</tr></thead><tbody>";
 
+    // --- SCADENZIARIO MANUTENZIONI ---
+    let giorniPassatiControlavaggio = 0;
+    let giorniPassatiPrefiltri = 0;
+    let rigaPrimaVuotaInterventoIdx = -1; 
+    let idxInterventoMan = -1;
+
+    if (chiave === "manutenzioni") {
+        let idxDataMan = intestazioni.findIndex(h => h.toLowerCase().trim() === "data");
+        idxInterventoMan = intestazioni.findIndex(h => h.toLowerCase().trim() === "intervento");
+
+        if (idxDataMan !== -1 && idxInterventoMan !== -1) {
+            let dataUltimoControlavaggio = null;
+            let dataUltimaPuliziaPrefiltri = null;
+
+            // Trova l'ultimo intervento eseguito (scorrendo dall'alto verso il basso o viceversa)
+            for (let i = 0; i < righe.length; i++) {
+                let testoIntervento = (righe[i][idxInterventoMan] || "").toLowerCase().trim();
+                let dataStr = righe[i][idxDataMan] || "";
+                
+                let parti = dataStr.split("/");
+                if (parti.length === 3) {
+                    let anno = parti[2].length === 2 ? "20" + parti[2] : parti[2];
+                    let dataMan = new Date(anno, parti[1] - 1, parti[0]);
+                    
+                    if (!isNaN(dataMan.getTime())) {
+                        if (testoIntervento.includes("controlavaggio")) dataUltimoControlavaggio = dataMan;
+                        if (testoIntervento.includes("prefiltri")) dataUltimaPuliziaPrefiltri = dataMan;
+                    }
+                }
+                
+                // Individua la PRIMA riga in cui la colonna Intervento è vuota
+                if (rigaPrimaVuotaInterventoIdx === -1 && (!righe[i][idxInterventoMan] || righe[i][idxInterventoMan].trim() === "")) {
+                    rigaPrimaVuotaInterventoIdx = i;
+                }
+            }
+
+            // Se tutte le righe sono piene, ipotizziamo l'allarme sull'eventuale riga successiva (o l'ultima)
+            if (rigaPrimaVuotaInterventoIdx === -1 && righe.length > 0) {
+                rigaPrimaVuotaInterventoIdx = righe.length - 1;
+            }
+
+            let oggi = new Date();
+            oggi.setHours(0,0,0,0);
+
+            giorniPassatiControlavaggio = dataUltimoControlavaggio ? Math.floor((oggi - dataUltimoControlavaggio) / (1000 * 60 * 60 * 24)) : 99;
+            giorniPassatiPrefiltri = dataUltimaPuliziaPrefiltri ? Math.floor((oggi - dataUltimaPuliziaPrefiltri) / (1000 * 60 * 60 * 24)) : 99;
+        }
+    }
+    // ---------------------------------
+
     righe.forEach((riga, rIdx) => {
         html += "<tr>";
 
@@ -113,9 +163,8 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
             let attributiAggiuntivi = "";
             let num = parseFloat(valoreGrezzo.replace(/"/g, "").replace(",", "."));
 
-            if (!isNaN(num) || hId === "cl. tot" || hId === "cl. com") {
-                
-                // 1. pH (Ottimale: 7,10 - 7,30 | Legge: 6,50 - 7,50)
+            // COLORAZIONE REGISTRO CHIMICO
+            if (chiave === "chimico" && (!isNaN(num) || hId === "cl. tot" || hId === "cl. com")) {
                 if (hId === "ph") {
                     if (num >= 7.10 && num <= 7.30) {
                         classeCella = "class='cell-ok'";
@@ -127,8 +176,6 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'rosso')"`;
                     }
                 }
-                
-                // 2. CLORO LIBERO (Ottimale: 0,90 - 1,10 | Legge: 0,70 - 1,50)
                 else if (hId === "cl. lib") {
                     if (num >= 0.90 && num <= 1.10) {
                         classeCella = "class='cell-ok'";
@@ -140,8 +187,6 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'rosso')"`;
                     }
                 }
-                
-                // 3. CLORO COMBINATO (Ottimale: 0,00 - 0,20 | Legge: Max 0,40)
                 else if (hId === "cl. com" && !isNaN(clCombinato)) {
                     if (clCombinato >= 0.00 && clCombinato <= 0.20) {
                         classeCella = "class='cell-ok'";
@@ -153,8 +198,6 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'rosso')"`;
                     }
                 }
-                
-                // 4. ACIDO CIANURICO (Ottimale: 0 - 50 | Allarme: 60)
                 else if (hId === "cya") {
                     if (num >= 0.00 && num <= 50.00) {
                         classeCella = "class='cell-ok'";
@@ -166,8 +209,6 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'rosso')"`;
                     }
                 }
-                
-                // 5. TEMPERATURA (Ottimale: 25 - 27 | Legge: 24 - 30)
                 else if (hId === "temp") {
                     if (num >= 25.00 && num <= 27.00) {
                         classeCella = "class='cell-ok'";
@@ -179,12 +220,9 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'rosso')"`;
                     }
                 }
-                
-                // 6. CLORO TOTALE
                 else if (hId === "cl. tot") {
                     let combinatoFuoriLegge = (!isNaN(clCombinato) && clCombinato > 0.40);
                     let liberoFuoriLegge = (!isNaN(clLibero) && (clLibero < 0.70 || clLibero > 1.50));
-                    
                     if (combinatoFuoriLegge || liberoFuoriLegge) {
                         classeCella = "class='cell-alarm'";
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'rosso')"`;
@@ -193,6 +231,29 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                     }
                 }
             }
+
+            // NUOVA LOGICA: COLORA SOLO LA PRIMA CELLA VUOTA IN BASE AI GIORNI TRASCORSI
+            if (chiave === "manutenzioni" && colIdx === idxInterventoMan) {
+                if (rIdx === rigaPrimaVuotaInterventoIdx) {
+                    // Determina lo stato peggiore tra i due interventi richiesti (Controlavaggio vs Prefiltri)
+                    let maxGiorni = Math.max(giorniPassatiControlavaggio, giorniPassatiPrefiltri);
+                    let tipoInterventoMancante = "Controlavaggio / Prefiltri";
+
+                    if (maxGiorni >= 4 && maxGiorni < 6) {
+                        classeCella = "class='cell-warning'"; // Giallo
+                        attributiAggiuntivi = `onclick="apriFinestraManutenzione('${tipoInterventoMancante}', ${maxGiorni}, 'giallo')" style="cursor:pointer;"`;
+                    } else if (maxGiorni == 6) {
+                        classeCella = "style='background-color: #ff9800; color: white; cursor:pointer;'"; // Arancione
+                        attributiAggiuntivi = `onclick="apriFinestraManutenzione('${tipoInterventoMancante}', ${maxGiorni}, 'arancio')"`;
+                    } else if (maxGiorni >= 7) {
+                        classeCella = "class='cell-alarm'"; // Rosso
+                        attributiAggiuntivi = `onclick="apriFinestraManutenzione('${tipoInterventoMancante}', ${maxGiorni}, 'rosso')" style="cursor:pointer;"`;
+                    }
+                    
+                    // Se siamo a meno di 4 giorni, la cella rimane vuota e bianca senza colorazioni
+                }
+            }
+
             html += `<td ${classeCella} ${attributiAggiuntivi}>${valore}</td>`;
         });
         html += "</tr>";
@@ -200,6 +261,43 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
 
     html += "</tbody>";
     tabella.innerHTML = html;
+}
+
+function apriFinestraManutenzione(tipo, giorni, stato) {
+    const modal = document.getElementById("dosageModal");
+    const contenuto = document.getElementById("dosageContent");
+    
+    let titolo = "";
+    let indicazione = "";
+
+    if (stato === 'giallo') {
+        titolo = `<h3 style="color:#d97706; margin-bottom: 5px;">⏳ Promemoria: Scadenza Avvicinamento</h3>`;
+        indicazione = `Sono passati <strong>${giorni} giorni</strong> dall'ultimo intervento di manutenzione filtri. Inizia a pianificare un <strong>Controlavaggio</strong> o una <strong>Pulizia prefiltri</strong> per mantenere l'impianto efficiente.`;
+    } else if (stato === 'arancio') {
+        titolo = `<h3 style="color:#ea580c; margin-bottom: 5px;">⚠️ Attenzione: Intervento Richiesto</h3>`;
+        indicazione = `Sono passati <strong>${giorni} giorni</strong> dall'ultima pulizia! La pressione del filtro potrebbe aumentare. Si consiglia caldamente di effettuare il lavaggio entro stasera.`;
+    } else {
+        titolo = `<h3 style="color:#b91c1c; margin-bottom: 5px;">🚨 MANUTENZIONE SCADUTA: Eseguire Controlavaggio</h3>`;
+        indicazione = `Siamo al <strong>${giorni}° giorno</strong> senza manutenzione filtri. È fondamentale eseguire subito l'operazione per evitare cali di portata sulle bocchette e intorbidimento dell'acqua!`;
+    }
+
+    let testo = titolo;
+    testo += `<p style="margin-top:10px; font-size:1rem; line-height:1.5;">${indicazione}</p>`;
+    testo += `<div style="margin-top:15px; padding:10px; background:#f7fafc; border-radius:4px; font-size:0.85rem; color:#4a5568;">
+        <strong>Procedura rapida per l'addetto:</strong><br>
+        1. Spegnere la pompa di filtrazione.<br>
+        2. Chiudere le valvole di aspirazione della vasca.<br>
+        3. Posizionare la valvola selettrice del filtro su <strong>CONTROLAVAGGIO</strong> (o aprire i cestelli dei prefiltri della pompa per pulirli).<br>
+        4. Riaprire le valvole e avviare la pompa per circa 2 minuti (fino a quando l'acqua nello spia-scarico torna limpida).<br>
+        5. Effettuare un breve <strong>RISCIACQUO</strong> (15 secondi) a pompa spenta prima di rimettere in <strong>FILTRAZIONE</strong>.
+    </div>`;
+
+    contenuto.innerHTML = testo;
+    modal.classList.remove("hidden");
+}
+
+function mostraSeSECTION(sezioneId) {
+    mostraSezione(sezioneId);
 }
 
 function mostraSezione(sezioneId) {
@@ -298,7 +396,7 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice, fasciaColore) {
                 testoDettaglio += `<p><strong>Azione Correttiva Consigliata:</strong> Per ricondurre dolcemente il pH al target perfetto di 7,2 si consiglia di immettere <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong>, diluendolo in un secchio e distribuendolo lentamente davanti alle bocchette di mandata con pompa attiva.</p>`;
             } else {
                 testoDettaglio += `<p style="color:#b91c1c; font-weight:bold; margin-bottom:5px;">⚠️ PH FUORI DAI LIMITI DI LEGGE</p>
-                <p>Immettere immediatamente <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong> nello skimmer o davanti alle bocchette per scongiurar opacità dell'acqua e inefficacia dei disinfettanti.</p>`;
+                <p>Immettere immediatamente <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong> nello skimmer o davanti alle bocchette per scongiurare opacità dell'acqua e inefficacia dei disinfettanti.</p>`;
             }
         } else if (valNum < 7.10) {
             let deltaPh = 7.2 - valNum;
@@ -367,7 +465,7 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice, fasciaColore) {
                 <p>L'acqua a ${valore}°C accelera drasticamente il consumo di cloro e favorisce la proliferazione algale. Effettuare un ricambio cospicuo inserendo acqua fresca di rete per abbassare la temperatura complessiva del bacino.</p>`;
             }
         } else if (valNum < 25.0) {
-            testoDettaglio += `<p>Temperatura dell'acqua fresca (${valore}°C). Monitorare le ore di irraggiamento solare diretto e coprire la vasca di notte per limitare la dispersione di calore.</p>`;
+            testoDettaglio += `<p>Temperatura dell'acqua fresca (${valore}°C). Monitorare le ore di irraggiamento solare diretto e coprire la vasca di notte per limitare la dispersioni di calore.</p>`;
         }
     }
 
