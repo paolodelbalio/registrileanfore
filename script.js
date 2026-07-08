@@ -1,7 +1,7 @@
 let currentChart = null;
 let datiRegistriGlobali = { chimico: [], contatori: [], pulizie: [], manutenzioni: [] };
 
-const VOL_PISCINA = 92; // Volume vasca in m³
+const VOL_PISCINA = 92; 
 
 const FILES = {
     chimico: "REGISTRO CHIMICO 2026.csv",
@@ -18,20 +18,6 @@ const LEGAL_RANGES = {
     "cya": { min: 0.0, max: 60.0 }
 };
 
-// GESTIONE DELLA BARRA DI NAVIGAZIONE DINAMICA
-let lastScrollTop = 0;
-window.addEventListener("scroll", () => {
-    const navbar = document.getElementById("navbar");
-    let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    
-    if (scrollTop > lastScrollTop && scrollTop > 150) {
-        navbar.classList.add("nav-hidden");
-    } else {
-        navbar.classList.remove("nav-hidden");
-    }
-    lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
-});
-
 document.addEventListener("DOMContentLoaded", () => {
     caricaTuttiIRegistri();
 });
@@ -41,49 +27,55 @@ function caricaTuttiIRegistri() {
         Papa.parse(FILES[chiave], {
             download: true,
             header: false,
-            skipEmptyLines: true,
+            skipEmptyLines: false, // Non saltiamo le righe a caso per non sfasare gli indici
             complete: function(results) {
                 elaboraDatiTabella(chiave, results.data);
-            },
-            error: function(err) {
-                console.error("Errore nel file " + chiave + ":", err);
             }
         });
     });
 }
 
+// Forziamo 2 decimali dopo la virgola per i dati numerici calcolati o grezzi
 function formattaValoreNumerico(valoreStringa) {
     if (!valoreStringa || valoreStringa.trim() === "") return "";
-    let num = parseFloat(valoreStringa.replace(",", "."));
+    let pulito = valoreStringa.replace(/"/g, "").replace(",", ".");
+    let num = parseFloat(pulito);
     if (isNaN(num)) return valoreStringa; 
-    // Ritorna sempre il valore con esattamente 2 decimali e la virgola
     return num.toFixed(2).replace(".", ",");
 }
 
 function elaboraDatiTabella(chiave, righeGrezze) {
     if (!righeGrezze || righeGrezze.length === 0) return;
 
+    // Troviamo la riga esatta dell'intestazione (quella che contiene la parola "Data")
     let indiceIntestazione = -1;
     for (let i = 0; i < righeGrezze.length; i++) {
-        let primaCella = (righeGrezze[i][0] || "").trim().toLowerCase();
-        if (primaCella.startsWith("data")) {
+        if (righeGrezze[i] && righeGrezze[i][0] && righeGrezze[i][0].toString().trim().toLowerCase().startsWith("data")) {
             indiceIntestazione = i;
             break;
         }
     }
 
+    if (indiceIntestazione === -1) {
+        // Se non trova "Data", cerca la prima riga popolata
+        for(let i=0; i<righeGrezze.length; i++) {
+            if(righeGrezze[i].some(c => c && c.trim() !== "")) { indiceIntestazione = i; break; }
+        }
+    }
     if (indiceIntestazione === -1) indiceIntestazione = 0;
 
     let intestazioni = righeGrezze[indiceIntestazione].map(h => h ? h.trim() : "");
     let righeDati = righeGrezze.slice(indiceIntestazione + 1);
 
+    // Filtriamo solo le righe che contengono effettivamente almeno un dato per non fare tabelle vuote infinite
     let righePulite = [];
     righeDati.forEach(riga => {
-        let rigaVuota = riga.every(cella => !cella || cella.trim() === "");
-        if (rigaVuota) return;
-        righePulite.push(riga.map(cella => cella ? cella.replace(/\r?\n|\r/g, " ").trim() : ""));
+        if (riga.some(cella => cella && cella.trim() !== "")) {
+            righePulite.push(riga.map(cella => cella ? cella.trim() : ""));
+        }
     });
 
+    // Taglio specifico per il registro pulizie (rimozione legenda finale)
     if (chiave === "pulizie") {
         let ultimoIndiceValido = -1;
         for (let i = 0; i < righePulite.length; i++) {
@@ -114,7 +106,7 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
             let valoreRaw = riga[colIdx] || "";
             let hId = header.toLowerCase();
             
-            // Applica la formattazione a due decimali per le colonne chimiche rilevanti
+            // Applica la formattazione a 2 decimali solo sulle colonne numeriche di controllo
             let valore = ["ph", "cl. lib", "cl. com", "temp", "cya"].includes(hId) ? formattaValoreNumerico(valoreRaw) : valoreRaw;
             
             let classeCella = "";
@@ -151,14 +143,13 @@ function mostraSezione(sezioneId) {
     let dati = datiRegistriGlobali[chiave];
     if (!dati || !dati.rows || dati.rows.length === 0) return;
 
+    // Scroll automatico sull'ultimo dato inserito della colonna principale
     let rigaTargetIndice = dati.rows.length - 1;
-    if (chiave === "chimico" || chiave === "contatori" || chiave === "manutenzioni") {
-        let colTarget = chiave === "chimico" ? 2 : 1;
-        for (let i = dati.rows.length - 1; i >= 0; i--) {
-            if (dati.rows[i][colTarget] && dati.rows[i][colTarget].trim() !== "" && dati.rows[i][colTarget].trim() !== "0") {
-                rigaTargetIndice = i;
-                break;
-            }
+    let colTarget = (chiave === "chimico") ? 2 : 1;
+    for (let i = dati.rows.length - 1; i >= 0; i--) {
+        if (dati.rows[i][colTarget] && dati.rows[i][colTarget].trim() !== "" && dati.rows[i][colTarget].trim() !== "0") {
+            rigaTargetIndice = i;
+            break;
         }
     }
 
@@ -170,10 +161,9 @@ function mostraSezione(sezioneId) {
                 righeTabella[rigaTargetIndice].scrollIntoView({ behavior: "smooth", block: "center" });
             }
         }
-    }, 80);
+    }, 50);
 }
 
-// STUDIO QUANTITATIVO DEI DOSAGGI (BASATO SU VALORE IDEALE, TEMPERATURA E BAGNANTI)
 function apriFinestraDosaggio(parametro, valore, rigaIndice) {
     const modal = document.getElementById("dosageModal");
     const content = document.getElementById("dosageContent");
@@ -184,7 +174,6 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice) {
     let headers = chimico ? chimico.headers : [];
     let rigaCorrente = (chimico && chimico.rows) ? chimico.rows[rigaIndice] : [];
 
-    // Estrazione del contesto reale per lo studio dei consumi chimici
     let oraIdx = headers.findIndex(h => h.toLowerCase() === "ora");
     let tempIdx = headers.findIndex(h => h.toLowerCase() === "temp");
     let bagnantiIdx = headers.findIndex(h => h.toLowerCase() === "n.ospiti");
@@ -192,65 +181,43 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice) {
     let oraRilevamento = oraIdx !== -1 ? (rigaCorrente[oraIdx] || "") : "";
     let tempVasca = tempIdx !== -1 ? parseFloat((rigaCorrente[tempIdx] || "").replace(",", ".")) : 25;
     let numBagnanti = bagnantiIdx !== -1 ? parseInt(rigaCorrente[bagnantiIdx]) || 0 : 0;
-
     if (isNaN(tempVasca)) tempVasca = 25;
 
     let testoDettaglio = `<h3>Diagnostica Dosaggio: ${parametro}</h3>`;
-    testoDettaglio += `<p>Valore inserito: <strong style="color:#721c24;">${valore}</strong> (Valore ideale: ${LEGAL_RANGES[pId]?.target || '-' })</p>`;
-    testoDettaglio += `<p style="font-size:0.85rem; background:#eee; padding:6px; margin-bottom:12px;">
-        Condizioni vasca: Rilevato ore ${oraRilevamento || 'N.D.'} | Temp: ${tempVasca}°C | Bagnanti registrati: ${numBagnanti}
+    testoDettaglio += `<p>Valore fuori limite: <strong style="color:#721c24;">${valore}</strong> (Target ideale: ${LEGAL_RANGES[pId]?.target || '-' })</p>`;
+    testoDettaglio += `<p style="font-size:0.85rem; background:#eee; padding:6px; margin: 10px 0;">
+        Contesto: Ore ${oraRilevamento || 'N.D.'} | Temp Acqua: ${tempVasca}°C | Ospiti: ${numBagnanti}
     </p>`;
 
     if (pId === "ph") {
         if (valNum > 7.5) {
             let delta = valNum - 7.3;
-            let doseBase = delta * 10 * 10 * VOL_PISCINA; 
-            if (tempVasca > 28) doseBase *= 1.15; // Correzione del consumo per calore aumentato
-            let doseKg = (doseBase / 1000).toFixed(2);
-            testoDettaglio += `<p><strong>Analisi:</strong> Il pH alto inibisce l'azione disinfettante del cloro. La temperatura a ${tempVasca}°C accelera questo fenomeno.</p>`;
-            testoDettaglio += `<p><strong>Quantità Prodotto:</strong> Aggiungere nello skimmer <strong>${doseKg.replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong>.</p>`;
+            let doseKg = ((delta * 10 * 10 * VOL_PISCINA) / 1000);
+            if (tempVasca > 28) doseKg *= 1.15; 
+            testoDettaglio += `<p><strong>Azione:</strong> Aggiungere nello skimmer o vasca di compenso <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong>.</p>`;
         } else if (valNum < 6.5) {
             let delta = 7.3 - valNum;
-            let doseBase = delta * 10 * 10 * VOL_PISCINA;
-            let doseKg = (doseBase / 1000).toFixed(2);
-            testoDettaglio += `<p><strong>Analisi:</strong> Acqua aggressiva. Rischio corrosione metalli e irritazioni cutanee.</p>`;
-            testoDettaglio += `<p><strong>Quantità Prodotto:</strong> Immettere in vasca <strong>${doseKg.replace(".", ",")} Kg</strong> di <strong>pH Più (Carbonato di Sodio)</strong>.</p>`;
+            let doseKg = ((delta * 10 * 10 * VOL_PISCINA) / 1000);
+            testoDettaglio += `<p><strong>Azione:</strong> Immettere in vasca <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Più</strong>.</p>`;
         }
     } else if (pId === "cl. lib") {
         if (valNum < 0.7) {
             let delta = 1.1 - valNum;
-            // Formula base per l'ipoclorito di calcio al 65%
             let grammiIpoclorito = Math.round((delta / 0.65) * VOL_PISCINA);
-            
-            // Studio correttivo avanzato basato su Sole, Calore e Affluenza
-            if (tempVasca > 27) {
-                grammiIpoclorito = Math.round(grammiIpoclorito * 1.20); // +20% per evaporazione termica
-            }
-            if (numBagnanti > 12) {
-                grammiIpoclorito = Math.round(grammiIpoclorito * 1.25); // +25% per abbattimento organico
-            }
-
-            testoDettaglio += `<p><strong>Analisi:</strong> Mancanza di cloro libero. Con ${numBagnanti} bagnanti e un'acqua a ${tempVasca}°C, la proliferazione batterica è accelerata.</p>`;
-            
-            if (oraRilevamento.startsWith("07") || oraRilevamento.startsWith("08")) {
-                testoDettaglio += `<p style="color:#856404; font-weight:bold;">⚠️ Strategia Mattutina: Per non sovraccaricare la vasca durante l'uso diurno, inserire subito il 40% (${Math.round(grammiIpoclorito*0.4)}g) e completare il trattamento la sera.</p>`;
-            } else {
-                testoDettaglio += `<p style="color:#155724; font-weight:bold;">🌙 Strategia Serale: Trattamento ottimale. L'assenza di sole eviterà la fotolisi del prodotto chimico.</p>`;
-            }
-            testoDettaglio += `<p><strong>Quantità Prodotto:</strong> Sciogliere ed immettere <strong>${grammiIpoclorito} grammi</strong> di <strong>Ipoclorito di Calcio granulare</strong>.</p>`;
+            if (tempVasca > 27) grammiIpoclorito = Math.round(grammiIpoclorito * 1.20);
+            if (numBagnanti > 12) grammiIpoclorito = Math.round(grammiIpoclorito * 1.25);
+            testoDettaglio += `<p><strong>Azione:</strong> Sciogliere e distribuire in vasca <strong>${grammiIpoclorito} grammi</strong> di <strong>Ipoclorito di Calcio granulare</strong>.</p>`;
         } else if (valNum > 1.5) {
-            testoDettaglio += `<p><strong>Analisi:</strong> Livello superiore ai parametri ottimali.</p>`;
-            testoDettaglio += `<p><strong>Strategia consigliata:</strong> Bloccare momentaneamente i reintegri di cloro. Lasciare che il sole e l'aerazione degradino naturalmente l'eccesso.</p>`;
+            testoDettaglio += `<p><strong>Nota:</strong> Livello alto. Sospendere momentaneamente le immissioni di cloro e attendere il consumo biologico naturale.</p>`;
         }
     } else if (pId === "cya") {
         if (valNum > 60.0) {
-            let percentualeSvuotamento = Math.round(((valNum - 40) / valNum) * 100);
-            let litriDaCambiare = Math.round((percentualeSvuotamento / 100) * VOL_PISCINA * 1000);
-            testoDettaglio += `<p><strong>Analisi Critica:</strong> Livello di acido cianurico fuori controllo (${valNum} ppm). Il cloro è completamente bloccato dal legame stabilizzante.</p>`;
-            testoDettaglio += `<p><strong>Azione Tassativa:</strong> È necessario rigenerare la massa d'acqua eseguendo un ricambio parziale del <strong>${percentualeSvuotamento}%</strong> (pari a circa <strong>${litriDaCambiary.toLocaleString()} litri</strong> di acqua nuova).</p>`;
+            let svuotamentoPerc = Math.round(((valNum - 40) / valNum) * 100);
+            let litriReintegro = Math.round((svuotamentoPerc / 100) * VOL_PISCINA * 1000);
+            testoDettaglio += `<p><strong>Criticità Acido Cianurico:</strong> Il cloro è parzialmente bloccato. Effettuare un ricambio parziale d'acqua del <strong>${svuotamentoPerc}%</strong> (circa <strong>${litriReintegro.toLocaleString()} litri</strong>).</p>`;
         }
     } else {
-        testoDettaglio += `<p>Valore fuori norma. Tenere monitorato nelle prossime ore.</p>`;
+        testoDettaglio += `<p>Valore fuori norma. Monitorare alla prossima lettura.</p>`;
     }
 
     content.innerHTML = testoDettaglio;
@@ -274,7 +241,7 @@ function gestisciClickIntestazione(chiave, parametro) {
     dati.rows.forEach(riga => {
         let dataOra = (riga[0] || "") + " " + (riga[1] || "");
         let valStr = riga[colIdx] || "";
-        let valNum = parseFloat(valStr.replace(",", "."));
+        let valNum = parseFloat(valStr.replace(/"/g, "").replace(",", "."));
 
         if (!isNaN(valNum)) {
             etichette.push(dataOra.trim());
@@ -284,7 +251,7 @@ function gestisciClickIntestazione(chiave, parametro) {
 
     if (valori.length === 0) return;
 
-    document.getElementById("overlayTitle").innerText = "Andamento Storico: " + parametro;
+    document.getElementById("overlayTitle").innerText = "Andamento: " + parametro;
     document.getElementById("chartOverlay").classList.remove("hidden");
 
     const ctx = document.getElementById("overlayCanvas").getContext("2d");
