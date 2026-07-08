@@ -1,10 +1,7 @@
 let graficoCorrente = null;
 let datiRegistriGlobali = { chimico: [], contatori: [], pulizie: [], manutenzioni: [] };
 
-const VOL_PISCINA = 92; // 92 m³ costanti
-const TARGET_PH = 7.2;
-const TARGET_CL_LIBERO = 1.1;
-const TEMP_VASCA_IDEALE = 27.0;
+const VOL_PISCINA = 92; // 92 m³ costanti (Senza vasca di compenso)
 const TEMP_REINTEGRO = 22.0;
 
 const FILE_REGISTRI = {
@@ -12,14 +9,6 @@ const FILE_REGISTRI = {
     contatori: "REGISTRO CONTATORI.csv",
     pulizie: "REGISTRO PULIZIE PISCINA 2026.csv",
     manutenzioni: "REGISTRO MANUTENZIONE INTERVENTI .csv"
-};
-
-const LIMITI_LEGGE = {
-    "ph": { min: 6.5, max: 7.5 },
-    "cl. lib": { min: 0.7, max: 1.5 },
-    "cl. com": { min: 0.0, max: 0.4 },
-    "temp": { min: 24.0, max: 30.0 },
-    "cya": { min: 0.0, max: 50.0 } // Soglia di sicurezza impostata a 50 ppm
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -47,26 +36,26 @@ function formattaValoreNumerico(valoreStringa) {
     return num.toFixed(2).replace(".", ",");
 }
 
-function elaboraDatiTabella(chiave, righeGrezze) {
-    if (!righeGrezze || righeGrezze.length === 0) return;
+function elaboraDatiTabella(chiave, righeGrezZE) {
+    if (!righeGrezZE || righeGrezZE.length === 0) return;
 
     let indiceIntestazione = -1;
-    for (let i = 0; i < righeGrezze.length; i++) {
-        if (righeGrezze[i] && righeGrezze[i][0] && righeGrezze[i][0].toString().trim().toLowerCase().startsWith("data")) {
+    for (let i = 0; i < righeGrezZE.length; i++) {
+        if (righeGrezZE[i] && righeGrezZE[i][0] && righeGrezZE[i][0].toString().trim().toLowerCase().startsWith("data")) {
             indiceIntestazione = i;
             break;
         }
     }
 
     if (indiceIntestazione === -1) {
-        for(let i = 0; i < righeGrezze.length; i++) {
-            if(righeGrezze[i].some(c => c && c.trim() !== "")) { indiceIntestazione = i; break; }
+        for(let i = 0; i < righeGrezZE.length; i++) {
+            if(righeGrezZE[i].some(c => c && c.trim() !== "")) { indiceIntestazione = i; break; }
         }
     }
     if (indiceIntestazione === -1) indiceIntestazione = 0;
 
-    let intestazioni = righeGrezze[indiceIntestazione].map(h => h ? h.trim() : "");
-    let righeDati = righeGrezze.slice(indiceIntestazione + 1);
+    let intestazioni = righeGrezZE[indiceIntestazione].map(h => h ? h.trim() : "");
+    let righeDati = righeGrezZE.slice(indiceIntestazione + 1);
 
     let righePulite = [];
     righeDati.forEach(riga => {
@@ -126,37 +115,77 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
 
             if (!isNaN(num) || hId === "cl. tot" || hId === "cl. com") {
                 
-                if (["ph", "temp", "cya"].includes(hId) && LIMITI_LEGGE[hId]) {
-                    let limiti = LIMITI_LEGGE[hId];
-                    if (num < limiti.min || num > limiti.max) {
-                        classeCella = "class='cell-alarm'";
+                // 1. GESTIONE pH (Ottimale: 7,10 - 7,30 | Limiti Legge: 6,50 - 7,50)
+                if (hId === "ph") {
+                    if (num >= 7.10 && num <= 7.30) {
+                        classeCella = "class='cell-ok'";
+                    } else if ((num >= 6.50 && num < 7.10) || (num > 7.30 && num <= 7.50)) {
+                        classeCella = "class='cell-warning'";
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
                     } else {
-                        classeCella = "class='cell-ok'";
-                    }
-                } 
-                else if (hId === "cl. lib" && LIMITI_LEGGE["cl. lib"]) {
-                    let limiti = LIMITI_LEGGE["cl. lib"];
-                    if (num < limiti.min || num > limiti.max) {
                         classeCella = "class='cell-alarm'";
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
-                    } else {
-                        classeCella = "class='cell-ok'";
                     }
                 }
+                
+                // 2. GESTIONE CLORO LIBERO (Ottimale: 0,90 - 1,10 | Limiti Legge: 0,70 - 1,50)
+                else if (hId === "cl. lib") {
+                    if (num >= 0.90 && num <= 1.10) {
+                        classeCella = "class='cell-ok'";
+                    } else if ((num >= 0.70 && num < 0.90) || (num > 1.10 && num <= 1.50)) {
+                        classeCella = "class='cell-warning'";
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                    } else {
+                        classeCella = "class='cell-alarm'";
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                    }
+                }
+                
+                // 3. GESTIONE CLORO COMBINATO (Ottimale: 0,00 - 0,20 | Limiti Legge: Max 0,40)
                 else if (hId === "cl. com" && !isNaN(clCombinato)) {
-                    if (clCombinato > 0.4) {
-                        classeCella = "class='cell-alarm'";
+                    if (clCombinato >= 0.00 && clCombinato <= 0.20) {
+                        classeCella = "class='cell-ok'";
+                    } else if (clCombinato > 0.20 && clCombinato <= 0.40) {
+                        classeCella = "class='cell-warning'";
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
                     } else {
-                        classeCella = "class='cell-ok'";
+                        classeCella = "class='cell-alarm'";
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
                     }
                 }
+                
+                // 4. GESTIONE ACIDO CIANURICO (Ottimale: 0 - 50 | Attenzione: 51 - 75 | Fuori Legge: > 75)
+                else if (hId === "cya") {
+                    if (num >= 0.00 && num <= 50.00) {
+                        classeCella = "class='cell-ok'";
+                    } else if (num > 50.00 && num <= 75.00) {
+                        classeCella = "class='cell-warning'";
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                    } else {
+                        classeCella = "class='cell-alarm'";
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                    }
+                }
+                
+                // 5. GESTIONE TEMPERATURA (Ottimale: 25 - 27 | Limiti Legge: 24 - 30)
+                else if (hId === "temp") {
+                    if (num >= 25.00 && num <= 27.00) {
+                        classeCella = "class='cell-ok'";
+                    } else if ((num >= 24.00 && num < 25.00) || (num > 27.00 && num <= 30.00)) {
+                        classeCella = "class='cell-warning'";
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                    } else {
+                        classeCella = "class='cell-alarm'";
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                    }
+                }
+                
+                // 6. GESTIONE CLORO TOTALE (Solo Verde se ok / Rosso se fuori Allegato A)
                 else if (hId === "cl. tot") {
-                    let combinatoFuori = (!isNaN(clCombinato) && clCombinato > 0.4);
-                    let liberoFuori = (!isNaN(clLibero) && (clLibero < LIMITI_LEGGE["cl. lib"].min || clLibero > LIMITI_LEGGE["cl. lib"].max));
+                    let combinatoFuoriLegge = (!isNaN(clCombinato) && clCombinato > 0.40);
+                    let liberoFuoriLegge = (!isNaN(clLibero) && (clLibero < 0.70 || clLibero > 1.50));
                     
-                    if (combinatoFuori || liberoFuori) {
+                    if (combinatoFuoriLegge || liberoFuoriLegge) {
                         classeCella = "class='cell-alarm'";
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
                     } else if (!isNaN(clLibero) && !isNaN(clTotale)) {
@@ -218,10 +247,10 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice) {
     let bagnantiIdx = intestazioni.findIndex(h => h.toLowerCase().trim() === "n.ospiti");
 
     let oraRilevamento = oraIdx !== -1 ? (rigaCorrente[oraIdx] || "") : "";
-    let tempVasca = tempIdx !== -1 ? parseFloat((rigaCorrente[tempIdx] || "").replace(",", ".")) : TEMP_VASCA_IDEALE;
+    let tempVasca = tempIdx !== -1 ? parseFloat((rigaCorrente[tempIdx] || "").replace(",", ".")) : 26.0;
     let numBagnanti = bagnantiIdx !== -1 ? parseInt(rigaCorrente[bagnantiIdx]) || 0 : 0;
     
-    if (isNaN(tempVasca)) tempVasca = TEMP_VASCA_IDEALE;
+    if (isNaN(tempVasca)) tempVasca = 26.0;
 
     let idxLibero = intestazioni.findIndex(h => h.toLowerCase().trim() === "cl. lib");
     let idxTotale = intestazioni.findIndex(h => h.toLowerCase().trim() === "cl. tot");
@@ -229,85 +258,94 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice) {
     let clTotale = idxTotale !== -1 ? parseFloat((rigaCorrente[idxTotale] || "").replace(",", ".")) : NaN;
     let clCombinato = (!isNaN(clTotale) && !isNaN(clLibero)) ? (clTotale - clLibero) : 0;
 
-    let targetIdeale = pId === "ph" ? TARGET_PH : (pId === "cl. lib" ? TARGET_CL_LIBERO : (pId === "temp" ? "27,0°C" : (pId === "cya" ? "< 50 ppm" : "-")));
-    let testoDettaglio = `<h3>Diagnostica Assistente Chimico: ${parametro}</h3>`;
-    testoDettaglio += `<p>Valore fuori norma rilevato: <strong style="color:#e53e3e;">${valore}</strong> (Valore Target Ideale: ${targetIdeale})</p>`;
-    
+    let targetIdeale = pId === "ph" ? "7,1 - 7,3" : (pId === "cl. lib" ? "0,9 - 1,1" : (pId === "temp" ? "25 - 27°C" : (pId === "cya" ? "< 50" : "-")));
+    let testoDettaglio = `<h3>Diagnostica Avanzata: ${parametro}</h3>`;
+    testoDettaglio += `<p>Stato attuale della cella: <strong>${valore}</strong> (Fascia Ottimale Paolo: ${targetIdeale})</p>`;
     testoDettaglio += `<p style="font-size:0.85rem; background:#edf2f7; padding:8px; margin: 10px 0; border-radius:4px; color:#4a5568;">
-        Contesto attuale: Ore ${oraRilevamento || 'N.D.'} | Temp Acqua: ${tempVasca}°C | Ospiti registrati: ${numBagnanti}
+        Lettura: Ore ${oraRilevamento || 'N.D.'} | Temp Vasca: ${tempVasca}°C | Ospiti: ${numBagnanti}
     </p>`;
 
-    // 1. ALLARME CLORO COMBINATO ALTO (> 0,4 ppm) -> UNICO CASO DI SHOCK
-    if (pId === "cl. com" || clCombinato > 0.4) {
+    // A. EVENTO SHOCK CRITICO (SOLO SE IL COMBINATO SUPERA 0,4 PPM)
+    if (pId === "cl. com" && valNum > 0.40) {
         let doseShock = Math.round((5.0 - (isNaN(clLibero) ? 0 : clLibero)) * VOL_PISCINA * 1.54);
         testoDettaglio += `<div style="background:#fff5f5; border-left:4px solid #e53e3e; padding:10px; border-radius:4px;">
-            <p style="color:#c53030; font-weight:bold; margin-bottom:5px;">⚠️ ATTENZIONE: CLORAMMINE FUORI LIMITE (Shock Breakpoint)</p>
-            <p>Il Cloro Combinato è a <strong>${clCombinato.toFixed(2).replace(".", ",")} ppm</strong>. È obbligatorio eseguire un trattamento shock per distruggere il cloro combinato stanco.</p>
-            <p><strong>Azione:</strong> Sospendere la balneazione. Sciogliere preventivamente in un secchio d'acqua e immettere **${doseShock} grammi** di **Ipoclorito di Calcio granulare** ripartendolo lentamente davanti alle bocchette di mandata. Tenere la filtrazione h24.</p>
+            <p style="color:#c53030; font-weight:bold; margin-bottom:5px;">⚠️ ALTO RISCHIO CLORAMMINE (Cloro Combinato: ${valore} ppm)</p>
+            <p><strong>Azione Shock:</strong> Sospendere immediatamente la balneazione. Sciogliere preventivamente in un secchio d'acqua **${doseShock} grammi** di **Ipoclorito di Calcio granulare** e versarlo lentamente distribuendolo davanti alle bocchette di mandata. Mantenere la filtrazione attiva h24.</p>
         </div>`;
-    } 
-    // 2. CORREZIONE PH CON ACIDO SECCO (BISOLFATO DI SODIO)
-    else if (pId === "ph") {
-        if (valNum > 7.5) {
-            let deltaPh = valNum - TARGET_PH;
-            // 920g ogni 0,1 unità di pH per 92 m³
-            let doseKg = (deltaPh / 0.1) * 0.92; 
-            if (tempVasca > 27.0) doseKg *= 1.15; // +15% se l'acqua è calda
-            
-            testoDettaglio += `<p><strong>Azione Correttiva:</strong> Il pH è troppo alto.</p>
-            <p>Sciogliere preventivamente in un secchio d'acqua <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong> e versarlo lentamente davanti alle bocchette di mandata dell'acqua per una diffusione omogenea sul fondo.</p>`;
-        } else if (valNum < 6.5) {
-            let deltaPh = TARGET_PH - valNum;
+        contenuto.innerHTML = testoDettaglio;
+        modal.classList.remove("hidden");
+        return;
+    }
+
+    // B. CORREZIONE PH CON TARGET MEDIO 7,2 (920g ogni 0,1 di pH per 92 m³)
+    if (pId === "ph") {
+        if (valNum > 7.30) {
+            let deltaPh = valNum - 7.2;
             let doseKg = (deltaPh / 0.1) * 0.92;
-            testoDettaglio += `<p><strong>Azione Correttiva:</strong> Il pH è troppo basso. Immettere direttamente in vasca vicino alle bocchette <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Più</strong>.</p>`;
+            if (tempVasca > 27.0) doseKg *= 1.15; // +15% per evaporazione acqua calda
+            
+            testoDettaglio += `<p><strong>Azione Consigliata (Target ottimale 7,2):</strong></p>
+            <p>Il pH è sopra la fascia ideale. Sciogliere in un secchio d'acqua <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong> e distribuirlo lentamente **davanti alle bocchette di mandata** con impianto attivo per garantire omogeneità (assenza vasca compenso).</p>`;
+        } else if (valNum < 7.10) {
+            let deltaPh = 7.2 - valNum;
+            let doseKg = (deltaPh / 0.1) * 0.92;
+            testoDettaglio += `<p><strong>Azione Consigliata (Target ottimale 7,2):</strong></p>
+            <p>Il pH è sotto la fascia di comfort. Immettere davanti alle bocchette di mandata <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Più</strong>.</p>`;
         }
-    } 
-    // 3. GESTIONE CLORO LIBERO (DOSAGGIO IN REINTEGRO O DECLORATORE)
+    }
+
+    // C. CORREZIONE CLORO LIBERO (SOTTO 0,90 → CLORO / SOPRA 1,10 → DECLORATORE)
     else if (pId === "cl. lib") {
-        if (valNum < 0.7) {
-            let deltaCl = TARGET_CL_LIBERO - valNum;
+        if (valNum < 0.90) {
+            let deltaCl = 1.1 - valNum; // Riporta al valore medio ottimale di 1,1 ppm
             let grammiIpoclorito = (deltaCl / 0.65) * VOL_PISCINA;
             
-            if (tempVasca > TEMP_VASCA_IDEALE) grammiIpoclorito *= (1 + (tempVasca - TEMP_VASCA_IDEALE) * 0.05);
+            if (tempVasca > 27.0) grammiIpoclorito *= (1 + (tempVasca - 27.0) * 0.05);
             if (numBagnanti > 12) grammiIpoclorito *= 1.25;
 
             let grammiFinali = Math.round(grammiIpoclorito);
             let doseMattutina = Math.round(grammiFinali * 0.40);
 
-            testoDettaglio += `<p><strong>Azione Correttiva (Ripristino Target 1,1 ppm):</strong> Fabbisogno calcolato di <strong>${grammiFinali} grammi</strong> di Ipoclorito di Calcio.</p>
-            <p><strong>Istruzioni:</strong> Sciogliere e versare subito il 40% (<strong>${doseMattutina} grammi</strong>) negli skimmer la mattina. Inserire il restante 60% (<strong>${grammiFinali - doseMattutina} grammi</strong>) la sera a impianto chiuso davanti alle bocchette.</p>`;
+            testoDettaglio += `<p><strong>Azione Consigliata (Integrazione Cloro Libero):</strong></p>
+            <p>Fabbisogno totale calcolato: **${grammiFinali} grammi** di Ipoclorito di Calcio granulare.<br><br>
+            • Versare subito la mattina il 40% (**${doseMattutina} grammi**) negli skimmer.<br>
+            • Immettere il restante 60% (**${grammiFinali - doseMattutina} grammi**) la sera a impianto chiuso davanti alle bocchette di mandata.</p>`;
         } 
-        else if (valNum > 1.5) {
-            // CALCOLO ESATTO DEL DECLORATORE (TIOSOLFATO DI SODIO)
-            let deltaAbbattimento = valNum - TARGET_CL_LIBERO;
+        else if (valNum > 1.10) {
+            // DECLORATORE CON TIOSOLFATO DI SODIO (2,5g per ppm al m³)
+            let deltaAbbattimento = valNum - 1.1;
             let grammiDecloratore = Math.round(deltaAbbattimento * VOL_PISCINA * 2.5);
 
-            testoDettaglio += `<p style="color:#c53030; font-weight:bold;">BALNEAZIONE VIETATA: Cloro Libero a ${valore} ppm.</p>
-            <p>Per abbassare rapidamente il livello e tornare al valore ideale di 1,1 ppm senza attendere i tempi del sole, occorre immettere il decloratore.</p>
-            <p><strong>Azione:</strong> Pesare <strong>${grammiDecloratore} grammi</strong> di <strong>Tiosolfato di Sodio (Decloratore)</strong>, scioglierli in un secchio d'acqua capiente e immettere la soluzione direttamente negli skimmer con la filtrazione attiva.</p>`;
+            testoDettaglio += `<p style="color:#c53030; font-weight:bold;">ATTENZIONE: Cloro Libero alto (${valore} ppm).</p>
+            <p>Se supera 1,5 ppm la balneazione viene bloccata dall'Allegato A.</p>
+            <p><strong>Azione Abbatitrice Rapida:</strong> Sciogliere in un secchio d'acqua **${grammiDecloratore} grammi** di **Tiosolfato di Sodio (Decloratore)** e versarlo direttamente negli skimmer a filtrazione attiva per ricondurre velocemente il parametro al target di 1,1 ppm.</p>`;
         }
-    } 
-    // 4. RICAMBIO ACQUA ESATTO PER ACIDO CIANURICO (Sotto 50 ppm)
+    }
+
+    // D. GESTIONE ACIDO CIANURICO (DIFFERENZIATO FINO A 75 / SVUOTAMENTO)
     else if (pId === "cya") {
         if (valNum > 50.0) {
             let frazioneMantenimento = 49.0 / valNum;
             let percentualeSvuotamento = Math.round((1.0 - frazioneMantenimento) * 100);
             let litriDaSostituire = Math.round((percentualeSvuotamento / 100) * VOL_PISCINA * 1000);
 
-            testoDettaglio += `<p><strong>Eccesso di Acido Cianurico (${valore} ppm):</strong> Valore oltre la soglia di blocco chimico del cloro.</p>
-            <p>Per riportare con precisione la stabilità del cianurico a **49 ppm** (appena sotto la soglia massima consentita di 50), è necessario eseguire un ricambio controllato d'acqua.</p>
-            <p><strong>Azione:</strong> Effettuare uno svuotamento parziale del **${percentualeSvuotamento}%** della vasca e reintegrare esattamente **${litriDaSostituire.toLocaleString()} litri** di acqua pulita.</p>`;
+            testoDettaglio += `<p><strong>Eccesso di Stabilizzante CYA (${valore} ppm):</strong></p>
+            <p>Il valore ottimale deve stare sotto i 50 ppm per evitare la sovrastabilizzazione e il blocco del potere disinfettante dell'ipoclorito.</p>
+            <p><strong>Azione Strutturale Consigliata:</strong> Per ricondurre il valore a **49 ppm**, effettuare uno svuotamento parziale controllato del **${percentualeSvuotamento}%** della vasca e reintegrare esattamente **${litriDaSostituire.toLocaleString()} litri** di acqua fresca.</p>`;
         }
-    } 
-    // 5. ABBASSAMENTO TEMPERATURA MEDIANTE REINTEGRO CALORIMETRICO (Acqua a 22 °C)
+    }
+
+    // E. ABBATTIMENTO TEMPERATURA CON ACQUA DI REINTEGRO (22°C CON TARGET 27°C)
     else if (pId === "temp") {
-        if (valNum > TEMP_VASCA_IDEALE) {
-            let litriRaffreddamento = Math.round(VOL_PISCINA * 1000 * ((valNum - TEMP_VASCA_IDEALE) / (TEMP_VASCA_IDEALE - TEMP_REINTEGRO)));
+        if (valNum > 27.0) {
+            // Formula di miscelazione termica per target 27°C con acqua a 22°C
+            let litriRaffreddamento = Math.round(VOL_PISCINA * 1000 * ((valNum - 27.0) / (27.0 - TEMP_REINTEGRO)));
             
-            testoDettaglio += `<p><strong>Acqua Calda (${valore}°C):</strong> Temperatura superiore ai 27°C ideali. Per evitare l'evaporazione massiccia del cloro e rinfrescare la vasca sfruttando lo scambio termico:</p>
-            <p><strong>Azione:</strong> Sfruttare il reintegro immettendo **${litriRaffreddamento.toLocaleString()} litri** di acqua fresca di rete (alla temperatura costante di 22°C) per abbassare la massa termica della piscina portandola al target ottimale.</p>`;
-        } else {
-            testoDettaglio += `<p>Temperatura dell'acqua a ${valore}°C. Range regolare per l'attività di balneazione.</p>`;
+            testoDettaglio += `<p><strong>Acqua Surriscaldata (${valore}°C):</strong></p>
+            <p>Per ricondurre l'acqua alla temperatura ideale di 27°C senza sovraccaricare la filtrazione diurna, sfruttiamo l'immissione controllata di acqua fresca di rete a 22°C.</p>
+            <p><strong>Azione Termica:</strong> Immettere in piscina **${litriRaffreddamento.toLocaleString()} litri** di acqua fresca di reintegro per miscelazione calorimetrica.</p>`;
+        } else if (valNum < 25.0) {
+            testoDettaglio += `<p>Temperatura dell'acqua fresca (${valore}°C). Si consiglia di coprire la vasca durante le ore notturne per limitare la dispersione termica.</p>`;
         }
     }
 
