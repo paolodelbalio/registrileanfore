@@ -121,10 +121,10 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                         classeCella = "class='cell-ok'";
                     } else if ((num >= 6.50 && num < 7.10) || (num > 7.30 && num <= 7.50)) {
                         classeCella = "class='cell-warning'";
-                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'giallo')"`;
                     } else {
                         classeCella = "class='cell-alarm'";
-                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'rosso')"`;
                     }
                 }
                 
@@ -134,10 +134,10 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                         classeCella = "class='cell-ok'";
                     } else if ((num >= 0.70 && num < 0.90) || (num > 1.10 && num <= 1.50)) {
                         classeCella = "class='cell-warning'";
-                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'giallo')"`;
                     } else {
                         classeCella = "class='cell-alarm'";
-                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'rosso')"`;
                     }
                 }
                 
@@ -147,10 +147,10 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                         classeCella = "class='cell-ok'";
                     } else if (clCombinato > 0.20 && clCombinato <= 0.40) {
                         classeCella = "class='cell-warning'";
-                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'giallo')"`;
                     } else {
                         classeCella = "class='cell-alarm'";
-                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'rosso')"`;
                     }
                 }
                 
@@ -160,10 +160,10 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                         classeCella = "class='cell-ok'";
                     } else if (num > 50.00 && num <= 75.00) {
                         classeCella = "class='cell-warning'";
-                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'giallo')"`;
                     } else {
                         classeCella = "class='cell-alarm'";
-                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'rosso')"`;
                     }
                 }
                 
@@ -173,10 +173,10 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                         classeCella = "class='cell-ok'";
                     } else if ((num >= 24.00 && num < 25.00) || (num > 27.00 && num <= 30.00)) {
                         classeCella = "class='cell-warning'";
-                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'giallo')"`;
                     } else {
                         classeCella = "class='cell-alarm'";
-                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'rosso')"`;
                     }
                 }
                 
@@ -187,7 +187,7 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                     
                     if (combinatoFuoriLegge || liberoFuoriLegge) {
                         classeCella = "class='cell-alarm'";
-                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx})"`;
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${intestazione}', '${valore}', ${rIdx}, 'rosso')"`;
                     } else if (!isNaN(clLibero) && !isNaN(clTotale)) {
                         classeCella = "class='cell-ok'";
                     }
@@ -232,7 +232,7 @@ function mostraSezione(sezioneId) {
     }, 50);
 }
 
-function apriFinestraDosaggio(parametro, valore, rigaIndice) {
+function apriFinestraDosaggio(parametro, valore, rigaIndice, fasciaColore) {
     const modal = document.getElementById("dosageModal");
     const contenuto = document.getElementById("dosageContent");
     let valNum = parseFloat(valore.replace(",", "."));
@@ -259,93 +259,125 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice) {
     let clCombinato = (!isNaN(clTotale) && !isNaN(clLibero)) ? (clTotale - clLibero) : 0;
 
     let targetIdeale = pId === "ph" ? "7,1 - 7,3" : (pId === "cl. lib" ? "0,9 - 1,1" : (pId === "temp" ? "25 - 27°C" : (pId === "cya" ? "< 50" : "-")));
-    let testoDettaglio = `<h3>Diagnostica Avanzata: ${parametro}</h3>`;
-    testoDettaglio += `<p>Stato attuale della cella: <strong>${valore}</strong> (Fascia Ottimale Paolo: ${targetIdeale})</p>`;
-    testoDettaglio += `<p style="font-size:0.85rem; background:#edf2f7; padding:8px; margin: 10px 0; border-radius:4px; color:#4a5568;">
-        Lettura: Ore ${oraRilevamento || 'N.D.'} | Temp Vasca: ${tempVasca}°C | Ospiti: ${numBagnanti}
-    </p>`;
-
-    // A. EVENTO SHOCK CRITICO (SOLO SE IL COMBINATO SUPERA 0,4 PPM)
-    if (pId === "cl. com" && valNum > 0.40) {
-        let doseShock = Math.round((5.0 - (isNaN(clLibero) ? 0 : clLibero)) * VOL_PISCINA * 1.54);
-        testoDettaglio += `<div style="background:#fff5f5; border-left:4px solid #e53e3e; padding:10px; border-radius:4px;">
-            <p style="color:#c53030; font-weight:bold; margin-bottom:5px;">⚠️ ALTO RISCHIO CLORAMMINE (Cloro Combinato: ${valore} ppm)</p>
-            <p><strong>Azione Shock:</strong> Sospendere immediatamente la balneazione. Sciogliere preventivamente in un secchio d'acqua **${doseShock} grammi** di **Ipoclorito di Calcio granulare** e versarlo lentamente distribuendolo davanti alle bocchette di mandata. Mantenere la filtrazione attiva h24.</p>
-        </div>`;
-        contenuto.innerHTML = testoDettaglio;
-        modal.classList.remove("hidden");
-        return;
+    
+    // Configurazione visiva e toni in base alla fascia (gialla o rossa)
+    let titoloFinestra = "";
+    let coloreStato = "";
+    
+    if (fasciaColore === "giallo") {
+        titoloFinestra = `<h3 style="color:#d97706; margin-bottom: 5px;">🔧 Ottimizzazione Parametro: ${parametro}</h3>`;
+        coloreStato = `<span style="color:#d97706; font-weight:bold;">Valore fuori range ottimale (${valore}) - Entro i limiti di legge</span>`;
+    } else {
+        titoloFinestra = `<h3 style="color:#b91c1c; margin-bottom: 5px;">⚠️ Diagnostica Critica: ${parametro}</h3>`;
+        coloreStato = `<span style="color:#b91c1c; font-weight:bold;">Valore FUORI NORMA Rilevato (${valore}) - Violazione Allegato A</span>`;
     }
 
-    // B. CORREZIONE PH CON TARGET MEDIO 7,2 (920g ogni 0,1 di pH per 92 m³)
-    if (pId === "ph") {
-        if (valNum > 7.30) {
-            let deltaPh = valNum - 7.2;
-            let doseKg = (deltaPh / 0.1) * 0.92;
-            if (tempVasca > 27.0) doseKg *= 1.15; // +15% per evaporazione acqua calda
-            
-            testoDettaglio += `<p><strong>Azione Consigliata (Target ottimale 7,2):</strong></p>
-            <p>Il pH è sopra la fascia ideale. Sciogliere in un secchio d'acqua <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong> e distribuirlo lentamente **davanti alle bocchette di mandata** con impianto attivo per garantire omogeneità (assenza vasca compenso).</p>`;
-        } else if (valNum < 7.10) {
-            let deltaPh = 7.2 - valNum;
-            let doseKg = (deltaPh / 0.1) * 0.92;
-            testoDettaglio += `<p><strong>Azione Consigliata (Target ottimale 7,2):</strong></p>
-            <p>Il pH è sotto la fascia di comfort. Immettere davanti alle bocchette di mandata <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Più</strong>.</p>`;
+    let testoDettaglio = titoloFinestra;
+    testoDettaglio += `<p style="margin-bottom:8px;">Stato attuale: ${coloreStato} | Target ideale: <strong>${targetIdeale}</strong></p>`;
+    testoDettaglio += `<p style="font-size:0.85rem; background:#edf2f7; padding:8px; margin: 10px 0; border-radius:4px; color:#4a5568;">
+        Lettura delle ore: ${oraRilevamento || 'N.D.'} | Temp Vasca: ${tempVasca}°C | Ospiti registrati: ${numBagnanti}
+    </p>`;
+
+    // A. GESTIONE CLORO COMBINATO
+    if (pId === "cl. com") {
+        if (fasciaColore === "giallo") {
+            testoDettaglio += `<p><strong>Nota di esercizio:</strong> Il cloro combinato è leggermente sopra il tuo valore ideale di comfort. Il parametro è comunque a norma di legge. Monitorare alla prossima lettura per verificare l'autosmaltimento naturale.</p>`;
+        } else {
+            let doseShock = Math.round((5.0 - (isNaN(clLibero) ? 0 : clLibero)) * VOL_PISCINA * 1.54);
+            testoDettaglio += `<div style="background:#fff5f5; border-left:4px solid #e53e3e; padding:10px; border-radius:4px; margin-top:10px;">
+                <p style="color:#c53030; font-weight:bold; margin-bottom:5px;">🚨 SUPERAMENTO SOGLIA CRITICA CLORAMMINE (Cloro Combinato: ${valore} ppm)</p>
+                <p><strong>Trattamento Shock Obbligatorio (Allegato A):</strong> Sospendere temporaneamente la balneazione. Sciogliere preventivamente in un secchio d'acqua **${doseShock} grammi** di **Ipoclorito di Calcio granulare** e versarlo uniformemente davanti alle bocchette di mandata. Mantenere la filtrazione attiva h24.</p>
+            </div>`;
         }
     }
 
-    // C. CORREZIONE CLORO LIBERO (SOTTO 0,90 → CLORO / SOPRA 1,10 → DECLORATORE)
+    // B. CORREZIONE PH
+    else if (pId === "ph") {
+        if (valNum > 7.30) {
+            let deltaPh = valNum - 7.2;
+            let doseKg = (deltaPh / 0.1) * 0.92;
+            if (tempVasca > 27.0) doseKg *= 1.15;
+            
+            if (fasciaColore === "giallo") {
+                testoDettaglio += `<p><strong>Azione Correttiva Consigliata:</strong> Per ricondurre dolcemente il pH al target perfetto di 7,2 si consiglia di immettere <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong>, diluendolo in un secchio e distribuendolo lentamente davanti alle bocchette di mandata con pompa attiva.</p>`;
+            } else {
+                testoDettaglio += `<p style="color:#b91c1c; font-weight:bold; margin-bottom:5px;">⚠️ PH FUORI DAI LIMITI DI LEGGE</p>
+                <p>Immettere immediatamente <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong> nello skimmer o davanti alle bocchette per scongiurare opacità dell'acqua e inefficacia dei disinfettanti.</p>`;
+            }
+        } else if (valNum < 7.10) {
+            let deltaPh = 7.2 - valNum;
+            let doseKg = (deltaPh / 0.1) * 0.92;
+            if (fasciaColore === "giallo") {
+                testoDettaglio += `<p><strong>Azione Correttiva Consigliata:</strong> Per riallineare il pH al valore ideale, aggiungere <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Più</strong> distribuendolo davanti alle bocchette di mandata.</p>`;
+            } else {
+                testoDettaglio += `<p style="color:#b91c1c; font-weight:bold; margin-bottom:5px;">⚠️ PH SOTTO IL LIMITE MINIMO DI LEGGE</p>
+                <p>Aggiungere con urgenza <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Più</strong> per evitare fenomeni corrosivi sulle parti metalliche dell'impianto.</p>`;
+            }
+        }
+    }
+
+    // C. CORREZIONE CLORO LIBERO
     else if (pId === "cl. lib") {
         if (valNum < 0.90) {
-            let deltaCl = 1.1 - valNum; // Riporta al valore medio ottimale di 1,1 ppm
+            let deltaCl = 1.1 - valNum;
             let grammiIpoclorito = (deltaCl / 0.65) * VOL_PISCINA;
-            
             if (tempVasca > 27.0) grammiIpoclorito *= (1 + (tempVasca - 27.0) * 0.05);
             if (numBagnanti > 12) grammiIpoclorito *= 1.25;
 
             let grammiFinali = Math.round(grammiIpoclorito);
             let doseMattutina = Math.round(grammiFinali * 0.40);
 
-            testoDettaglio += `<p><strong>Azione Consigliata (Integrazione Cloro Libero):</strong></p>
-            <p>Fabbisogno totale calcolato: **${grammiFinali} grammi** di Ipoclorito di Calcio granulare.<br><br>
-            • Versare subito la mattina il 40% (**${doseMattutina} grammi**) negli skimmer.<br>
-            • Immettere il restante 60% (**${grammiFinali - doseMattutina} grammi**) la sera a impianto chiuso davanti alle bocchette di mandata.</p>`;
+            if (fasciaColore === "giallo") {
+                testoDettaglio += `<p><strong>Integrazione standard di Cloro:</strong> Il valore è leggermente basso ma a norma. Per ritornare alla quota ideale, il fabbisogno calcolato è di **${grammiFinali} grammi** di Ipoclorito di Calcio granulare.<br><br>
+                • Versare il 40% (**${doseMattutina} grammi**) negli skimmer la mattina.<br>
+                • Versare il restante 60% (**${grammiFinali - doseMattutina} grammi**) la sera a impianto chiuso davanti alle bocchette.</p>`;
+            } else {
+                testoDettaglio += `<p style="color:#b91c1c; font-weight:bold; margin-bottom:5px;">⚠️ LIVELLO DI CLORO LIBERO INSUFFICIENTE</p>
+                <p>Fabbisogno totale urgente di ripristino: **${grammiFinali} grammi** di Ipoclorito di Calcio granulare da immettere per ristabilire la barriera igienica contro i batteri.</p>`;
+            }
         } 
         else if (valNum > 1.10) {
-            // DECLORATORE CON TIOSOLFATO DI SODIO (2,5g per ppm al m³)
             let deltaAbbattimento = valNum - 1.1;
             let grammiDecloratore = Math.round(deltaAbbattimento * VOL_PISCINA * 2.5);
 
-            testoDettaglio += `<p style="color:#c53030; font-weight:bold;">ATTENZIONE: Cloro Libero alto (${valore} ppm).</p>
-            <p>Se supera 1,5 ppm la balneazione viene bloccata dall'Allegato A.</p>
-            <p><strong>Azione Abbatitrice Rapida:</strong> Sciogliere in un secchio d'acqua **${grammiDecloratore} grammi** di **Tiosolfato di Sodio (Decloratore)** e versarlo direttamente negli skimmer a filtrazione attiva per ricondurre velocemente il parametro al target di 1,1 ppm.</p>`;
+            if (fasciaColore === "giallo") {
+                testoDettaglio += `<p><strong>Gestione Cloro Alto (Entro i limiti):</strong> Il disinfettante è superiore al target ideale ma perfettamente balneabile. Se preferisci riportarlo rapidamente al valore di comfort (1,1 ppm), puoi sciogliere in un secchio **${grammiDecloratore} grammi** di **Tiosolfato di Sodio (Decloratore)** e immetterlo negli skimmer.</p>`;
+            } else {
+                testoDettaglio += `<p style="color:#b91c1c; font-weight:bold; margin-bottom:5px;">🚨 BALNEAZIONE RECOLARE BLOCCATA (Cloro Libero superiore a 1,5 ppm)</p>
+                <p><strong>Azione Correttiva Rapida:</strong> Sciogliere e immettere subito negli skimmer a filtrazione attiva **${grammiDecloratore} grammi** di **Tiosolfato di Sodio (Decloratore)** per ricondurre il valore entro i limiti dell'Allegato A ed evitare irritazioni ai bagnanti.</p>`;
+            }
         }
     }
 
-    // D. GESTIONE ACIDO CIANURICO (DIFFERENZIATO FINO A 75 / SVUOTAMENTO)
+    // D. GESTIONE ACIDO CIANURICO (CYA)
     else if (pId === "cya") {
         if (valNum > 50.0) {
             let frazioneMantenimento = 49.0 / valNum;
             let percentualeSvuotamento = Math.round((1.0 - frazioneMantenimento) * 100);
             let litriDaSostituire = Math.round((percentualeSvuotamento / 100) * VOL_PISCINA * 1000);
 
-            testoDettaglio += `<p><strong>Eccesso di Stabilizzante CYA (${valore} ppm):</strong></p>
-            <p>Il valore ottimale deve stare sotto i 50 ppm per evitare la sovrastabilizzazione e il blocco del potere disinfettante dell'ipoclorito.</p>
-            <p><strong>Azione Strutturale Consigliata:</strong> Per ricondurre il valore a **49 ppm**, effettuare uno svuotamento parziale controllato del **${percentualeSvuotamento}%** della vasca e reintegrare esattamente **${litriDaSostituire.toLocaleString()} litri** di acqua fresca.</p>`;
+            if (fasciaColore === "giallo") {
+                testoDettaglio += `<p><strong>Nota sullo Stabilizzante:</strong> L'acido cianurico ha superato il range consigliato di 50 ppm. Non c'è un blocco normativo immediato, ma l'azione dell'ipoclorito inizia a rallentare. Alla prima occasione utile o durante i normali lavaggi del filtro, favorisci i ricambi parziali d'acqua per riallinearti al target.</p>`;
+            } else {
+                testoDettaglio += `<p style="color:#b91c1c; font-weight:bold; margin-bottom:5px;">🚨 ECCESSO CRITICO DI STABILIZZANTE (Soglia di sicurezza superata)</p>
+                <p>L'acido cianurico è a ${valore} ppm. C'è il forte rischio di blocco dell'azione disinfettante del cloro. Si rende necessario un ricambio parziale controllato del **${percentualeSvuotamento}%** della vasca (pari a circa **${litriDaSostituire.toLocaleString()} litri** di acqua fresca).</p>`;
+            }
         }
     }
 
-    // E. ABBATTIMENTO TEMPERATURA CON ACQUA DI REINTEGRO (22°C CON TARGET 27°C)
+    // E. GESTIONE TEMPERATURA
     else if (pId === "temp") {
         if (valNum > 27.0) {
-            // Formula di miscelazione termica per target 27°C con acqua a 22°C
             let litriRaffreddamento = Math.round(VOL_PISCINA * 1000 * ((valNum - 27.0) / (27.0 - TEMP_REINTEGRO)));
             
-            testoDettaglio += `<p><strong>Acqua Surriscaldata (${valore}°C):</strong></p>
-            <p>Per ricondurre l'acqua alla temperatura ideale di 27°C senza sovraccaricare la filtrazione diurna, sfruttiamo l'immissione controllata di acqua fresca di rete a 22°C.</p>
-            <p><strong>Azione Termica:</strong> Immettere in piscina **${litriRaffreddamento.toLocaleString()} litri** di acqua fresca di reintegro per miscelazione calorimetrica.</p>`;
+            if (fasciaColore === "giallo") {
+                testoDettaglio += `<p><strong>Consiglio Tecnico:</strong> L'acqua è calda ma ampiamente a norma di legge. Se desideri abbassarla calorimetricamente verso i 27°C, puoi pianificare un reintegro controllato di **${litriRaffreddamento.toLocaleString()} litri** d'acqua fresca di rete (stimata a 22°C).</p>`;
+            } else {
+                testoDettaglio += `<p style="color:#b91c1c; font-weight:bold; margin-bottom:5px;">⚠️ TEMPERATURA SUPERIORE AI LIMITI DI LEGGE (Max 30°C)</p>
+                <p>L'acqua a ${valore}°C accelera drasticamente il consumo di cloro e favorisce la proliferazione algale. Effettuare un ricambio cospicuo inserendo acqua fresca di rete per abbassare la temperatura complessiva del bacino.</p>`;
+            }
         } else if (valNum < 25.0) {
-            testoDettaglio += `<p>Temperatura dell'acqua fresca (${valore}°C). Si consiglia di coprire la vasca durante le ore notturne per limitare la dispersione termica.</p>`;
+            testoDettaglio += `<p>Temperatura dell'acqua fresca (${valore}°C). Monitorare le ore di irraggiamento solare diretto e coprire la vasca di notte per limitare la dispersione di calore.</p>`;
         }
     }
 
