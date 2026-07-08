@@ -1,7 +1,7 @@
 let graficoCorrente = null;
 let datiRegistriGlobali = { chimico: [], contatori: [], pulizie: [], manutenzioni: [] };
 
-const VOL_PISCINA = 92; 
+const VOL_PISCINA = 92; // 92 m³ costanti
 const TARGET_PH = 7.2;
 const TARGET_CL_LIBERO = 1.1;
 const TEMP_VASCA_IDEALE = 27.0;
@@ -19,7 +19,7 @@ const LIMITI_LEGGE = {
     "cl. lib": { min: 0.7, max: 1.5 },
     "cl. com": { min: 0.0, max: 0.4 },
     "temp": { min: 24.0, max: 30.0 },
-    "cya": { min: 0.0, max: 60.0 }
+    "cya": { min: 0.0, max: 50.0 } // Soglia di sicurezza impostata a 50 ppm
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -126,7 +126,6 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
 
             if (!isNaN(num) || hId === "cl. tot" || hId === "cl. com") {
                 
-                // 1. VERIFICA PARAMETRI STANDARD (pH, Temperatura, Acido Cianurico)
                 if (["ph", "temp", "cya"].includes(hId) && LIMITI_LEGGE[hId]) {
                     let limiti = LIMITI_LEGGE[hId];
                     if (num < limiti.min || num > limiti.max) {
@@ -136,7 +135,6 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                         classeCella = "class='cell-ok'";
                     }
                 } 
-                // 2. VERIFICA CLORO LIBERO
                 else if (hId === "cl. lib" && LIMITI_LEGGE["cl. lib"]) {
                     let limiti = LIMITI_LEGGE["cl. lib"];
                     if (num < limiti.min || num > limiti.max) {
@@ -146,7 +144,6 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                         classeCella = "class='cell-ok'";
                     }
                 }
-                // 3. VERIFICA CLORO COMBINATO (Max 0,4 ppm)
                 else if (hId === "cl. com" && !isNaN(clCombinato)) {
                     if (clCombinato > 0.4) {
                         classeCella = "class='cell-alarm'";
@@ -155,7 +152,6 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                         classeCella = "class='cell-ok'";
                     }
                 }
-                // 4. VERIFICA INTEGRATA CLORO TOTALE (Rosso se uno dei due componenti fallisce)
                 else if (hId === "cl. tot") {
                     let combinatoFuori = (!isNaN(clCombinato) && clCombinato > 0.4);
                     let liberoFuori = (!isNaN(clLibero) && (clLibero < LIMITI_LEGGE["cl. lib"].min || clLibero > LIMITI_LEGGE["cl. lib"].max));
@@ -220,91 +216,99 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice) {
     let oraIdx = intestazioni.findIndex(h => h.toLowerCase().trim() === "ora");
     let tempIdx = intestazioni.findIndex(h => h.toLowerCase().trim() === "temp");
     let bagnantiIdx = intestazioni.findIndex(h => h.toLowerCase().trim() === "n.ospiti");
-    let reintegroIdx = intestazioni.findIndex(h => h.toLowerCase().trim() === "reintegro  (l)");
 
     let oraRilevamento = oraIdx !== -1 ? (rigaCorrente[oraIdx] || "") : "";
     let tempVasca = tempIdx !== -1 ? parseFloat((rigaCorrente[tempIdx] || "").replace(",", ".")) : TEMP_VASCA_IDEALE;
     let numBagnanti = bagnantiIdx !== -1 ? parseInt(rigaCorrente[bagnantiIdx]) || 0 : 0;
-    let litriReintegro = reintegroIdx !== -1 ? parseFloat((rigaCorrente[reintegroIdx] || "").replace(",", ".")) || 0 : 0;
     
     if (isNaN(tempVasca)) tempVasca = TEMP_VASCA_IDEALE;
 
-    // Estrazione parametri cloro per controllo incrociato clorammine
     let idxLibero = intestazioni.findIndex(h => h.toLowerCase().trim() === "cl. lib");
     let idxTotale = intestazioni.findIndex(h => h.toLowerCase().trim() === "cl. tot");
-    let clLibero = idxLibero !== -1 ? parseFloat((rigaCorrente[idxLibero] || "").replace(",", ".")) : 0;
-    let clTotale = idxTotale !== -1 ? parseFloat((rigaCorrente[idxTotale] || "").replace(",", ".")) : 0;
-    let clCombinato = clTotale - clLibero;
+    let clLibero = idxLibero !== -1 ? parseFloat((rigaCorrente[idxLibero] || "").replace(",", ".")) : NaN;
+    let clTotale = idxTotale !== -1 ? parseFloat((rigaCorrente[idxTotale] || "").replace(",", ".")) : NaN;
+    let clCombinato = (!isNaN(clTotale) && !isNaN(clLibero)) ? (clTotale - clLibero) : 0;
 
-    let targetIdeale = pId === "ph" ? TARGET_PH : (pId === "cl. lib" ? TARGET_CL_LIBERO : "-");
+    let targetIdeale = pId === "ph" ? TARGET_PH : (pId === "cl. lib" ? TARGET_CL_LIBERO : (pId === "temp" ? "27,0°C" : (pId === "cya" ? "< 50 ppm" : "-")));
     let testoDettaglio = `<h3>Diagnostica Assistente Chimico: ${parametro}</h3>`;
     testoDettaglio += `<p>Valore fuori norma rilevato: <strong style="color:#e53e3e;">${valore}</strong> (Valore Target Ideale: ${targetIdeale})</p>`;
     
-    // Calcolo impatto termico del reintegro se presente
-    let stringaTermica = "";
-    if (litriReintegro > 0) {
-        let tempStimataPostReintegro = (( (VOL_PISCINA * 1000 - litriReintegro) * tempVasca ) + (litriReintegro * TEMP_REINTEGRO)) / (VOL_PISCINA * 1000);
-        stringaTermica = ` | Impatto Reintegro (22°C): Miscelazione stimata a ${tempStimataPostReintegro.toFixed(1).replace(".", ",")}°C`;
-    }
-
     testoDettaglio += `<p style="font-size:0.85rem; background:#edf2f7; padding:8px; margin: 10px 0; border-radius:4px; color:#4a5568;">
-        Contesto di verifica: Ore ${oraRilevamento || 'N.D.'} | Temp Attuale: ${tempVasca}°C | Ospiti in Vasca: ${numBagnanti}${stringaTermica}
+        Contesto attuale: Ore ${oraRilevamento || 'N.D.'} | Temp Acqua: ${tempVasca}°C | Ospiti registrati: ${numBagnanti}
     </p>`;
 
-    // BLOCCO LOGICO DIAGNOSTICO PRINCIPALE
+    // 1. ALLARME CLORO COMBINATO ALTO (> 0,4 ppm) -> UNICO CASO DI SHOCK
     if (pId === "cl. com" || clCombinato > 0.4) {
-        // TRATTAMENTO SHOCK AUTOMATICO SE IL COMBINATO SUPERA 0,4 PPM
         let doseShock = Math.round((5.0 - (isNaN(clLibero) ? 0 : clLibero)) * VOL_PISCINA * 1.54);
-        testoDettaglio += `<div style="background:#fff5f5; border-left:4px solid #e53e3e; padding:10px; margin-top:10px;">
-            <p style="color:#c53030; font-weight:bold; margin-bottom:5px;">⚠️ TRATTAMENTO SHOCK OBBLIGATORIO (Allegato A)</p>
-            <p>Il Cloro Combinato ha superato la soglia critica di 0,4 ppm (Rilevato: ${clCombinato.toFixed(2).replace(".", ",")} ppm).</p>
-            <p><strong>Azione:</strong> Sospendere la balneazione. Sciogliere e distribuire uniformemente in vasca <strong>${doseShock} grammi</strong> di <strong>Ipoclorito di Calcio granulare</strong> per raggiungere il breakpoint di 5,0 ppm. Mantenere la filtrazione attiva h24.</p>
+        testoDettaglio += `<div style="background:#fff5f5; border-left:4px solid #e53e3e; padding:10px; border-radius:4px;">
+            <p style="color:#c53030; font-weight:bold; margin-bottom:5px;">⚠️ ATTENZIONE: CLORAMMINE FUORI LIMITE (Shock Breakpoint)</p>
+            <p>Il Cloro Combinato è a <strong>${clCombinato.toFixed(2).replace(".", ",")} ppm</strong>. È obbligatorio eseguire un trattamento shock per distruggere il cloro combinato stanco.</p>
+            <p><strong>Azione:</strong> Sospendere la balneazione. Sciogliere preventivamente in un secchio d'acqua e immettere **${doseShock} grammi** di **Ipoclorito di Calcio granulare** ripartendolo lentamente davanti alle bocchette di mandata. Tenere la filtrazione h24.</p>
         </div>`;
     } 
+    // 2. CORREZIONE PH CON ACIDO SECCO (BISOLFATO DI SODIO)
     else if (pId === "ph") {
         if (valNum > 7.5) {
-            let delta = valNum - TARGET_PH;
-            let doseKg = ((delta * 10 * 10 * VOL_PISCINA) / 1000);
-            if (tempVasca > TEMP_VASCA_IDEALE) doseKg *= 1.15; // Correzione evaporazione/attivazione sopra i 27 gradi
-            testoDettaglio += `<p><strong>Azione Correttiva:</strong> Immettere nello skimmer o nella vasca di compenso <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong> per ritornare al target di ${TARGET_PH.toString().replace(".", ",")}.</p>`;
+            let deltaPh = valNum - TARGET_PH;
+            // 920g ogni 0,1 unità di pH per 92 m³
+            let doseKg = (deltaPh / 0.1) * 0.92; 
+            if (tempVasca > 27.0) doseKg *= 1.15; // +15% se l'acqua è calda
+            
+            testoDettaglio += `<p><strong>Azione Correttiva:</strong> Il pH è troppo alto.</p>
+            <p>Sciogliere preventivamente in un secchio d'acqua <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong> e versarlo lentamente davanti alle bocchette di mandata dell'acqua per una diffusione omogenea sul fondo.</p>`;
         } else if (valNum < 6.5) {
-            let delta = TARGET_PH - valNum;
-            let doseKg = ((delta * 10 * 10 * VOL_PISCINA) / 1000);
-            testoDettaglio += `<p><strong>Azione Correttiva:</strong> Immettere direttamente in vasca <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Più</strong>.</p>`;
+            let deltaPh = TARGET_PH - valNum;
+            let doseKg = (deltaPh / 0.1) * 0.92;
+            testoDettaglio += `<p><strong>Azione Correttiva:</strong> Il pH è troppo basso. Immettere direttamente in vasca vicino alle bocchette <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Più</strong>.</p>`;
         }
     } 
+    // 3. GESTIONE CLORO LIBERO (DOSAGGIO IN REINTEGRO O DECLORATORE)
     else if (pId === "cl. lib") {
         if (valNum < 0.7) {
-            let delta = TARGET_CL_LIBERO - valNum;
-            let grammiIpoclorito = (delta / 0.65) * VOL_PISCINA;
+            let deltaCl = TARGET_CL_LIBERO - valNum;
+            let grammiIpoclorito = (deltaCl / 0.65) * VOL_PISCINA;
             
-            // Studio fattori correttivi bagnanti e temperatura
             if (tempVasca > TEMP_VASCA_IDEALE) grammiIpoclorito *= (1 + (tempVasca - TEMP_VASCA_IDEALE) * 0.05);
             if (numBagnanti > 12) grammiIpoclorito *= 1.25;
 
             let grammiFinali = Math.round(grammiIpoclorito);
             let doseMattutina = Math.round(grammiFinali * 0.40);
 
-            testoDettaglio += `<p><strong>Azione Correttiva (Ripristino Target 1,1 ppm):</strong><br>
-            Fabbisogno totale calcolato: <strong>${grammiFinali} grammi</strong> di Ipoclorito di Calcio granulare.<br><br>
-            <strong>Strategia di immissione consigliata:</strong><br>
-            • Sciogliere e versare subito il 40% (<strong>${doseMattutina} grammi</strong>) negli skimmer per stabilizzare la vasca.<br>
-            • Integrare il restante 60% (<strong>${grammiFinali - doseMattutina} grammi</strong>) la sera a impianto chiuso.</p>`;
-        } else if (valNum > 1.5) {
-            testoDettaglio += `<p style="color:#c53030; font-weight:bold;">Soglia di Balneazione Superata!</p>
-            <p>Il livello di Cloro Libero è troppo alto. Sospendere temporaneamente i dosaggi automatici o manuali e attendere il consumo biologico naturale indotto dai raggi UV.</p>`;
+            testoDettaglio += `<p><strong>Azione Correttiva (Ripristino Target 1,1 ppm):</strong> Fabbisogno calcolato di <strong>${grammiFinali} grammi</strong> di Ipoclorito di Calcio.</p>
+            <p><strong>Istruzioni:</strong> Sciogliere e versare subito il 40% (<strong>${doseMattutina} grammi</strong>) negli skimmer la mattina. Inserire il restante 60% (<strong>${grammiFinali - doseMattutina} grammi</strong>) la sera a impianto chiuso davanti alle bocchette.</p>`;
+        } 
+        else if (valNum > 1.5) {
+            // CALCOLO ESATTO DEL DECLORATORE (TIOSOLFATO DI SODIO)
+            let deltaAbbattimento = valNum - TARGET_CL_LIBERO;
+            let grammiDecloratore = Math.round(deltaAbbattimento * VOL_PISCINA * 2.5);
+
+            testoDettaglio += `<p style="color:#c53030; font-weight:bold;">BALNEAZIONE VIETATA: Cloro Libero a ${valore} ppm.</p>
+            <p>Per abbassare rapidamente il livello e tornare al valore ideale di 1,1 ppm senza attendere i tempi del sole, occorre immettere il decloratore.</p>
+            <p><strong>Azione:</strong> Pesare <strong>${grammiDecloratore} grammi</strong> di <strong>Tiosolfato di Sodio (Decloratore)</strong>, scioglierli in un secchio d'acqua capiente e immettere la soluzione direttamente negli skimmer con la filtrazione attiva.</p>`;
         }
     } 
+    // 4. RICAMBIO ACQUA ESATTO PER ACIDO CIANURICO (Sotto 50 ppm)
     else if (pId === "cya") {
-        if (valNum > 60.0) {
-            let percentualeSvuotamento = Math.round(((valNum - 40) / valNum) * 100);
-            let litriNecessari = Math.round((percentualeSvuotamento / 100) * VOL_PISCINA * 1000);
-            testoDettaglio += `<p><strong>Eccesso di Acido Cianurico (CYA):</strong> Lo stabilizzante ha superato il blocco di sicurezza di 60 ppm, rischiando di rendere inefficace l'ipoclorito.</p>
-            <p><strong>Risoluzione:</strong> Effettuare un ricambio parziale d'acqua del <strong>${percentualeSvuotamento}%</strong> del volume totale (pari a circa <strong>${litriNecessari.toLocaleString()} litri</strong> di acqua fresca) per ricondurre il valore sotto la fascia di sicurezza.</p>`;
+        if (valNum > 50.0) {
+            let frazioneMantenimento = 49.0 / valNum;
+            let percentualeSvuotamento = Math.round((1.0 - frazioneMantenimento) * 100);
+            let litriDaSostituire = Math.round((percentualeSvuotamento / 100) * VOL_PISCINA * 1000);
+
+            testoDettaglio += `<p><strong>Eccesso di Acido Cianurico (${valore} ppm):</strong> Valore oltre la soglia di blocco chimico del cloro.</p>
+            <p>Per riportare con precisione la stabilità del cianurico a **49 ppm** (appena sotto la soglia massima consentita di 50), è necessario eseguire un ricambio controllato d'acqua.</p>
+            <p><strong>Azione:</strong> Effettuare uno svuotamento parziale del **${percentualeSvuotamento}%** della vasca e reintegrare esattamente **${litriDaSostituire.toLocaleString()} litri** di acqua pulita.</p>`;
         }
     } 
+    // 5. ABBASSAMENTO TEMPERATURA MEDIANTE REINTEGRO CALORIMETRICO (Acqua a 22 °C)
     else if (pId === "temp") {
-        testoDettaglio += `<p>Temperatura fuori range ottimale (${valNum}°C). Monitorare le ore di filtrazione e l'evaporazione diurna, che accelerano il consumo di cloro.</p>`;
+        if (valNum > TEMP_VASCA_IDEALE) {
+            let litriRaffreddamento = Math.round(VOL_PISCINA * 1000 * ((valNum - TEMP_VASCA_IDEALE) / (TEMP_VASCA_IDEALE - TEMP_REINTEGRO)));
+            
+            testoDettaglio += `<p><strong>Acqua Calda (${valore}°C):</strong> Temperatura superiore ai 27°C ideali. Per evitare l'evaporazione massiccia del cloro e rinfrescare la vasca sfruttando lo scambio termico:</p>
+            <p><strong>Azione:</strong> Sfruttare il reintegro immettendo **${litriRaffreddamento.toLocaleString()} litri** di acqua fresca di rete (alla temperatura costante di 22°C) per abbassare la massa termica della piscina portandola al target ottimale.</p>`;
+        } else {
+            testoDettaglio += `<p>Temperatura dell'acqua a ${valore}°C. Range regolare per l'attività di balneazione.</p>`;
+        }
     }
 
     contenuto.innerHTML = testoDettaglio;
