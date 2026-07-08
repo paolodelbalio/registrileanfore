@@ -10,7 +10,7 @@ const FILES = {
     manutenzioni: "REGISTRO MANUTENZIONE INTERVENTI .csv"
 };
 
-// Limiti impostati e allineati alle modifiche richieste (CYA allarme a 60, Target pH 7.3 e Libero 1.1)
+// Parametri allineati (CYA allarme a 60, Target pH 7.3 e Cloro Libero 1.1)
 const LEGAL_RANGES = {
     "ph": { min: 6.5, max: 7.5, target: 7.3 },
     "cl. lib": { min: 0.7, max: 1.5, target: 1.1 },
@@ -28,7 +28,7 @@ function caricaTuttiIRegistri() {
         Papa.parse(FILES[chiave], {
             download: true,
             header: false,
-            skipEmptyLines: false, // Non saltiamo le righe a caso per non sfasare gli indici
+            skipEmptyLines: false,
             complete: function(results) {
                 elaboraDatiTabella(chiave, results.data);
             }
@@ -36,7 +36,6 @@ function caricaTuttiIRegistri() {
     });
 }
 
-// Forziamo 2 decimali dopo la virgola per i dati numerici calcolati o grezzi
 function formattaValoreNumerico(valoreStringa) {
     if (!valoreStringa || valoreStringa.trim() === "") return "";
     let pulito = valoreStringa.replace(/"/g, "").replace(",", ".");
@@ -48,7 +47,6 @@ function formattaValoreNumerico(valoreStringa) {
 function elaboraDatiTabella(chiave, righeGrezze) {
     if (!righeGrezze || righeGrezze.length === 0) return;
 
-    // Troviamo la riga esatta dell'intestazione (quella che contiene la parola "Data")
     let indiceIntestazione = -1;
     for (let i = 0; i < righeGrezze.length; i++) {
         if (righeGrezze[i] && righeGrezze[i][0] && righeGrezze[i][0].toString().trim().toLowerCase().startsWith("data")) {
@@ -58,7 +56,6 @@ function elaboraDatiTabella(chiave, righeGrezze) {
     }
 
     if (indiceIntestazione === -1) {
-        // Se non trova "Data", cerca la prima riga popolata
         for(let i=0; i<righeGrezze.length; i++) {
             if(righeGrezze[i].some(c => c && c.trim() !== "")) { indiceIntestazione = i; break; }
         }
@@ -68,7 +65,6 @@ function elaboraDatiTabella(chiave, righeGrezze) {
     let intestazioni = righeGrezze[indiceIntestazione].map(h => h ? h.trim() : "");
     let righeDati = righeGrezze.slice(indiceIntestazione + 1);
 
-    // Filtriamo solo le righe che contengono effettivamente almeno un dato per non fare tabelle vuote infinite
     let righePulite = [];
     righeDati.forEach(riga => {
         if (riga.some(cella => cella && cella.trim() !== "")) {
@@ -76,7 +72,6 @@ function elaboraDatiTabella(chiave, righeGrezze) {
         }
     });
 
-    // Taglio specifico per il registro pulizie (rimozione legenda finale)
     if (chiave === "pulizie") {
         let ultimoIndiceValido = -1;
         for (let i = 0; i < righePulite.length; i++) {
@@ -96,7 +91,6 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
     let html = "<thead><tr>";
     intestazioni.forEach(h => {
         let hLower = h.toLowerCase().trim();
-        // Cloro totale aggiunto alle intestazioni interattive per i grafici temporali
         let classeClick = ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya", "reintegro  (l)"].includes(hLower) ? "class='clickable-header'" : "";
         html += `<th ${classeClick} onclick="gestisciClickIntestazione('${chiave}', '${h}')">${h}</th>`;
     });
@@ -105,7 +99,6 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
     righe.forEach((riga, rIdx) => {
         html += "<tr>";
 
-        // Estrazione e normalizzazione indici del cloro sulla riga corrente per controlli incrociati ordinati
         let idxLibero = intestazioni.findIndex(h => h.toLowerCase().trim() === "cl. lib");
         let idxTotale = intestazioni.findIndex(h => h.toLowerCase().trim() === "cl. tot");
         let idxCombinato = intestazioni.findIndex(h => h.toLowerCase().trim() === "cl. com");
@@ -114,7 +107,6 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
         let clTotale = idxTotale !== -1 ? parseFloat((riga[idxTotale] || "").replace(/"/g, "").replace(",", ".")) : NaN;
         let clCombinato = idxCombinato !== -1 ? parseFloat((riga[idxCombinato] || "").replace(/"/g, "").replace(",", ".")) : NaN;
 
-        // Se manca il dato esplicito del combinato, lo ricaviamo matematicamente dal totale
         if (isNaN(clCombinato) && !isNaN(clTotale) && !isNaN(clLibero)) {
             clCombinato = clTotale - clLibero;
         }
@@ -123,7 +115,6 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
             let valoreRaw = riga[colIdx] || "";
             let hId = header.toLowerCase().trim();
             
-            // Forza la formattazione a due decimali solo per le colonne dei parametri chimici principali
             let valore = ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya"].includes(hId) ? formattaValoreNumerico(valoreRaw) : valoreRaw;
             
             let classeCella = "";
@@ -132,51 +123,45 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
 
             if (!isNaN(num) || hId === "cl. tot" || hId === "cl. com") {
                 
-                // 1. PARAMETRI AGGIUNTIVI FISSI (pH, Temperatura, Acido Cianurico)
+                // 1. VERIFICA PARAMETRI STANDARD (pH, Temperatura, Acido Cianurico)
                 if (["ph", "temp", "cya"].includes(hId) && LEGAL_RANGES[hId]) {
                     let limiti = LEGAL_RANGES[hId];
                     if (num < limiti.min || num > limiti.max) {
-                        classeCella = "class='cell-alarm'";
+                        classeCella = "class='cell-alarm'"; // ROSSO
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${header}', '${valore}', ${rIdx})"`;
                     } else {
-                        classeCella = "class='cell-ok'";
+                        classeCella = "class='cell-ok'"; // VERDE
                     }
                 } 
-                // 2. CONTROLLO DI LEGGE CLORO LIBERO
+                // 2. VERIFICA CLORO LIBERO
                 else if (hId === "cl. lib" && LEGAL_RANGES["cl. lib"]) {
                     let limiti = LEGAL_RANGES["cl. lib"];
                     if (num < limiti.min || num > limiti.max) {
-                        classeCella = "class='cell-alarm'";
+                        classeCella = "class='cell-alarm'"; // ROSSO
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${header}', '${valore}', ${rIdx})"`;
                     } else {
-                        classeCella = "class='cell-ok'";
+                        classeCella = "class='cell-ok'"; // VERDE
                     }
                 }
-                // 3. CONTROLLO DI LEGGE CLORO COMBINATO (Toscana Allegato A: Max 0,4 ppm)
+                // 3. VERIFICA CLORO COMBINATO (Max 0,4 ppm)
                 else if (hId === "cl. com" && !isNaN(clCombinato)) {
                     if (clCombinato > 0.4) {
-                        classeCella = "class='cell-alarm'"; 
+                        classeCella = "class='cell-alarm'"; // ROSSO
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${header}', '${valore}', ${rIdx})"`;
                     } else {
-                        classeCella = "class='cell-ok'";
+                        classeCella = "class='cell-ok'"; // VERDE
                     }
                 }
-                // 4. COLORAZIONE DINAMICA E INTEGRATA DEL CLORO TOTALE
+                // 4. VERIFICA CLORO TOTALE (Sostituito il giallo con il ROSSO in caso di squilibrio)
                 else if (hId === "cl. tot") {
                     let combinatoFuori = (!isNaN(clCombinato) && clCombinato > 0.4);
                     let liberoFuori = (!isNaN(clLibero) && (clLibero < LEGAL_RANGES["cl. lib"].min || clLibero > LEGAL_RANGES["cl. lib"].max));
                     
                     if (combinatoFuori || liberoFuori) {
-                        // Se il combinato è molto alto (>0.5), forziamo la cella del totale in ROSSO critico
-                        if (!isNaN(clCombinato) && clCombinato > 0.5) {
-                            classeCella = "class='cell-alarm'";
-                        } else {
-                            // Negli altri casi di squilibrio leggero, si accende in ARANCIONE (Stile inline per preservare i testi scuri)
-                            classeCella = "style='background-color: rgba(251, 191, 36, 0.25); color: #b45309; font-weight: bold;'";
-                        }
+                        classeCella = "class='cell-alarm'"; // Diventa ROSSO perfetto e pulito
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${header}', '${valore}', ${rIdx})"`;
                     } else if (!isNaN(clLibero) && !isNaN(clTotale)) {
-                        classeCella = "class='cell-ok'"; // Bilanciamento perfetto tra le parti: VERDE
+                        classeCella = "class='cell-ok'"; // VERDE
                     }
                 }
             }
@@ -199,7 +184,6 @@ function mostraSezione(sezioneId) {
     let dati = datiRegistriGlobali[chiave];
     if (!dati || !dati.rows || dati.rows.length === 0) return;
 
-    // Scroll automatico sull'ultimo dato inserito della colonna principale
     let rigaTargetIndice = dati.rows.length - 1;
     let colTarget = (chiave === "chimico") ? 2 : 1;
     for (let i = dati.rows.length - 1; i >= 0; i--) {
