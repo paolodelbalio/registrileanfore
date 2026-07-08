@@ -1,7 +1,7 @@
 let graficoCorrente = null;
 let datiRegistriGlobali = { chimico: [], contatori: [], pulizie: [], manutenzioni: [] };
 
-const VOL_PISCINA = 92; // 92 m³ costanti (Senza vasca di compenso)
+const VOL_PISCINA = 92; // 92 m³ costanti
 const TEMP_REINTEGRO = 22.0;
 
 const FILE_REGISTRI = {
@@ -83,7 +83,7 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
     let html = "<thead><tr>";
     intestazioni.forEach(h => {
         let hLower = h.toLowerCase().trim();
-        let classeClick = ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya", "reintegro  (l)"].includes(hLower) ? "class='clickable-header'" : "";
+        let classeClick = ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya", "reintegro  (l)", "n.ospiti"].includes(hLower) ? "class='clickable-header'" : "";
         html += `<th ${classeClick} onclick="gestisciClickIntestazione('${chiave}', '${h}')">${h}</th>`;
     });
     html += "</tr></thead><tbody>";
@@ -115,7 +115,7 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
 
             if (!isNaN(num) || hId === "cl. tot" || hId === "cl. com") {
                 
-                // 1. GESTIONE pH (Ottimale: 7,10 - 7,30 | Limiti Legge: 6,50 - 7,50)
+                // 1. pH (Ottimale: 7,10 - 7,30 | Legge: 6,50 - 7,50)
                 if (hId === "ph") {
                     if (num >= 7.10 && num <= 7.30) {
                         classeCella = "class='cell-ok'";
@@ -128,7 +128,7 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                     }
                 }
                 
-                // 2. GESTIONE CLORO LIBERO (Ottimale: 0,90 - 1,10 | Limiti Legge: 0,70 - 1,50)
+                // 2. CLORO LIBERO (Ottimale: 0,90 - 1,10 | Legge: 0,70 - 1,50)
                 else if (hId === "cl. lib") {
                     if (num >= 0.90 && num <= 1.10) {
                         classeCella = "class='cell-ok'";
@@ -141,7 +141,7 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                     }
                 }
                 
-                // 3. GESTIONE CLORO COMBINATO (Ottimale: 0,00 - 0,20 | Limiti Legge: Max 0,40)
+                // 3. CLORO COMBINATO (Ottimale: 0,00 - 0,20 | Legge: Max 0,40)
                 else if (hId === "cl. com" && !isNaN(clCombinato)) {
                     if (clCombinato >= 0.00 && clCombinato <= 0.20) {
                         classeCella = "class='cell-ok'";
@@ -154,7 +154,7 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                     }
                 }
                 
-                // 4. GESTIONE ACIDO CIANURICO (Ottimale: 0 - 50 | Limite Sicurezza: 60)
+                // 4. ACIDO CIANURICO (Ottimale: 0 - 50 | Allarme: 60)
                 else if (hId === "cya") {
                     if (num >= 0.00 && num <= 50.00) {
                         classeCella = "class='cell-ok'";
@@ -167,7 +167,7 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                     }
                 }
                 
-                // 5. GESTIONE TEMPERATURA (Ottimale: 25 - 27 | Limiti Legge: 24 - 30)
+                // 5. TEMPERATURA (Ottimale: 25 - 27 | Legge: 24 - 30)
                 else if (hId === "temp") {
                     if (num >= 25.00 && num <= 27.00) {
                         classeCella = "class='cell-ok'";
@@ -180,7 +180,7 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
                     }
                 }
                 
-                // 6. GESTIONE CLORO TOTALE
+                // 6. CLORO TOTALE
                 else if (hId === "cl. tot") {
                     let combinatoFuoriLegge = (!isNaN(clCombinato) && clCombinato > 0.40);
                     let liberoFuoriLegge = (!isNaN(clLibero) && (clLibero < 0.70 || clLibero > 1.50));
@@ -277,7 +277,6 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice, fasciaColore) {
         Lettura delle ore: ${oraRilevamento || 'N.D.'} | Temp Vasca: ${tempVasca}°C | Ospiti registrati: ${numBagnanti}
     </p>`;
 
-    // A. CLORO COMBINATO
     if (pId === "cl. com") {
         if (fasciaColore === "giallo") {
             testoDettaglio += `<p><strong>Nota di esercizio:</strong> Il cloro combinato è leggermente sopra il tuo valore ideale di comfort. Il parametro è comunque a norma di legge. Monitorare alla prossima lettura per verificare l'autosmaltimento naturale.</p>`;
@@ -289,8 +288,6 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice, fasciaColore) {
             </div>`;
         }
     }
-
-    // B. CORREZIONE PH
     else if (pId === "ph") {
         if (valNum > 7.30) {
             let deltaPh = valNum - 7.2;
@@ -301,7 +298,7 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice, fasciaColore) {
                 testoDettaglio += `<p><strong>Azione Correttiva Consigliata:</strong> Per ricondurre dolcemente il pH al target perfetto di 7,2 si consiglia di immettere <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong>, diluendolo in un secchio e distribuendolo lentamente davanti alle bocchette di mandata con pompa attiva.</p>`;
             } else {
                 testoDettaglio += `<p style="color:#b91c1c; font-weight:bold; margin-bottom:5px;">⚠️ PH FUORI DAI LIMITI DI LEGGE</p>
-                <p>Immettere immediatamente <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong> nello skimmer o davanti alle bocchette per scongiurare opacità dell'acqua e inefficacia dei disinfettanti.</p>`;
+                <p>Immettere immediatamente <strong>${doseKg.toFixed(2).replace(".", ",")} Kg</strong> di <strong>pH Meno (Acido Secco)</strong> nello skimmer o davanti alle bocchette per scongiurar opacità dell'acqua e inefficacia dei disinfettanti.</p>`;
             }
         } else if (valNum < 7.10) {
             let deltaPh = 7.2 - valNum;
@@ -314,8 +311,6 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice, fasciaColore) {
             }
         }
     }
-
-    // C. CORREZIONE CLORO LIBERO
     else if (pId === "cl. lib") {
         if (valNum < 0.90) {
             let deltaCl = 1.1 - valNum;
@@ -347,8 +342,6 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice, fasciaColore) {
             }
         }
     }
-
-    // D. GESTIONE ACIDO CIANURICO (CYA)
     else if (pId === "cya") {
         if (valNum > 50.0) {
             let frazioneMantenimento = 49.0 / valNum;
@@ -363,8 +356,6 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice, fasciaColore) {
             }
         }
     }
-
-    // E. GESTIONE TEMPERATURA
     else if (pId === "temp") {
         if (valNum > 27.0) {
             let litriRaffreddamento = Math.round(VOL_PISCINA * 1000 * ((valNum - 27.0) / (27.0 - TEMP_REINTEGRO)));
@@ -376,7 +367,7 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice, fasciaColore) {
                 <p>L'acqua a ${valore}°C accelera drasticamente il consumo di cloro e favorisce la proliferazione algale. Effettuare un ricambio cospicuo inserendo acqua fresca di rete per abbassare la temperatura complessiva del bacino.</p>`;
             }
         } else if (valNum < 25.0) {
-            testoDettaglio += `<p>Temperatura dell'acqua fresca (${valore}°C). Monitorare le ore di irraggiamento solare directo e coprire la vasca di notte per limitare la dispersione di calore.</p>`;
+            testoDettaglio += `<p>Temperatura dell'acqua fresca (${valore}°C). Monitorare le ore di irraggiamento solare diretto e coprire la vasca di notte per limitare la dispersione di calore.</p>`;
         }
     }
 
@@ -403,7 +394,6 @@ function gestisciClickIntestazione(chiave, parametro) {
     let phIdx = dati.intestazioni.findIndex(h => h.toLowerCase().trim() === "ph");
 
     dati.righe.forEach(riga => {
-        // NORMALIZZAZIONE: Salta le righe future vuote del CSV (ferma il grafico alle letture reali)
         if (oraIdx !== -1 && (!riga[oraIdx] || riga[oraIdx].trim() === "")) return;
         if (phIdx !== -1 && (!riga[phIdx] || riga[phIdx].trim() === "")) return;
 
@@ -425,30 +415,36 @@ function gestisciClickIntestazione(chiave, parametro) {
     const ctx = document.getElementById("overlayCanvas").getContext("2d");
     if (graficoCorrente) { graficoCorrente.destroy(); }
 
-    // Colori unici e differenziati per linea di ciascun parametro
-    let coloreLinea = '#0066cc'; 
-    if (pId === 'ph') coloreLinea = '#4f46e5';       // Indaco
-    else if (pId === 'cl. lib') coloreLinea = '#0284c7'; // Azzurro
-    else if (pId === 'cl. tot') coloreLinea = '#0d9488'; // Teal
-    else if (pId === 'cl. com') coloreLinea = '#7c3aed'; // Viola
-    else if (pId === 'temp') coloreLinea = '#ea580c';    // Arancio scuro
-    else if (pId === 'cya') coloreLinea = '#db2777';     // Rosa/Magenta
-
-    // Definizione dei limiti delle fasce per lo sfondo del grafico
-    let zoneSfondo = null;
-    if (pId === 'ph') {
-        zoneSfondo = { min: 6.0, max: 8.0, okMin: 7.1, okMax: 7.3, warnMin: 6.5, warnMax: 7.5 };
-    } else if (pId === 'cl. lib') {
-        zoneSfondo = { min: 0.0, max: 2.0, okMin: 0.9, okMax: 1.1, warnMin: 0.7, warnMax: 1.5 };
-    } else if (pId === 'cl. com') {
-        zoneSfondo = { min: 0.0, max: 1.0, okMin: 0.0, okMax: 0.2, warnMin: 0.0, warnMax: 0.4 };
-    } else if (pId === 'cya') {
-        zoneSfondo = { min: 0.0, max: 100.0, okMin: 0.0, okMax: 50.0, warnMin: 0.0, warnMax: 60.0 };
-    } else if (pId === 'temp') {
-        zoneSfondo = { min: 20.0, max: 35.0, okMin: 25.0, okMax: 27.0, warnMin: 24.0, warnMax: 30.0 };
+    let tipoGrafico = 'line';
+    if (pId === 'n.ospiti' || pId === 'reintegro  (l)' || pId === 'reintegro') {
+        tipoGrafico = 'bar';
     }
 
-    // Plugin Chart.js per disegnare lo sfondo colorato a tre fasce (Verde/Giallo/Rosso)
+    let coloreParametro = '#0066cc'; 
+    if (pId === 'ph') coloreParametro = '#4f46e5';
+    else if (pId === 'cl. lib') coloreParametro = '#0284c7';
+    else if (pId === 'cl. tot') coloreParametro = '#0d9488';
+    else if (pId === 'cl. com') coloreParametro = '#7c3aed';
+    else if (pId === 'temp') coloreParametro = '#ea580c';
+    else if (pId === 'cya') coloreParametro = '#db2777';
+    else if (pId === 'n.ospiti') coloreParametro = '#10b981'; 
+    else if (pId === 'reintegro  (l)' || pId === 'reintegro') coloreParametro = '#06b6d4';
+
+    let zoneSfondo = null;
+    if (tipoGrafico === 'line') {
+        if (pId === 'ph') {
+            zoneSfondo = { min: 6.0, max: 8.0, okMin: 7.1, okMax: 7.3, warnMin: 6.5, warnMax: 7.5 };
+        } else if (pId === 'cl. lib') {
+            zoneSfondo = { min: 0.0, max: 2.0, okMin: 0.9, okMax: 1.1, warnMin: 0.7, warnMax: 1.5 };
+        } else if (pId === 'cl. com') {
+            zoneSfondo = { min: 0.0, max: 1.0, okMin: 0.0, okMax: 0.2, warnMin: 0.0, warnMax: 0.4 };
+        } else if (pId === 'cya') {
+            zoneSfondo = { min: 0.0, max: 100.0, okMin: 0.0, okMax: 50.0, warnMin: 0.0, warnMax: 60.0 };
+        } else if (pId === 'temp') {
+            zoneSfondo = { min: 20.0, max: 35.0, okMin: 25.0, okMax: 27.0, warnMin: 24.0, warnMax: 30.0 };
+        }
+    }
+
     const pluginFasceSfondo = {
         id: 'zoneSfondoPlugin',
         beforeDraw: (chart) => {
@@ -470,40 +466,38 @@ function gestisciClickIntestazione(chiave, parametro) {
             const colGiallo = 'rgba(254, 243, 199, 0.5)';
             const colVerde = 'rgba(220, 252, 231, 0.55)';
 
-            // 1. Sfondo Rosso di base (Fuori norma)
             ctx.fillStyle = colRosso;
             ctx.fillRect(left, top, right - left, bottom - top);
 
-            // 2. Sfondo Giallo (A norma ma fuori ottimale)
             disegnaRettangolo(zoneSfondo.warnMin, zoneSfondo.warnMax, colGiallo);
-
-            // 3. Sfondo Verde (Fascia Ottimale)
             disegnaRettangolo(zoneSfondo.okMin, zoneSfondo.okMax, colVerde);
         }
     };
 
+    let datasetConfig = {
+        label: parametro,
+        data: valori,
+        borderColor: coloreParametro,
+        backgroundColor: tipoGrafico === 'bar' ? coloreParametro + 'cc' : 'transparent',
+        borderWidth: tipoGrafico === 'bar' ? 1 : 2,
+        tension: 0.15,
+        pointRadius: tipoGrafico === 'bar' ? 0 : 2,
+        pointHoverRadius: tipoGrafico === 'bar' ? 0 : 4,
+        pointBackgroundColor: coloreParametro
+    };
+
     graficoCorrente = new Chart(ctx, {
-        type: 'line',
+        type: tipoGrafico,
         data: {
             labels: etichette,
-            datasets: [{
-                label: parametro,
-                data: valori,
-                borderColor: coloreLinea,
-                backgroundColor: 'transparent',
-                borderWidth: 2,
-                tension: 0.15,
-                pointRadius: 2,           // Pallini della linea molto piccoli
-                pointHoverRadius: 4,
-                pointBackgroundColor: coloreLinea
-            }]
+            datasets: [datasetConfig]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: { 
                 y: { 
-                    beginAtZero: pId === 'cl. com' || pId === 'cya',
+                    beginAtZero: pId === 'cl. com' || pId === 'cya' || tipoGrafico === 'bar',
                     suggestedMin: zoneSfondo ? zoneSfondo.min : undefined,
                     suggestedMax: zoneSfondo ? zoneSfondo.max : undefined,
                     grid: { color: 'rgba(0, 0, 0, 0.05)' }
@@ -516,7 +510,7 @@ function gestisciClickIntestazione(chiave, parametro) {
                 legend: { display: true }
             }
         },
-        plugins: [pluginFasceSfondo]
+        plugins: zoneSfondo ? [pluginFasceSfondo] : []
     });
 }
 
