@@ -10,6 +10,7 @@ const FILES = {
     manutenzioni: "REGISTRO MANUTENZIONE INTERVENTI .csv"
 };
 
+// Limiti impostati e allineati alle modifiche richieste (CYA allarme a 60, Target pH 7.3 e Libero 1.1)
 const LEGAL_RANGES = {
     "ph": { min: 6.5, max: 7.5, target: 7.3 },
     "cl. lib": { min: 0.7, max: 1.5, target: 1.1 },
@@ -94,33 +95,88 @@ function costruisciTabellaHTML(chiave, intestazioni, righe) {
 
     let html = "<thead><tr>";
     intestazioni.forEach(h => {
-        let hLower = h.toLowerCase();
-        let classeClick = ["ph", "cl. lib", "cl. com", "temp", "cya", "reintegro  (l)"].includes(hLower) ? "class='clickable-header'" : "";
+        let hLower = h.toLowerCase().trim();
+        // Cloro totale aggiunto alle intestazioni interattive per i grafici temporali
+        let classeClick = ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya", "reintegro  (l)"].includes(hLower) ? "class='clickable-header'" : "";
         html += `<th ${classeClick} onclick="gestisciClickIntestazione('${chiave}', '${h}')">${h}</th>`;
     });
     html += "</tr></thead><tbody>";
 
     righe.forEach((riga, rIdx) => {
         html += "<tr>";
+
+        // Estrazione e normalizzazione indici del cloro sulla riga corrente per controlli incrociati ordinati
+        let idxLibero = intestazioni.findIndex(h => h.toLowerCase().trim() === "cl. lib");
+        let idxTotale = intestazioni.findIndex(h => h.toLowerCase().trim() === "cl. tot");
+        let idxCombinato = intestazioni.findIndex(h => h.toLowerCase().trim() === "cl. com");
+
+        let clLibero = idxLibero !== -1 ? parseFloat((riga[idxLibero] || "").replace(/"/g, "").replace(",", ".")) : NaN;
+        let clTotale = idxTotale !== -1 ? parseFloat((riga[idxTotale] || "").replace(/"/g, "").replace(",", ".")) : NaN;
+        let clCombinato = idxCombinato !== -1 ? parseFloat((riga[idxCombinato] || "").replace(/"/g, "").replace(",", ".")) : NaN;
+
+        // Se manca il dato esplicito del combinato, lo ricaviamo matematicamente dal totale
+        if (isNaN(clCombinato) && !isNaN(clTotale) && !isNaN(clLibero)) {
+            clCombinato = clTotale - clLibero;
+        }
+
         intestazioni.forEach((header, colIdx) => {
             let valoreRaw = riga[colIdx] || "";
-            let hId = header.toLowerCase();
+            let hId = header.toLowerCase().trim();
             
-            // Applica la formattazione a 2 decimali solo sulle colonne numeriche di controllo
-            let valore = ["ph", "cl. lib", "cl. com", "temp", "cya"].includes(hId) ? formattaValoreNumerico(valoreRaw) : valoreRaw;
+            // Forza la formattazione a due decimali solo per le colonne dei parametri chimici principali
+            let valore = ["ph", "cl. lib", "cl. tot", "cl. com", "temp", "cya"].includes(hId) ? formattaValoreNumerico(valoreRaw) : valoreRaw;
             
             let classeCella = "";
             let attributiAggiuntivi = "";
+            let num = parseFloat(valoreRaw.replace(/"/g, "").replace(",", "."));
 
-            if (LEGAL_RANGES[hId]) {
-                let num = parseFloat(valore.replace(",", "."));
-                if (!isNaN(num)) {
+            if (!isNaN(num) || hId === "cl. tot" || hId === "cl. com") {
+                
+                // 1. PARAMETRI AGGIUNTIVI FISSI (pH, Temperatura, Acido Cianurico)
+                if (["ph", "temp", "cya"].includes(hId) && LEGAL_RANGES[hId]) {
                     let limiti = LEGAL_RANGES[hId];
                     if (num < limiti.min || num > limiti.max) {
                         classeCella = "class='cell-alarm'";
                         attributiAggiuntivi = `onclick="apriFinestraDosaggio('${header}', '${valore}', ${rIdx})"`;
                     } else {
                         classeCella = "class='cell-ok'";
+                    }
+                } 
+                // 2. CONTROLLO DI LEGGE CLORO LIBERO
+                else if (hId === "cl. lib" && LEGAL_RANGES["cl. lib"]) {
+                    let limiti = LEGAL_RANGES["cl. lib"];
+                    if (num < limiti.min || num > limiti.max) {
+                        classeCella = "class='cell-alarm'";
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${header}', '${valore}', ${rIdx})"`;
+                    } else {
+                        classeCella = "class='cell-ok'";
+                    }
+                }
+                // 3. CONTROLLO DI LEGGE CLORO COMBINATO (Toscana Allegato A: Max 0,4 ppm)
+                else if (hId === "cl. com" && !isNaN(clCombinato)) {
+                    if (clCombinato > 0.4) {
+                        classeCella = "class='cell-alarm'"; 
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${header}', '${valore}', ${rIdx})"`;
+                    } else {
+                        classeCella = "class='cell-ok'";
+                    }
+                }
+                // 4. COLORAZIONE DINAMICA E INTEGRATA DEL CLORO TOTALE
+                else if (hId === "cl. tot") {
+                    let combinatoFuori = (!isNaN(clCombinato) && clCombinato > 0.4);
+                    let liberoFuori = (!isNaN(clLibero) && (clLibero < LEGAL_RANGES["cl. lib"].min || clLibero > LEGAL_RANGES["cl. lib"].max));
+                    
+                    if (combinatoFuori || liberoFuori) {
+                        // Se il combinato è molto alto (>0.5), forziamo la cella del totale in ROSSO critico
+                        if (!isNaN(clCombinato) && clCombinato > 0.5) {
+                            classeCella = "class='cell-alarm'";
+                        } else {
+                            // Negli altri casi di squilibrio leggero, si accende in ARANCIONE (Stile inline per preservare i testi scuri)
+                            classeCella = "style='background-color: rgba(251, 191, 36, 0.25); color: #b45309; font-weight: bold;'";
+                        }
+                        attributiAggiuntivi = `onclick="apriFinestraDosaggio('${header}', '${valore}', ${rIdx})"`;
+                    } else if (!isNaN(clLibero) && !isNaN(clTotale)) {
+                        classeCella = "class='cell-ok'"; // Bilanciamento perfetto tra le parti: VERDE
                     }
                 }
             }
@@ -168,23 +224,24 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice) {
     const modal = document.getElementById("dosageModal");
     const content = document.getElementById("dosageContent");
     let valNum = parseFloat(valore.replace(",", "."));
-    let pId = parametro.toLowerCase();
+    let pId = parametro.toLowerCase().trim();
     
     let chimico = datiRegistriGlobali.chimico;
     let headers = chimico ? chimico.headers : [];
     let rigaCorrente = (chimico && chimico.rows) ? chimico.rows[rigaIndice] : [];
 
-    let oraIdx = headers.findIndex(h => h.toLowerCase() === "ora");
-    let tempIdx = headers.findIndex(h => h.toLowerCase() === "temp");
-    let bagnantiIdx = headers.findIndex(h => h.toLowerCase() === "n.ospiti");
+    let oraIdx = headers.findIndex(h => h.toLowerCase().trim() === "ora");
+    let tempIdx = headers.findIndex(h => h.toLowerCase().trim() === "temp");
+    let bagnantiIdx = headers.findIndex(h => h.toLowerCase().trim() === "n.ospiti");
 
     let oraRilevamento = oraIdx !== -1 ? (rigaCorrente[oraIdx] || "") : "";
     let tempVasca = tempIdx !== -1 ? parseFloat((rigaCorrente[tempIdx] || "").replace(",", ".")) : 25;
     let numBagnanti = bagnantiIdx !== -1 ? parseInt(rigaCorrente[bagnantiIdx]) || 0 : 0;
     if (isNaN(tempVasca)) tempVasca = 25;
 
+    let targetIdeale = LEGAL_RANGES[pId]?.target || (LEGAL_RANGES[pId] ? LEGAL_RANGES[pId].min + " - " + LEGAL_RANGES[pId].max : '-');
     let testoDettaglio = `<h3>Diagnostica Dosaggio: ${parametro}</h3>`;
-    testoDettaglio += `<p>Valore fuori limite: <strong style="color:#721c24;">${valore}</strong> (Target ideale: ${LEGAL_RANGES[pId]?.target || '-' })</p>`;
+    testoDettaglio += `<p>Valore fuori limite: <strong style="color:#721c24;">${valore}</strong> (Fascia/Target ideale: ${targetIdeale})</p>`;
     testoDettaglio += `<p style="font-size:0.85rem; background:#eee; padding:6px; margin: 10px 0;">
         Contesto: Ore ${oraRilevamento || 'N.D.'} | Temp Acqua: ${tempVasca}°C | Ospiti: ${numBagnanti}
     </p>`;
@@ -210,14 +267,16 @@ function apriFinestraDosaggio(parametro, valore, rigaIndice) {
         } else if (valNum > 1.5) {
             testoDettaglio += `<p><strong>Nota:</strong> Livello alto. Sospendere momentaneamente le immissioni di cloro e attendere il consumo biologico naturale.</p>`;
         }
+    } else if (pId === "cl. tot" || pId === "cl. com") {
+        testoDettaglio += `<p><strong>Nota Clorammine alte:</strong> Il Cloro combinato o totale risulta sbilanciato rispetto alla normativa (Cloro combinato > 0.40 mg/l). Effettuare un controlavaggio accurato del filtro e valutare un ricambio parziale d'acqua per abbattere i residui legati chimicamente.</p>`;
     } else if (pId === "cya") {
         if (valNum > 60.0) {
             let svuotamentoPerc = Math.round(((valNum - 40) / valNum) * 100);
             let litriReintegro = Math.round((svuotamentoPerc / 100) * VOL_PISCINA * 1000);
-            testoDettaglio += `<p><strong>Criticità Acido Cianurico:</strong> Il cloro è parzialmente bloccato. Effettuare un ricambio parziale d'acqua del <strong>${svuotamentoPerc}%</strong> (circa <strong>${litriReintegro.toLocaleString()} litri</strong>).</p>`;
+            testoDettaglio += `<p><strong>Criticità Acido Cianurico:</strong> Il cloro è parzialmente bloccato dall'eccesso di stabilizzante. Effettuare un ricambio parziale d'acqua del <strong>${svuotamentoPerc}%</strong> (circa <strong>${litriReintegro.toLocaleString()} litri</strong>) per scendere sotto la soglia critica.</p>`;
         }
     } else {
-        testoDettaglio += `<p>Valore fuori norma. Monitorare alla prossima lettura.</p>`;
+        testoDettaglio += `<p>Valore fuori norma. Monitorare attentamente alla prossima lettura di vasca.</p>`;
     }
 
     content.innerHTML = testoDettaglio;
