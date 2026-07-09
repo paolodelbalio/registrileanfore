@@ -8,7 +8,6 @@ const FILE_REGISTRI = {
     chimico: "REGISTRO CHIMICO 2026.csv",
     contatori: "REGISTRO CONTATORI.csv",
     pulizie: "REGISTRO PULIZIE PISCINA 2026.csv",
-    manutenzioni: "REGISTRO MANUTENZIONE INTERVENTI .csv"
 };
 
 document.addEventListener("DOMContentLoaded", () => {
