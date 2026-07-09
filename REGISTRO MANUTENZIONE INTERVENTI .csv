@@ -1,26 +1,56 @@
 Registro Impianti e Manutenzioni,,,,,
-Data,Impianto/Area,Intervento,Tecnico,Note,Firma
+Data,Impianto/Area, Intervento,Tecnico,Note,Firma
 lun 4 mag 2026,Vasca,Scoperto Vasca,Paolo,Acqua torbida,
-mar 5 mag 2026,Vasca,Riparato Skimmer,Paolo,Riparato skimmer nord. Tamponato perdita,
+mar 5 mag 2026,Vasca,Riparato Skimmer,Paolo,Riparato skimmer nord. Tamponato perdita ,
 mer 6 mag 2026,Filtro,Rabboccato Vetro,Paolo,"Pulito letto filtrante, effettuato rabbocco vetro AMF, 25 Kg",
-gio 7 mag 2026,Vasca,Aspirato Fondo,Paolo,"Acqua torbida,Messo flocculante",
-ven 8 mag 2026,Vasca,Aspirato Fondo,Paolo,"Acqua torbida,Aspirato fondo in posizione scarico",
-lun 11 mag 2026,Vasca,Aspirato Fondo,Paolo,"Acqua torbida,Aspirato fondo in posizione scarico",
-mar 12 mag 2026,Vasca,Aspirato Fondo,Paolo,"Acqua torbida,Aspirato fondo in posizione scarico",
-gio 14 mag 2026,Filtro,Controlavaggio,Paolo,Ristabilito Pressione,
-mer 20 mag 2026,Robot,Riparato Cavo Robot Aspiratore,Paolo,Sostituito Cavo,
-lun 25 mag 2026,Filtro,Controlavaggio,Paolo,"Finito livello, Cianurico 59",
-mer 27 mag 2026,Vasca Filtro,Reintegro Controlavaggio,Paolo,riportato a livello,
+gio 7 mag 2026,Vasca,Aspirato Fondo,Paolo,"Acqua torbida,Messo flocculante ",
+ven 8 mag 2026,Vasca,Aspirato Fondo,Paolo,"Acqua torbida,Aspirato fondo in posizione scarico ",
+lun 11 mag 2026,Vasca,Aspirato Fondo,Paolo,"Acqua torbida,Aspirato fondo in posizione scarico ",
+mar 12 mag 2026,Vasca,Aspirato Fondo,Paolo,"Acqua torbida,Aspirato fondo in posizione scarico ",
+gio 14 mag 2026,"
+Filtro","
+Controlavaggio",Paolo,Ristabilito Pressione,
+mer 20 mag 2026,Robot,Riparato Cavo Robot Aspiratore,Paolo,Sostituito Cavo ,
+lun 25 mag 2026,"
+Filtro","
+Controlavaggio",Paolo,"Finito livello, Cianurico 59",
+mer 27 mag 2026,"Vasca
+Filtro","Reintegro
+Controlavaggio",Paolo,riportato a livello,
 gio 28 mag 2026,Locale Tecnico,Aspirato Foglie,Paolo,,
-dom 31 mag 2026,Filtro Skimmer,Controlavaggio,Paolo,Pulito Prefiltri       Ristabilito Pressione,
-gio 4 giu 2026,Filtro,Controlavaggio,Paolo,cya da 74 a 69 ppm,
-lun 8 giu 2026,Filtro,Controlavaggio  Pulizia prefiltri,Paolo,Riportato a livello,
-gio 11 giu 2026,Filtro,Controlavaggio Pulizia prefiltro,Paolo,Portato Livello,
-lun 15 giu 2026,Filtro Skimmer,Controspionaggio Rabbocco Sabbia Riparato Ombrellone,Paolo,Pulito Prefiltri       Ristabilito Pressione Aggiunto 25 Kg,
-mar 16 giu 2026,Locale tecnico,Riparato Presa  Pompa,Paolo,,
-ven 19 giu 2026,Filtro,Controlavaggio,Paolo,Ristabilito Pressione,
-mar 23 giu 2026,Filtro Impianto,Controlavaggio Valvola Multivie,Paolo,Ristabilito PressioneSostituito Oring,
-ven 26 giu 2026,Filtro,Controlavaggio Pulitzia cestelli,Paolo,Ristabilito Pressione,
-mar 30 giu 2026,Filtro Skimmer,Controlavaggio,Paolo,Pulito Prefiltri       Ristabilito Pressione,
-ven 3 lug 2026,Filtro,Controlavaggio Pulizia cestelli,Paolo,Ristabilito Pressione,
-mer 8 lug 2026,Filtro,Controlavaggio,Paolo,Ristabilito Pressione,e
+dom 31 mag 2026,"Filtro
+Skimmer","
+Controlavaggio",Paolo,Pulito Prefiltri       Ristabilito Pressione,
+gio 4 giu 2026,"
+Filtro","
+Controlavaggio",Paolo,cya da 74 a 69 ppm,
+lun 8 giu 2026,"
+Filtro",Controlavaggio  Pulizia prefiltri ,Paolo,Riportato a livello,
+gio 11 giu 2026,"
+Filtro"," Controlavaggio
+Pulizia prefiltro",Paolo,Portato Livello,
+lun 15 giu 2026,"Filtro
+Skimmer","
+Controspionaggio
+Rabbocco Sabbia
+Riparato Ombrellone ",Paolo,"Pulito Prefiltri       Ristabilito Pressione
+Aggiunto 25 Kg",
+mar 16 giu 2026,"
+Locale tecnico","
+Riparato Presa  Pompa",Paolo,,
+ven 19 giu 2026,"
+Filtro","
+Controlavaggio",Paolo,Ristabilito Pressione,
+mar 23 giu 2026,"
+Filtro
+Impianto","
+Controlavaggio
+Valvola Multivie",Paolo,Ristabilito PressioneSostituito Oring ,
+ven 26 giu 2026,Filtro,"Controlavaggio
+Pulitzia cestelli",Paolo,Ristabilito Pressione,
+mar 30 giu 2026,"Filtro
+Skimmer",Controlavaggio,Paolo,Pulito Prefiltri       Ristabilito Pressione,
+ven 3 lug 2026,Filtro,"Controlavaggio
+Pulizia cestelli",Paolo,Ristabilito Pressione,
+mer 8 lug 2026,Filtro," Controlavaggio
+Pulizia prefiltro",Paolo,Ristabilito Pressione,
