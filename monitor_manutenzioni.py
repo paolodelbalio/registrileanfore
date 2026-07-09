@@ -20,16 +20,18 @@ def pulisci_e_filtra_manutenzioni(percorso_csv):
         for riga in lettore:
             if not riga or all(cella.strip() == "" for cella in riga):
                 continue
-            righe_pulite.append(riga)
+            # Pulizia radicale da caratteri residui di virgolette spezzate
+            riga_pulita = [c.replace('"', '').replace('\n', ' ').strip() for c in riga]
+            righe_pulite.append(riga_pulita)
             
     with open(percorso_csv, mode='w', encoding='utf-8', newline='') as f:
         scrittore = csv.writer(f)
         scrittore.writerows(righe_pulite)
-    print(f"[OK] CSV Manutenzioni ripulito.")
+    print(f"[OK] CSV Manutenzioni ripulito con successo.")
 
 def converti_e_invia():
-    print(f"\n[RILEVATO] Modifica su Registro Manutenzioni.")
-    time.sleep(2)
+    print(f"\n[RILEVATO] Modifica sul Registro Manutenzioni.")
+    time.sleep(1.5)
     
     percorso_ods = os.path.join(LOCAL_REGISTRI_DIR, FILE_TARGET)
     cmd_libreoffice = [
@@ -40,19 +42,21 @@ def converti_e_invia():
     try:
         subprocess.run(cmd_libreoffice, check=True)
         csv_creato = os.path.join(DRIVE_REGISTRI_DIR, "REGISTRO MANUTENZIONE INTERVENTI .csv")
-        puli_e_filtra_manutenzioni(csv_creato)
+        
+        # Chiamata corretta alla funzione di pulizia
+        pulisci_e_filtra_manutenzioni(csv_creato)
         
         os.chdir(DRIVE_REGISTRI_DIR)
         subprocess.run([GIT_EXE, "add", "."], check=True)
-        subprocess.run([GIT_EXE, "commit", "-m", "Aggiornamento indipendente Manutenzioni"], check=True)
+        subprocess.run([GIT_EXE, "commit", "-m", "Aggiornamento isolato manutenzioni scadenziario"], check=True)
         subprocess.run([GIT_EXE, "push"], check=True)
-        print("[SUCCESSO] GitHub Aggiornato.")
+        print("[SUCCESSO] GitHub Aggiornato con i nuovi allarmi.")
     except Exception as e:
-        print(f"[ERRORE]: {e}")
+        print(f"[ERRORE durante l'elaborazione]: {e}")
 
 if __name__ == "__main__":
     print("====================================================")
-    print("      MONITOR MANUTENZIONI ISOLATO - ATTIVO         ")
+    print("      MONITOR MANUTENZIONI INDIPENDENTE - ATTIVO     ")
     print("====================================================")
     percorso_completo = os.path.join(LOCAL_REGISTRI_DIR, FILE_TARGET)
     
