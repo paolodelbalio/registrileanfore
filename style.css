@@ -196,4 +196,18 @@ tr:nth-child(even) td {
 
 .hidden {
     display: none !important;
+}/* Rende scorrevole il Registro Manutenzioni con altezza fissa */
+#manutenzioniTable {
+    display: block;
+    max-height: 450px; /* Regola questa altezza in pixel come preferisci */
+    overflow-y: auto;
+    width: 100%;
+}
+
+/* Mantiene l'intestazione della tabella fissa in alto mentre scorri */
+#manutenzioniTable thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background-color: #334155; /* Il colore scuro della tua intestazione */
 }
