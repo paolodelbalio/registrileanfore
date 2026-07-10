@@ -193,18 +193,8 @@ tr:nth-child(even) td {
     border-radius: 4px;
     cursor: pointer;
 }
-
-/* Prova forzata a 150px per vedere la barra */
+/* Ripristino layout corretto */
 #manutenzioniTable {
-    display: block !important;
-    max-height: 150px !important;
-    overflow-y: auto !important;
-    width: 100% !important;
-}
-
-#manutenzioniTable thead th {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background-color: #334155;
+    width: 100%;
+    margin-bottom: 20px;
 }
