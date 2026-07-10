@@ -194,9 +194,7 @@ tr:nth-child(even) td {
     cursor: pointer;
 }
 
-.hidden {
-    display: none !important;
-}/* Forza lo scorrimento direttamente sulla tabella delle manutenzioni */
+/* Forza lo scorrimento direttamente sulla tabella delle manutenzioni */
 #manutenzioniTable {
     display: block !important;
     max-height: 450px !important;
