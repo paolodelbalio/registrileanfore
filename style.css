@@ -167,7 +167,7 @@ tr:hover td {
     cursor: pointer;
 }
 
-/* LE TUE CLASSI PERSONALIZZATE PER LE CELLE COLORATE (REGISTRO CHIMICO) */
+/* ECCCO LE TUE STRUTTURE DEL CHIMICO RIPRISTINATE */
 .evidenzia-verde {
     background-color: #d1fae5 !important;
     color: #065f46 !important;
@@ -189,7 +189,6 @@ tr:hover td {
     text-align: center;
 }
 
-/* PULSANTI MINI PER GRAFICI NELLE INTESTAZIONI */
 .btn-mini-grafico {
     background-color: #475569;
     color: white;
