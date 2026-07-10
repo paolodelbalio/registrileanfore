@@ -194,26 +194,19 @@ tr:nth-child(even) td {
     cursor: pointer;
 }
 
-.hidden {
-    display: none !important;
-}/* Forza lo scorrimento direttamente sulla tabella delle manutenzioni */
-#manutenzioniTable {
-    display: block !important;
-    max-height: 450px !important;
-    overflow-y: auto !important;
-    width: 100% !important;
+/* Scorrimento sicuro per il Registro Manutenzioni */
+.manutenzioni-scroll-box {
+    max-height: 400px; /* Altezza massima della tabella */
+    overflow-y: auto;  /* Attiva la barra di scorrimento solo se serve */
+    width: 100%;
+    margin-bottom: 20px;
+    border: 1px solid #cbd5e1; /* Un leggero bordino ordinato */
 }
 
-/* Blocca l'intestazione in alto durante lo scorrimento */
-#manutenzioniTable thead {
+/* Blocca i titoli in alto quando si scorre */
+.manutenzioni-scroll-box thead th {
     position: sticky;
     top: 0;
-    z-index: 10;
-    background-color: #334155;
-}
-
-#manutenzioniTable thead th {
-    position: sticky;
-    top: 0;
-    background-color: #334155;
+    z-index: 5;
+    background-color: #334155; /* Mantiene lo sfondo scuro originale */
 }
