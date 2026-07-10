@@ -3,7 +3,6 @@
     const FILE_MANUTENZIONI = "REGISTRO MANUTENZIONE INTERVENTI .csv";
 
     document.addEventListener("DOMContentLoaded", () => {
-        // Diamo un secondo a script.js di caricare la tabella vecchia, poi la sovrascriviamo noi
         setTimeout(caricaRegistroManutenzioniIsolato, 1200);
     });
 
@@ -23,8 +22,9 @@
         if (!dataStr) return null;
         let dLower = dataStr.toLowerCase().trim();
         
-        const mesi = {\n            "gen": 0, "feb": 1, "mar": 2, "apr": 3, "mag": 4, "giu": 5,
-            "lug": 6, "ago": 7, "set": 8, \"ott\": 9, \"nov\": 10, \"dic\": 11
+        const mesi = {
+            "gen": 0, "feb": 1, "mar": 2, "apr": 3, "mag": 4, "giu": 5,
+            "lug": 6, "ago": 7, "set": 8, "ott": 9, "nov": 10, "dic": 11
         };
 
         let parti = dLower.split(/\s+/);
@@ -69,14 +69,13 @@
         let giorniControlavaggio = 99;
         let giorniCestelli = 99;
         let giorniPrefiltro = 99;
-        let rigaPrimaVuotaIdx = righe.length - 1;
 
         if (idxDataMan !== -1 && idxInterventoMan !== -1) {
             let uControlavaggio = null;
             let uCestelli = null;
             let uPrefiltro = null;
 
-            for (let i = 0; i < righe.length - 3; i++) { 
+            for (let i = 0; i < righe.length; i++) { 
                 let tIntervento = (righe[i][idxInterventoMan] || "").toLowerCase().trim();
                 let dObj = estraiDataManutenzione(righe[i][idxDataMan]);
 
@@ -99,7 +98,7 @@
         intestazioni.forEach(h => { html += `<th>${h}</th>`; });
         html += "</tr></thead><tbody>";
 
-        righe.forEach((riga, rIdx) => {
+        righe.forEach((riga) => {
             html += "<tr>";
             riga.forEach(cella => {
                 let testo = cella ? cella.replace(/["']/g, "").trim() : "";
@@ -130,7 +129,8 @@
                     <th style="padding:10px; color:#0066cc;">STATO ATTUALE</th>
                 </tr>
                 <tr style="border-bottom:1px solid #e2e8f0;">
-                    <td style="padding:10px; font-weight:bold;">Controlavaggio</td>\n                    <td style="padding:10px; color:${ggFiltro > 4 ? '#ef4444' : '#10b981'}; font-weight:bold;">${sFiltro}</td>
+                    <td style="padding:10px; font-weight:bold;">Controlavaggio</td>
+                    <td style="padding:10px; color:${ggFiltro > 4 ? '#ef4444' : '#10b981'}; font-weight:bold;">${sFiltro}</td>
                 </tr>
                 <tr style="border-bottom:1px solid #e2e8f0;">
                     <td style="padding:10px; font-weight:bold;">Pulizia cestelli</td>
