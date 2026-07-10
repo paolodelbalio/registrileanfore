@@ -214,4 +214,19 @@ tr:nth-child(even) td {
     position: sticky;
     top: 0;
     background-color: #334155;
+}/* Scatola di scorrimento per il registro manutenzioni */
+.manutenzioni-scroll-box {
+    max-height: 450px; /* Imposta l'altezza massima che preferisci */
+    overflow-y: auto;  /* Attiva lo scorrimento solo se necessario */
+    width: 100%;
+    margin-bottom: 20px;
+    border: 1px solid #cbd5e1;
+}
+
+/* Blocca l'intestazione in alto mentre si scorre */
+.manutenzioni-scroll-box thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #334155 !important; /* Colore scuro originale */
 }
