@@ -183,8 +183,7 @@ function scrollAllUltimaRiga() {
         let indiceUltimaCompilata = -1;
         const righe = tabellaCorpo.rows;
 
-        // 1. Identifica l'indice esatto della colonna pH guardando l'head
-        let indiceColonnaPH = 2; // Default prudenziale
+        let indiceColonnaPH = 2; 
         const ths = document.querySelectorAll("#chimicoTable thead th");
         ths.forEach((th, idx) => {
             if (th.textContent.trim().toLowerCase() === 'ph') {
@@ -192,7 +191,6 @@ function scrollAllUltimaRiga() {
             }
         });
 
-        // 2. Trova l'ultimo record che ha un pH scritto (dal basso verso l'alto)
         for (let i = righe.length - 1; i >= 0; i--) {
             let cellaPH = righe[i].cells[indiceColonnaPH];
             if (cellaPH && cellaPH.textContent.trim() !== "") {
@@ -201,24 +199,19 @@ function scrollAllUltimaRiga() {
             }
         }
 
-        // Fallback di sicurezza se l'intera colonna pH fosse vuota
         if (indiceUltimaCompilata === -1) {
             indiceUltimaCompilata = righe.length - 1;
         }
 
-        // 3. Calcola l'indice target spostandoti di 2 righe sotto
         let indiceTarget = indiceUltimaCompilata + 2;
         
-        // Evita di sforare le righe totali realmente disponibili nella tabella
         if (indiceTarget >= righe.length) {
             indiceTarget = righe.length - 1;
         }
 
-        // 4. Esegui lo scroll fluido sulla riga vuota calcolata
         let rigaTarget = righe[indiceTarget];
         rigaTarget.scrollIntoView({ behavior: "smooth", block: "center" });
         
-        // 5. Evidenzia visivamente l'ultimo record reale per orientarsi al colpo d'occhio
         let rigaCompilata = righe[indiceUltimaCompilata];
         rigaCompilata.style.transition = "background-color 0.5s";
         let colorePrecedente = rigaCompilata.style.backgroundColor;
@@ -281,14 +274,37 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore) {
             <p style="margin-bottom:8px;"><strong>1. Dose correttiva di rientro (Soglia minima 0.9 ppm):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Ipoclorito di Calcio.</p>
             <p><strong>2. Dose ottimale di stabilizzazione (Ideale 1.1 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Ipoclorito di Calcio.</p>`;
         } else if (valore > 1.2) {
-            corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Cloro Elevato (${valore} ppm)</span></h3><br>
-            <p>Il valore supera la fascia ideale di 1.1 ppm ma rientra nei limiti tollerati di legge (2.0 ppm). Sospendere i dosaggi manuali e attendere il normale abbattimento.</p>`;
+            if (isRosso) {
+                // DOSAGGIO DECLORATORE (Sodio Tiosolfato): circa 7g/m³ per abbattere 1 ppm di eccesso fino a target 1.1 ppm
+                let eccessoCloro = valore - 1.1;
+                let grammiDecloratore = Math.round(eccessoCloro * 7 * VOL_PISCINA);
+
+                corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">🚨 CRITICITÀ: Cloro Fuori Limite di Legge (${valore} ppm)</span></h3><br>
+                <p style="margin-bottom:12px; font-weight:bold; color:#b91c1c;">Il valore supera la soglia massima consentita (2.0 ppm). È obbligatorio intervenire per abbattere il cloro prima della balneazione.</p>
+                <p><strong>Azione Correttiva (Istruzioni di Etichetta):</strong></p>
+                <p style="font-size:1.05rem; margin-top:6px;">Dosare <strong>${grammiDecloratore}g</strong> di <strong>Decloratore (Sodio Tiosolfato)</strong> per ridurre il cloro e rientrare stabilmente a 1.1 ppm.</p>`;
+            } else {
+                corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Cloro Elevato (${valore} ppm)</span></h3><br>
+                <p>Il valore supera la fascia ideale di 1.1 ppm ma rientra nei limiti tollerati di legge (2.0 ppm). Sospendere i dosaggi manuali e attendere il normale abbattimento.</p>`;
+            }
         }
     }
     else if (p === 'cl. com') {
-        corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Cloro Combinato Alto (${valore} ppm)</span></h3><br>
-        <p style="margin-bottom:8px;"><strong>Valore di Soglia:</strong> Massimo di benessere 0.20 ppm, Limite di legge 0.40 ppm.</p>
-        <p>Effettuare un ricambio d'acqua parziale o attivare un ciclo shock localizzato per eliminare le cloroammine.</p>`;
+        if (isRosso) {
+            // TRATTAMENTO SHOCK: Dosaggio di Ipoclorito di Calcio calcolato per la distruzione delle cloroammine (Breakpoint).
+            // Formula tecnica standard: Portare il cloro libero a 10 volte il valore del cloro combinato.
+            // Dose indicativa per ipoclorito commerciale (resa ~65%): ~1.5g per m³ per ogni 0.1 ppm incrementale.
+            let ppmShockNecessari = valore * 10;
+            let grammiIpocloritoShock = Math.round((ppmShockNecessari / 0.1) * 1.5 * VOL_PISCINA);
+
+            corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">🚨 CRITICITÀ: Cloro Combinato Fuori Limite (${valore} ppm)</span></h3><br>
+            <p style="margin-bottom:12px; font-weight:bold; color:#b91c1c;">Presenza elevata di cloroammine superiore al limite di legge (0.40 ppm). Rischio forte di odore sgradevole e irritazione.</p>
+            <p><strong>Trattamento Shock Obbligatorio (Breakpoint):</strong></p>
+            <p style="font-size:1.05rem; margin-top:6px; background:#fef2f2; padding:8px; border-left:4px solid #dc2626;"> Introdurre in vasca <strong>${grammiIpocloritoShock}g</strong> di <strong>Ipoclorito di Calcio granulare</strong> per ossidare completamente ed eliminare le cloroammine legate.</p>`;
+        } else {
+            corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Cloro Combinato in Fasce di Avviso (${valore} ppm)</span></h3><br>
+            <p style="margin-bottom:8px;">Il parametro supera il livello ottimale di benessere (0.20 ppm) ma è sotto il limite di legge (0.40 ppm). Monitorare attentamente e favorire leggeri ricambi d'acqua di rete.</p>`;
+        }
     }
     else if (p === 'temp') {
         if (valore > 28) {
