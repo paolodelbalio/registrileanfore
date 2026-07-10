@@ -70,7 +70,7 @@ header {
     display: none !important;
 }
 
-/* TABELLE E SCORRIMENTO STANDARD PER GLI ALTRI REGISTRI */
+/* TABELLE E SCORRIMENTO STANDARD */
 .table-wrapper {
     max-height: 65vh;
     overflow-y: auto;
@@ -167,24 +167,50 @@ tr:hover td {
     cursor: pointer;
 }
 
-/* =======================================================
-   SCORRIMENTO ISOLATO ED ELEGANTE DEL REGISTRO MANUTENZIONI
-   ======================================================= */
-
-/* Accorcia l'altezza massima SOLO per la scatola delle manutenzioni */
-#manutenzioniSection .table-wrapper {
-    max-height: 380px !important; 
-    overflow-y: auto !important;   
+/* COSTRUZIONE CLASSI STILI CELLE COLORATE (REGISTRO CHIMICO) */
+.cell-normal {
+    background-color: #d1fae5 !important;
+    color: #065f46 !important;
+    font-weight: bold;
 }
 
-/* Mantiene la struttura a tabella corretta senza romperla */
+.cell-warning {
+    background-color: #fef3c7 !important;
+    color: #92400e !important;
+    font-weight: bold;
+}
+
+.cell-alarm {
+    background-color: #fee2e2 !important;
+    color: #991b1b !important;
+    font-weight: bold;
+}
+
+.btn-grafico {
+    background-color: #0066cc;
+    color: white;
+    border: none;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.75rem;
+}
+
+.btn-grafico:hover {
+    background-color: #004ca3;
+}
+
+/* SCORRIMENTO CIRCOSCRITTO AL SOLO REGISTRO MANUTENZIONI */
+#manutenzioniSection .table-wrapper {
+    max-height: 400px !important;
+    overflow-y: auto !important;
+}
+
 #manutenzioniTable {
     display: table !important;
     width: 100% !important;
-    border-collapse: collapse !important;
 }
 
-/* Blocca perfettamente i titoli in alto durante lo scorrimento */
 #manutenzioniTable thead th {
     position: sticky !important;
     top: 0 !important;
