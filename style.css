@@ -196,18 +196,24 @@ tr:nth-child(even) td {
 
 .hidden {
     display: none !important;
-}/* Rende scorrevole il contenitore del Registro Manutenzioni */
-.table-container {
-    max-height: 450px; /* Regola questa altezza come preferisci */
-    overflow-y: auto;
-    width: 100%;
-    margin-bottom: 20px;
+}/* Forza lo scorrimento direttamente sulla tabella delle manutenzioni */
+#manutenzioniTable {
+    display: block !important;
+    max-height: 450px !important;
+    overflow-y: auto !important;
+    width: 100% !important;
 }
 
-/* Mantiene l'intestazione fissa in alto mentre scorri */
+/* Blocca l'intestazione in alto durante lo scorrimento */
+#manutenzioniTable thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #334155;
+}
+
 #manutenzioniTable thead th {
     position: sticky;
     top: 0;
-    z-index: 2;
-    background-color: #334155; /* Colore scuro dell'intestazione */
+    background-color: #334155;
 }
