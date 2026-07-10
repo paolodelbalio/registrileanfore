@@ -3,6 +3,7 @@
     const FILE_MANUTENZIONI = "REGISTRO MANUTENZIONE INTERVENTI .csv";
 
     document.addEventListener("DOMContentLoaded", () => {
+        // Diamo un secondo a script.js di caricare la tabella vecchia, poi la sovrascriviamo noi
         setTimeout(caricaRegistroManutenzioniIsolato, 1200);
     });
 
