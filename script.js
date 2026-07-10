@@ -1,25 +1,68 @@
 let graficoCorrente = null;
-let datiChimicoGlobali = [];
+let datiRegistriGlobali = { chimico: [], contatori: [], pulizie: [], manutenzioni: [] };
+
 const VOL_PISCINA = 92; // 92 m³ costanti
 const TEMP_REINTEGRO = 22.0;
 
+const FILE_REGISTRI = {
+    chimico: "REGISTRO CHIMICO 2026.csv",
+    contatori: "REGISTRO CONTATORI.csv",
+    pulizie: "REGISTRO PULIZIE PISCINA 2026.csv",
+};
+
 document.addEventListener("DOMContentLoaded", () => {
-    caricaRegistroChimico();
+    caricaTuttiIRegistri();
 });
 
-function caricaRegistroChimico() {
-    Papa.parse("REGISTRO CHIMICO 2026.csv", {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        complete: function(risultati) {
-            if (risultati.data && risultati.data.length > 0) {
-                datiChimicoGlobali = risultati.data;
-                creaTabellaChimica(risultati.data);
-                analizzaUltimaRigaPerAllarmeAutomatico(risultati.data);
+function caricaTuttiIRegistri() {
+    Object.keys(FILE_REGISTRI).forEach(chiave => {
+        Papa.parse(FILE_REGISTRI[chiave], {
+            download: true,
+            header: false,
+            skipEmptyLines: true,
+            complete: function(risultati) {
+                elaboraDatiTabella(chiave, risultati.data);
             }
-        }
+        });
     });
+}
+
+function elaboraDatiTabella(chiave, righeGrezze) {
+    if (!righeGrezze || righeGrezze.length < 2) return;
+
+    // Estrai le intestazioni dalla prima riga vera
+    let intestazioni = righeGrezze[0].map(h => h ? h.trim() : "");
+    let datiFormattati = [];
+
+    for (let i = 1; i < righeGrezze.length; i++) {
+        let rigaCorrente = righeGrezze[i];
+        if (rigaCorrente.length === 0 || (rigaCorrente[0] === "" && rigaCorrente[1] === "")) continue;
+
+        let oggettoRiga = {};
+        intestazioni.forEach((intestazione, indice) => {
+            let valoreCella = rigaCorrente[indice] ? rigaCorrente[indice].trim() : "";
+            
+            // SE LA COLONNA È CYA: Prende solo la prima misurazione se ce ne sono più di una (es. "45 (35)" diventa "45")
+            if (intestazione.toLowerCase() === 'cya' && valoreCella !== "") {
+                let match = valoreCella.match(/^([0-9.,]+)/);
+                if (match) {
+                    valoreCella = match[1];
+                }
+            }
+            
+            oggettoRiga[intestazione] = valoreCella;
+        });
+        datiFormattati.push(oggettoRiga);
+    }
+
+    datiRegistriGlobali[chiave] = datiFormattati;
+
+    if (chiave === 'chimico') {
+        creaTabellaChimica(intestazioni, datiFormattati);
+        analizzaUltimaRigaPerAllarmeAutomatico(datiFormattati);
+    } else {
+        creaTabellaStandard(chiave, intestazioni, datiFormattati);
+    }
 }
 
 function ottieniClasseColore(parametro, v) {
@@ -59,14 +102,12 @@ function ottieniClasseColore(parametro, v) {
     return "";
 }
 
-function creaTabellaChimica(dati) {
+function creaTabellaChimica(intestazioni, dati) {
     const tabella = document.getElementById("chimicoTable");
     if (!tabella) return;
 
-    let chiavi = Object.keys(dati[0]);
     let html = "<thead><tr>";
-    
-    chiavi.forEach(chiave => {
+    intestazioni.forEach(chiave => {
         let n = chiave.trim().toLowerCase();
         let label = chiave.trim();
         if (n === 'ph') html += `<th onclick="apriGraficoChimico('${chiave}', 'pH', '#ff6384', 'line')" style="cursor:pointer; text-decoration:underline;">pH</th>`;
@@ -82,10 +123,8 @@ function creaTabellaChimica(dati) {
     html += "</tr></thead><tbody>";
 
     dati.forEach(riga => {
-        if (!riga.Data && !riga.Ora) return;
-
         html += "<tr>";
-        chiavi.forEach(chiave => {
+        intestazioni.forEach(chiave => {
             let valoreTesto = riga[chiave] ? riga[chiave].trim() : "";
             let n = chiave.trim().toLowerCase();
 
@@ -111,75 +150,105 @@ function creaTabellaChimica(dati) {
     tabella.innerHTML = html;
 }
 
+function creaTabellaStandard(chiaveTabella, intestazioni, dati) {
+    const tabella = document.getElementById(`${chiaveTabella}Table`);
+    if (!tabella) return;
+
+    let html = "<thead><tr>";
+    intestazioni.forEach(h => { html += `<th>${h}</th>`; });
+    html += "</tr></thead><tbody>";
+
+    dati.forEach(riga => {
+        html += "<tr>";
+        intestazioni.forEach(h => { html += `<td>${riga[h] || ""}</td>`; });
+        html += "</tr>";
+    });
+
+    html += "</tbody>";
+    tabella.innerHTML = html;
+}
+
 function apriConsiglioDettagliato(parametro, valore, dataOra) {
     let p = parametro.toLowerCase().trim();
     let titoloModale = `Diagnostica Parametro: ${parametro}`;
-    let corpoHTML = `<p style='font-size:0.85rem; color:#64748b; margin-bottom: 10px;'>Rilevazione del ${dataOra}</p>`;
+    let corpoHTML = `<p style='font-size:0.85rem; color:#64748b; margin-bottom: 12px;'>Rilevazione del ${dataOra}</p>`;
 
     if (p === 'ph') {
         if (valore > 7.3) {
-            let delta = valore - 7.2;
-            let grammi = Math.round((delta / 0.1) * 10 * VOL_PISCINA);
-            corpoHTML += `<h3>Stato: <span style="color:#dc2626;">pH Alto (${valore})</span></h3><br>
-            <p>Il valore misurato è superiore al limite ideale (7.0 - 7.3).</p><br>
-            <p><strong>Azione consigliata:</strong> Per abbassare il valore a 7.2, immettere nello skimmer o direttamente in vasca circa <strong>${grammi}g</strong> di <strong>Riduttore di pH Acido</strong>.</p>`;
+            let dLimite = valore - 7.5;
+            let dIdeale = valore - 7.2;
+            let gLimite = Math.round((dLimite / 0.1) * 10 * VOL_PISCINA);
+            let gIdeale = Math.round((dIdeale / 0.1) * 10 * VOL_PISCINA);
+            
+            corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">pH Alto (${valore})</span></h3><br>
+            <p><strong>Dose minima per rientrare nei limiti (7.5):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Riduttore Acido.</p>
+            <p><strong>Dose ottimale per raggiungere la fascia ideale (7.2):</strong> aggiungere <strong>${gIdeale}g</strong> di Riduttore Acido.</p>`;
         } else if (valore < 7.0) {
-            let delta = 7.1 - valore;
-            let grammi = Math.round((delta / 0.1) * 10 * VOL_PISCINA);
-            corpoHTML += `<h3>Stato: <span style="color:#dc2626;">pH Basso (${valore})</span></h3><br>
-            <p>Il valore è sceso sotto i livelli ottimali.</p><br>
-            <p><strong>Azione consigliata:</strong> Per alzare il pH a 7.1, dosare circa <strong>${grammi}g</strong> di <strong>pH Plus (Innalzatore alcalino)</strong>.</p>`;
+            let dLimite = 6.5 - valore;
+            let dIdeale = 7.1 - valore;
+            let gLimite = Math.round((dLimite / 0.1) * 10 * VOL_PISCINA);
+            let gIdeale = Math.round((dIdeale / 0.1) * 10 * VOL_PISCINA);
+
+            corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">pH Basso (${valore})</span></h3><br>
+            <p><strong>Dose minima per rientrare nei limiti (6.5):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di pH Plus.</p>
+            <p><strong>Dose ottimale per raggiungere la fascia ideale (7.1):</strong> aggiungere <strong>${gIdeale}g</strong> di pH Plus.</p>`;
         }
     }
     else if (p === 'cl. lib' || p === 'cl. tot') {
         if (valore < 0.9) {
-            let delta = 1.1 - valore;
-            let grammiCloro = Math.round((delta / 0.1) * 1.5 * VOL_PISCINA);
-            corpoHTML += `<h3>Stato: <span style="color:#dc2626;">Cloro Insufficiente (${valore} ppm)</span></h3><br>
-            <p>Livello inferiore alla soglia ideale.</p><br>
-            <p><strong>Azione consigliata:</strong> Per riportare il disinfettante a 1.1 ppm, aggiungere uniformemente in vasca <strong>${grammiCloro}g</strong> di <strong>Ipoclorito di Calcio Granulare</strong>.</p>`;
+            let dLimite = 1.0 - valore;
+            let dIdeale = 1.1 - valore;
+            let gLimite = Math.round((dLimite / 0.1) * 1.5 * VOL_PISCINA);
+            let gIdeale = Math.round((dIdeale / 0.1) * 1.5 * VOL_PISCINA);
+
+            corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">Cloro Insufficiente (${valore} ppm)</span></h3><br>
+            <p><strong>Dose minima per rientrare nei limiti (1.0 ppm):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Ipoclorito di Calcio.</p>
+            <p><strong>Dose ottimale per raggiungere la fascia ideale (1.1 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Ipoclorito di Calcio.</p>`;
         } else if (valore > 1.2) {
-            corpoHTML += `<h3>Stato: <span style="color:#d97706;">Cloro Elevato (${valore} ppm)</span></h3><br>
-            <p>Il livello è alto ma provvisoriamente tollerato.</p><br>
-            <p><strong>Azione consigliata:</strong> Sospendere temporaneamente i dosaggi e attendere il consumo solare biologico naturale prima di riprendere i trattamenti.</p>`;
+            corpoHTML += `<h3>Stato: <span style="color:#a16207;">Cloro Elevato (${valore} ppm)</span></h3><br>
+            <p>Valore superiore alla fascia ottimale ma entro i limiti massimi di legge (2.0 ppm). Sospendere momentaneamente i dosaggi manuali e attendere il consumo solare e biologico.</p>`;
         }
     }
     else if (p === 'cl. com') {
-        corpoHTML += `<h3>Stato: <span style="color:#dc2626;">Cloro Combinato Alto (${valore} ppm)</span></h3><br>
-        <p>Le cloroammine hanno superato la soglia di benessere (0.20 ppm) o il limite dell'Allegato A (0.40 ppm).</p><br>
-        <p><strong>Azione consigliata:</strong> Valutare un ricambio parziale d'acqua o un trattamento shock localizzato per distruggere i legami chimici combinati.</p>`;
+        corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">Cloro Combinato Alto (${valore} ppm)</span></h3><br>
+        <p>Valore sopra la norma di benessere (0.20 ppm) o limite di legge (0.40 ppm). Effettuare un ricambio parziale d'acqua o un trattamento shock controllato per eliminare le cloroammine.</p>`;
     }
     else if (p === 'temp') {
         if (valore > 28) {
-            let volumeReintegro = Math.round(((valore - 27) / (valore - TEMP_REINTEGRO)) * VOL_PISCINA * 1000);
-            corpoHTML += `<h3>Stato: <span style="color:#d97706;">Temperatura Alta (${valore} °C)</span></h3><br>
-            <p>L'acqua supera il comfort ottimale (26°C - 28°C), aumentando il consumo di cloro.</p><br>
-            <p><strong>Azione consigliata:</strong> Per scendere a 27°C, effettuare un ricambio immettendo circa <strong>${volumeReintegro.toLocaleString()} Litri</strong> di acqua fresca di rete (~22°C).</p>`;
+            let lLimite = Math.round(((valore - 30) / (valore - TEMP_REINTEGRO)) * VOL_PISCINA * 1000);
+            let lIdeale = Math.round(((valore - 27) / (valore - TEMP_REINTEGRO)) * VOL_PISCINA * 1000);
+
+            corpoHTML += `<h3>Stato: <span style="color:#a16207;">Temperatura Alta (${valore} °C)</span></h3><br>
+            <p><strong>Reintegro minimo per rientrare nei limiti (30°C):</strong> immettere <strong>${lLimite > 0 ? lLimite.toLocaleString() : 0} Litri</strong> di acqua di rete.</p>
+            <p><strong>Reintegro ottimale per scendere alla fascia ideale (27°C):</strong> immettere <strong>${lIdeale.toLocaleString()} Litri</strong> di acqua fresca (~22°C).</p>`;
         } else {
-            corpoHTML += `<h3>Stato: <span style="color:#d97706;">Temperatura Bassa (${valore} °C)</span></h3><br>
-            <p>L'acqua è fresca. Nessun intervento chimico necessario.</p>`;
+            corpoHTML += `<h3>Stato: <span style="color:#a16207;">Temperatura Bassa (${valore} °C)</span></h3><br>
+            <p>Acqua sotto i 26°C. Nessun intervento chimico correttivo necessario.</p>`;
         }
     }
     else if (p === 'cya') {
-        let frazioneRicambio = (valore - 35) / valore;
-        let litriRicambio = Math.round(frazioneRicambio * VOL_PISCINA * 1000);
-        if (litriRicambio < 0) litriRicambio = 0;
+        let fLimite = (valore - 60) / valore;
+        let fIdeale = (valore - 35) / valore;
+        let lLimite = Math.round(fLimite * VOL_PISCINA * 1000);
+        let lIdeale = Math.round(fIdeale * VOL_PISCINA * 1000);
 
-        corpoHTML += `<h3>Stato: <span style="color:#dc2626;">Acido Cianurico Elevato (${valore} ppm)</span></h3><br>
-        <p>L'accumulo di stabilizzante riduce l'efficacia dell'ipoclorito.</p><br>
-        <p><strong>Azione consigliata:</strong> Per riportare la concentrazione alla quota ottimale di 35 ppm, occorre rinnovare circa <strong>${litriRicambio.toLocaleString()} Litri</strong> di acqua della vasca.</p>`;
+        corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">Acido Cianurico Elevato (${valore} ppm)</span></h3><br>
+        <p><strong>Scarico minimo per scendere sotto la soglia d'allarme (60 ppm):</strong> rinnovare <strong>${lLimite > 0 ? lLimite.toLocaleString() : 0} Litri</strong> d'acqua.</p>
+        <p><strong>Scarico ottimale per tornare al valore ideale (35 ppm):</strong> rinnovare <strong>${lIdeale.toLocaleString()} Litri</strong> d'acqua pulita.</p>`;
     }
     else if (p === 'alka') {
         if (valore < 80) {
-            let delta = 100 - valore;
-            let grammiBic = Math.round(delta * 1.7 * VOL_PISCINA);
-            corpoHTML += `<h3>Stato: <span style="color:#dc2626;">Alcalinità Bassa (${valore} ppm)</span></h3><br>
-            <p>Il pH rischia instabilità e continui sbalzi repentini.</p><br>
-            <p><strong>Azione consigliata:</strong> Per alzare il valore a 100 ppm, dosare in vasca circa <strong>${grammiBic}g</strong> di <strong>Bicarbonato di Sodio</strong>.</p>`;
+            let dLimite = 60 - valore;
+            let dIdeale = 100 - valore;
+            let gLimite = Math.round(dLimite * 1.7 * VOL_PISCINA);
+            let gIdeale = Math.round(dIdeale * 1.7 * VOL_PISCINA);
+
+            corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">Alcalinità Bassa (${valore} ppm)</span></h3><br>
+            <p><strong>Dose minima per rientrare nei limiti (60 ppm):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Bicarbonato di Sodio.</p>
+            <p><strong>Dose ottimale per raggiungere la fascia ideale (100 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Bicarbonato di Sodio.</p>`;
         } else if (valore > 120) {
-            corpoHTML += `<h3>Stato: <span style="color:#d97706;">Alcalinità Alta (${valore} ppm)</span></h3><br>
-            <p>Il pH è bloccato e difficile da modificare.</p><br>
-            <p><strong>Azione consigliata:</strong> Amministrare riduttore di pH acido a piccole dosi distribuite per abbassare gradualmente i carbonati.</p>`;
+            corpoHTML += `<h3>Stato: <span style="color:#a16207;">Alcalinità Alta (${valore} ppm)</span></h3><br>
+            <p>Il pH è rigido. Somministrare correttore acido a piccole dosi frazionate per sgretolare lentamente l'eccesso di carbonati.</p>`;
         }
     }
 
@@ -218,8 +287,9 @@ function apriGraficoChimico(chiaveFiltro, nomeParametro, coloreLinea, tipoGrafic
 
     let etichette = [];
     let valori = [];
+    let datiChimico = datiRegistriGlobali.chimico;
 
-    datiChimicoGlobali.forEach(riga => {
+    datiChimico.forEach(riga => {
         let dataOra = `${riga["Data"] || ""} ${riga["Ora"] || ""}`.trim();
         let valNum = parseFloat((riga[chiaveFiltro] || "").replace(",", "."));
         if (!isNaN(valNum) && dataOra !== "") {
@@ -273,7 +343,7 @@ function apriGraficoChimico(chiaveFiltro, nomeParametro, coloreLinea, tipoGrafic
         ];
     }
 
-    const pluginSfondoFasce = {
+    const pluginFasceSfondo = {
         id: 'boxFasceSfondo',
         beforeDraw: (chart) => {
             const { ctx, scales: { y, x } } = chart;
@@ -297,8 +367,8 @@ function apriGraficoChimico(chiaveFiltro, nomeParametro, coloreLinea, tipoGrafic
                 data: valori,
                 borderColor: coloreLinea,
                 backgroundColor: tipoGrafico === 'bar' ? coloreLinea + '88' : 'transparent',
-                borderWidth: 1,      // Linea finissima
-                pointRadius: 1,      // Punti microscopici
+                borderWidth: 1,
+                pointRadius: 1,
                 pointHoverRadius: 4,
                 tension: 0.1
             }]
@@ -311,8 +381,13 @@ function apriGraficoChimico(chiaveFiltro, nomeParametro, coloreLinea, tipoGrafic
                 x: { grid: { display: false } }
             }
         },
-        plugins: configurazioneFasce.length > 0 ? [pluginSfondoFasce] : []
+        plugins: configurazioneFasce.length > 0 ? [pluginFasceSfondo] : []
     });
+}
+
+function mostraSezione(idSezione) {
+    document.querySelectorAll(".register-section").forEach(s => s.classList.add("hidden"));
+    document.getElementById(idSezione)?.classList.remove("hidden");
 }
 
 function chiudiDosaggio() { document.getElementById("dosageModal")?.classList.add("hidden"); }
