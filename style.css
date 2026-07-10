@@ -194,26 +194,17 @@ tr:nth-child(even) td {
     cursor: pointer;
 }
 
-.hidden {
-    display: none !important;
-}/* Forza lo scorrimento direttamente sulla tabella delle manutenzioni */
+/* Prova forzata a 150px per vedere la barra */
 #manutenzioniTable {
     display: block !important;
-    max-height: 450px !important;
+    max-height: 150px !important;
     overflow-y: auto !important;
     width: 100% !important;
-}
-
-/* Blocca l'intestazione in alto durante lo scorrimento */
-#manutenzioniTable thead {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background-color: #334155;
 }
 
 #manutenzioniTable thead th {
     position: sticky;
     top: 0;
+    z-index: 10;
     background-color: #334155;
 }
