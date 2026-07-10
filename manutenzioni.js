@@ -96,9 +96,18 @@
         costruisciTabellaManutenzioniProtetta(intestazioni, righePulite);
     }
 
-   function costruisciTabellaManutenzioniProtetta(intestazioni, righe) {
+  function costruisciTabellaManutenzioniProtetta(intestazioni, righe) {
     const tabella = document.getElementById("manutenzioniTable");
     if (!tabella) return;
+
+    // Crea o recupera il contenitore per lo scorrimento verticale
+    let wrapper = tabella.parentElement;
+    if (!wrapper || !wrapper.classList.contains("manutenzioni-scroll-box")) {
+        wrapper = document.createElement("div");
+        wrapper.classList.add("manutenzioni-scroll-box");
+        tabella.parentNode.insertBefore(wrapper, tabella);
+        wrapper.appendChild(tabella);
+    }
 
     // CREA UN CONTENITORE AUTOMATICO PER LO SCORRIMENTO
     let contenitore = tabella.parentElement;
