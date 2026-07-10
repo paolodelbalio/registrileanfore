@@ -167,59 +167,41 @@ tr:hover td {
     cursor: pointer;
 }
 
-/* COSTRUZIONE CLASSI STILI CELLE COLORATE (REGISTRO CHIMICO) */
-.cell-normal {
+/* LE TUE CLASSI PERSONALIZZATE PER LE CELLE COLORATE (REGISTRO CHIMICO) */
+.evidenzia-verde {
     background-color: #d1fae5 !important;
     color: #065f46 !important;
     font-weight: bold;
+    text-align: center;
 }
 
-.cell-warning {
+.evidenzia-giallo {
     background-color: #fef3c7 !important;
     color: #92400e !important;
     font-weight: bold;
+    text-align: center;
 }
 
-.cell-alarm {
+.evidenzia-rosso {
     background-color: #fee2e2 !important;
     color: #991b1b !important;
     font-weight: bold;
+    text-align: center;
 }
 
-.btn-grafico {
-    background-color: #0066cc;
+/* PULSANTI MINI PER GRAFICI NELLE INTESTAZIONI */
+.btn-mini-grafico {
+    background-color: #475569;
     color: white;
     border: none;
-    padding: 3px 6px;
+    padding: 2px 5px;
     border-radius: 3px;
     cursor: pointer;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
+    margin-left: 5px;
+    font-weight: normal;
 }
 
-.btn-grafico:hover {
-    background-color: #004ca3;
-}
-
-/* =======================================================
-   SCORRIMENTO ISOLATO ED ELEGANTE DEL REGISTRO MANUTENZIONI
-   ======================================================= */
-
-/* Abbassiamo l'altezza massima SOLO per il riquadro delle manutenzioni */
-#manutenzioniSection .table-wrapper {
-    max-height: 380px !important; 
-    overflow-y: auto !important;   
-}
-
-/* Mantiene la struttura a tabella corretta senza trasformarla in block */
-#manutenzioniTable {
-    display: table !important;
-    width: 100% !important;
-}
-
-/* Blocca perfettamente i titoli in alto durante lo scorrimento */
-#manutenzioniTable thead th {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 20 !important;
-    background-color: #334155 !important;
+.btn-mini-grafico:hover {
+    background-color: #0066cc;
 }
