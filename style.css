@@ -193,8 +193,27 @@ tr:nth-child(even) td {
     border-radius: 4px;
     cursor: pointer;
 }
-/* Ripristino layout corretto */
+
+.hidden {
+    display: none !important;
+}/* Forza lo scorrimento direttamente sulla tabella delle manutenzioni */
 #manutenzioniTable {
-    width: 100%;
-    margin-bottom: 20px;
+    display: block !important;
+    max-height: 450px !important;
+    overflow-y: auto !important;
+    width: 100% !important;
+}
+
+/* Blocca l'intestazione in alto durante lo scorrimento */
+#manutenzioniTable thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #334155;
+}
+
+#manutenzioniTable thead th {
+    position: sticky;
+    top: 0;
+    background-color: #334155;
 }
