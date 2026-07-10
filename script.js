@@ -27,7 +27,6 @@ function caricaTuttiIRegistri() {
                 elaboraDatiTabella(chiave, risultati.data);
                 conteggioCaricamenti++;
                 
-                // Quando tutte le tabelle sono pronte, esegui lo scroll automatico all'ultimo dato + 2 righe
                 if (conteggioCaricamenti === chiavi.length) {
                     setTimeout(scrollAllUltimaRiga, 300);
                 }
@@ -50,7 +49,6 @@ function elaboraDatiTabella(chiave, righeGrezze) {
         intestazioni.forEach((intestazione, indice) => {
             let valoreCella = rigaCorrente[indice] ? rigaCorrente[indice].trim() : "";
             
-            // RIDUZIONE LARGHEZZA CYA: Isola il blocco numerico primario
             if (intestazione.toLowerCase() === 'cya' && valoreCella !== "") {
                 let match = valoreCella.match(/^([0-9.,]+)/);
                 if (match) {
@@ -145,7 +143,9 @@ function creaTabellaChimica(intestazioni, dati) {
 
             let attributoClick = "";
             if (classeColore === "evidenzia-giallo" || classeColore === "evidenzia-rosso") {
-                attributoClick = `onclick="apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeColore}')"`;
+                // Passiamo l'intero oggetto riga convertito in stringa per estrarre ospiti e temperatura correnti
+                let rigaEscaped = btoa(unescape(encodeURIComponent(JSON.stringify(riga))));
+                attributoClick = `onclick="apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeColore}', '${rigaEscaped}')"`;
             }
 
             html += `<td class="${classeColore}" ${attributoClick} style="${attributoClick !== '' ? 'cursor:pointer;' : ''}">${valoreTesto}</td>`;
@@ -175,7 +175,6 @@ function creaTabellaStandard(chiaveTabella, intestazioni, dati) {
     tabella.innerHTML = html;
 }
 
-// SCROLL ALL'ULTIMA RIGA COMPILATA DI pH PIÙ 2 VUOTE SOTTO
 function scrollAllUltimaRiga() {
     const tabellaCorpo = document.querySelector("#chimicoTable tbody");
     
@@ -222,12 +221,23 @@ function scrollAllUltimaRiga() {
     }
 }
 
-function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore) {
+function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore, rigaCriptata = "") {
     let p = parametro.toLowerCase().trim();
     const modalCard = document.querySelector(".dosage-card");
     
     let isRosso = (classeColore === "evidenzia-rosso");
     let intestazioneAllarme = "";
+    
+    // Recupero dati di contesto della riga (Ospiti e Temperatura reali registrati)
+    let ospitiCorrenti = 0;
+    let tempCorrente = 26.5; 
+    if (rigaCriptata !== "") {
+        try {
+            let rigaDecodificata = JSON.parse(decodeURIComponent(escape(atob(rigaCriptata))));
+            if (rigaDecodificata["N.Ospiti"]) ospitiCorrenti = parseInt(rigaDecodificata["N.Ospiti"]) || 0;
+            if (rigaDecodificata["Temp"]) tempCorrente = parseFloat(rigaDecodificata["Temp"].replace(",", ".")) || 26.5;
+        } catch(e) { console.log("Errore parsing parametri riga", e); }
+    }
     
     if (modalCard) {
         if (isRosso) {
@@ -265,24 +275,27 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore) {
     }
     else if (p === 'cl. lib' || p === 'cl. tot') {
         if (valore < 1.1) {
-            let dLimite = 0.9 - valore;
+            // Calcolo base basato sui carichi attuali di ospiti e temperatura inseriti in quel momento
+            let fattoreCaricoOspiti = ospitiCorrenti * 12; // 12g ad ospite registrato
+            let fattoreTemperatura = tempCorrente > 28 ? 1.4 : (tempCorrente > 26 ? 1.15 : 1.0);
+            
             let dIdeale = 1.1 - valore;
-            let gLimite = Math.round((dLimite / 0.1) * 1.5 * VOL_PISCINA);
-            let gIdeale = Math.round((dIdeale / 0.1) * 1.5 * VOL_PISCINA);
+            let baseGrammi = (dIdeale / 0.1) * 1.5 * VOL_PISCINA;
+            let gIdeale = Math.round((baseGrammi + fattoreCaricoOspiti) * fattoreTemperatura);
 
             corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Cloro Insufficiente (${valore} ppm)</span></h3><br>
-            <p style="margin-bottom:8px;"><strong>1. Dose correttiva di rientro (Soglia minima 0.9 ppm):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Ipoclorito di Calcio.</p>
-            <p><strong>2. Dose ottimale di stabilizzazione (Ideale 1.1 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Ipoclorito di Calcio.</p>`;
+            <p style="font-size:0.85rem; color:#475569; margin-bottom:8px;"><i>Analisi del contesto: Registrati ${ospitiCorrenti} ospiti con temp. acqua a ${tempCorrente}°C.</i></p>
+            <p><strong>Dose ottimale di reintegro calcolata (Ideale 1.1 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Ipoclorito di Calcio granulare.</p>`;
         } else if (valore > 1.2) {
             if (isRosso) {
-                // DOSAGGIO DECLORATORE (Sodio Tiosolfato): circa 7g/m³ per abbattere 1 ppm di eccesso fino a target 1.1 ppm
+                // DECLORATORE: Circa 7g/m³ per eliminare 1 ppm in eccesso (Scheda tecnica Sodio Tiosolfato)
                 let eccessoCloro = valore - 1.1;
                 let grammiDecloratore = Math.round(eccessoCloro * 7 * VOL_PISCINA);
 
                 corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">🚨 CRITICITÀ: Cloro Fuori Limite di Legge (${valore} ppm)</span></h3><br>
-                <p style="margin-bottom:12px; font-weight:bold; color:#b91c1c;">Il valore supera la soglia massima consentita (2.0 ppm). È obbligatorio intervenire per abbattere il cloro prima della balneazione.</p>
-                <p><strong>Azione Correttiva (Istruzioni di Etichetta):</strong></p>
-                <p style="font-size:1.05rem; margin-top:6px;">Dosare <strong>${grammiDecloratore}g</strong> di <strong>Decloratore (Sodio Tiosolfato)</strong> per ridurre il cloro e rientrare stabilmente a 1.1 ppm.</p>`;
+                <p style="margin-bottom:12px; font-weight:bold; color:#b91c1c;">Il valore supera il tetto massimo di sicurezza (2.0 ppm). Vasca non balneabile.</p>
+                <p><strong>Azione Correttiva di Etichetta:</strong></p>
+                <p style="font-size:1.05rem; margin-top:6px;">Introdurre nello skimmer o nella vasca di compenso <strong>${grammiDecloratore}g</strong> di <strong>Decloratore (Sodio Tiosolfato)</strong> per rientrare tempestivamente a quota 1.1 ppm.</p>`;
             } else {
                 corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Cloro Elevato (${valore} ppm)</span></h3><br>
                 <p>Il valore supera la fascia ideale di 1.1 ppm ma rientra nei limiti tollerati di legge (2.0 ppm). Sospendere i dosaggi manuali e attendere il normale abbattimento.</p>`;
@@ -291,19 +304,22 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore) {
     }
     else if (p === 'cl. com') {
         if (isRosso) {
-            // TRATTAMENTO SHOCK: Dosaggio di Ipoclorito di Calcio calcolato per la distruzione delle cloroammine (Breakpoint).
-            // Formula tecnica standard: Portare il cloro libero a 10 volte il valore del cloro combinato.
-            // Dose indicativa per ipoclorito commerciale (resa ~65%): ~1.5g per m³ per ogni 0.1 ppm incrementale.
-            let ppmShockNecessari = valore * 10;
-            let grammiIpocloritoShock = Math.round((ppmShockNecessari / 0.1) * 1.5 * VOL_PISCINA);
+            // TRATTAMENTO SHOCK REALISTICO (Abbattimento clorammine): 
+            // Formula corretta da scheda tecnica: ~200g di ipoclorito di calcio commerciale ogni 10 m³, 
+            // indicizzato sulla gravità dell'eccesso registrato (valore attuale) e sulle condizioni della vasca.
+            let moltiplicatoreShock = valore > 0.6 ? 250 : 200; 
+            let grammiIpocloritoShock = Math.round((moltiplicatoreShock * VOL_PISCINA) / 10);
+            
+            // Maggiorazione cautelativa legata a temperature estive elevate della rilevazione
+            if (tempCorrente > 28) grammiIpocloritoShock = Math.round(grammiIpocloritoShock * 1.15);
 
             corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">🚨 CRITICITÀ: Cloro Combinato Fuori Limite (${valore} ppm)</span></h3><br>
-            <p style="margin-bottom:12px; font-weight:bold; color:#b91c1c;">Presenza elevata di cloroammine superiore al limite di legge (0.40 ppm). Rischio forte di odore sgradevole e irritazione.</p>
-            <p><strong>Trattamento Shock Obbligatorio (Breakpoint):</strong></p>
-            <p style="font-size:1.05rem; margin-top:6px; background:#fef2f2; padding:8px; border-left:4px solid #dc2626;"> Introdurre in vasca <strong>${grammiIpocloritoShock}g</strong> di <strong>Ipoclorito di Calcio granulare</strong> per ossidare completamente ed eliminare le cloroammine legate.</p>`;
+            <p style="margin-bottom:12px; font-weight:bold; color:#b91c1c;">Presenza elevata di cloroammine superiore al limite di sicurezza (0.40 ppm).</p>
+            <p><strong>Trattamento Correttivo Shock da Scheda Tecnica:</strong></p>
+            <p style="font-size:1.05rem; margin-top:6px; background:#fef2f2; padding:10px; border-left:4px solid #dc2626;">Immettere in vasca (preferibilmente a fine giornata senza bagnanti) <strong>${grammiIpocloritoShock}g</strong> di <strong>Ipoclorito di Calcio granulare</strong> per spezzare i legami azotati e ripulire l'acqua.</p>`;
         } else {
             corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Cloro Combinato in Fasce di Avviso (${valore} ppm)</span></h3><br>
-            <p style="margin-bottom:8px;">Il parametro supera il livello ottimale di benessere (0.20 ppm) ma è sotto il limite di legge (0.40 ppm). Monitorare attentamente e favorire leggeri ricambi d'acqua di rete.</p>`;
+            <p style="margin-bottom:8px;">Il parametro supera il livello ottimale di benessere (0.20 ppm) ma è sotto il limite di legge (0.40 ppm). Monitorare e favorire leggeri ricambi d'acqua.</p>`;
         }
     }
     else if (p === 'temp') {
