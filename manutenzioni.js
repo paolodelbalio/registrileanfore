@@ -1,154 +1,95 @@
-// Gestore Isolato per il Registro Manutenzioni
+// Dashboard Piscina 2026 - Registro Chimico Integrato
 (function() {
-    const FILE_MANUTENZIONI = "REGISTRO MANUTENZIONE INTERVENTI .csv";
+    const FILE_CHIMICO = "REGISTRO_CHIMICO.csv"; // Assicurati che il nome coincida col tuo file
 
     document.addEventListener("DOMContentLoaded", () => {
-        setTimeout(caricaRegistroManutenzioniIsolato, 1200);
+        caricaRegistroChimico();
     });
 
-    function caricaRegistroManutenzioniIsolato() {
+    function caricaRegistroChimico() {
         if (typeof Papa === 'undefined') return;
-        Papa.parse(FILE_MANUTENZIONI, {
+        Papa.parse(FILE_CHIMICO, {
             download: true,
-            header: false,
-            skipEmptyLines: false,
+            header: true,
+            skipEmptyLines: true,
             complete: function(risultati) {
-                elaboraManutenzioniProtetto(risultati.data);
+                visualizzaTabellaChimica(risultati.data);
             }
         });
     }
 
-    function estraiDataManutenzione(dataStr) {
-        if (!dataStr) return null;
-        let dLower = dataStr.toLowerCase().trim();
-        
-        const mesi = {
-            "gen": 0, "feb": 1, "mar": 2, "apr": 3, "mag": 4, "giu": 5,
-            "lug": 6, "ago": 7, "set": 8, "ott": 9, "nov": 10, "dic": 11
-        };
-
-        let parti = dLower.split(/\s+/);
-        let giorno = null;
-        let mese = null;
-        let anno = 2026;
-
-        for (let p of parti) {
-            let mNum = parseInt(p);
-            if (!isNaN(mNum) && mNum > 0 && mNum <= 31) {
-                giorno = mNum;
-            }
-            for (let mKey in mesi) {
-                if (p.includes(mKey)) mese = mesi[mKey];
-            }
-            if (p.includes("202")) {
-                let aNum = parseInt(p);
-                if (!isNaN(aNum)) anno = aNum;
-            }
-        }
-
-        if (giorno !== null && mese !== null) {
-            return new Date(anno, mese, giorno);
-        }
-        return null;
-    }
-
-    function elaboraManutenzioniProtetto(righe) {
-        if (!righe || righe.length === 0) return;
-        let intestazioni = righe[0].map(h => h ? h.replace(/["']/g, "").trim() : "");
-        let righePulite = righe.slice(1).filter(r => r.some(cella => cella && cella.trim() !== ""));
-        costruisciTabellaManutenzioniProtetta(intestazioni, righePulite);
-    }
-
-    function costruisciTabellaManutenzioniProtetta(intestazioni, righe) {
-        const tabella = document.getElementById("manutenzioniTable");
+    function visualizzaTabellaChimica(dati) {
+        const tabella = document.getElementById("chimicoTable");
         if (!tabella) return;
 
-        let idxDataMan = intestazioni.findIndex(h => h.toLowerCase().trim() === "data");
-        let idxInterventoMan = intestazioni.findIndex(h => h.toLowerCase().trim() === "intervento");
+        let html = `<thead>
+            <tr>
+                <th>Data</th>
+                <th>Ora</th>
+                <th>pH <button class="btn-mini-grafico" onclick="mostraGrafico('pH')">📈</button></th>
+                <th>Cl. Lib <button class="btn-mini-grafico" onclick="mostraGrafico('ClLib')">📈</button></th>
+                <th>Cl. Tot</th>
+                <th>Cl. Com</th>
+                <th>Temp</th>
+                <th>N.Ospiti</th>
+                <th>Cya</th>
+                <th>Alka</th>
+                <th>Note</th>
+            </tr>
+        </thead><tbody>`;
 
-        let giorniControlavaggio = 99;
-        let giorniCestelli = 99;
-        let giorniPrefiltro = 99;
+        dati.forEach(riga => {
+            if (!riga.Data && !riga.Ora) return;
 
-        if (idxDataMan !== -1 && idxInterventoMan !== -1) {
-            let uControlavaggio = null;
-            let uCestelli = null;
-            let uPrefiltro = null;
+            let phVal = riga.pH ? riga.pH.replace(',', '.') : "";
+            let clVal = riga["Cl. Lib"] ? riga["Cl. Lib"].replace(',', '.') : "";
 
-            for (let i = 0; i < righe.length; i++) { 
-                let tIntervento = (righe[i][idxInterventoMan] || "").toLowerCase().trim();
-                let dObj = estraiDataManutenzione(righe[i][idxDataMan]);
+            let classePh = applicaFiltroColore(parseFloat(phVal), 7.2, 7.4, 7.3);
+            let classeCl = applicaFiltroColore(parseFloat(clVal), 1.0, 1.2, 1.1);
 
-                if (dObj && !isNaN(dObj.getTime())) {
-                    if (tIntervento.includes("controlavaggio")) uControlavaggio = dObj;
-                    if (tIntervento.includes("cestelli")) uCestelli = dObj;
-                    if (tIntervento.includes("prefiltro")) uPrefiltro = dObj;
-                }
-            }
-
-            let oggi = new Date();
-            oggi.setHours(0,0,0,0);
-
-            if (uControlavaggio) giorniControlavaggio = Math.floor((oggi - uControlavaggio) / (1000 * 60 * 60 * 24));
-            if (uCestelli) giorniCestelli = Math.floor((oggi - uCestelli) / (1000 * 60 * 60 * 24));
-            if (uPrefiltro) giorniPrefiltro = Math.floor((oggi - uPrefiltro) / (1000 * 60 * 60 * 24));
-        }
-
-        let html = "<thead><tr>";
-        intestazioni.forEach(h => { html += `<th>${h}</th>`; });
-        html += "</tr></thead><tbody>";
-
-        righe.forEach((riga) => {
-            html += "<tr>";
-            riga.forEach(cella => {
-                let testo = cella ? cella.replace(/["']/g, "").trim() : "";
-                html += `<td>${testo}</td>`;
-            });
-            html += "</tr>";
+            html += `<tr>
+                <td>${riga.Data || ''}</td>
+                <td>${riga.Ora || ''}</td>
+                <td class="${classePh}">${riga.pH || ''}</td>
+                <td class="${classeCl}">${riga["Cl. Lib"] || ''}</td>
+                <td>${riga["Cl. Tot"] || ''}</td>
+                <td>${riga["Cl. Com"] || ''}</td>
+                <td>${riga.Temp || ''}</td>
+                <td>${riga["N.Ospiti"] || ''}</td>
+                <td>${riga.Cya || ''}</td>
+                <td>${riga.Alka || ''}</td>
+                <td>${riga.Note || ''}</td>
+            </tr>`;
         });
+
         html += "</tbody>";
         tabella.innerHTML = html;
-
-        aggiornaPannelloScadenzeFisso(giorniControlavaggio, giorniCestelli, giorniPrefiltro);
+        
+        // Esegue l'analisi per generare eventuali consigli o popup dosaggi
+        generaConsigliDosaggio(dati);
     }
 
-    function aggiornaPannelloScadenzeFisso(ggFiltro, ggCestelli, ggPrefiltro) {
-        let sFiltro = ggFiltro === 99 ? "Nessun dato" : `Fatto ${ggFiltro} giorni fa`;
-        let sCestelli = ggCestelli === 99 ? "Nessun dato" : `Fatto ${ggCestelli} giorni fa`;
-        let sPrefiltro = ggPrefiltro === 99 ? "Nessun dato" : `Fatto ${ggPrefiltro} giorni fa`;
+    function applicaFiltroColore(valore, min, max, perfetto) {
+        if (isNaN(valore) || valore === 0) return "";
+        if (valore === perfetto) return "evidenzia-verde";
+        if (valore >= min && valore <= max) return "evidenzia-giallo";
+        return "evidenzia-rosso";
+    }
 
-        let containerVecchio = document.getElementById("manutenzioniScadenzeBox");
-        if (containerVecchio) containerVecchio.remove();
-
-        let htmlPopup = `
-        <div id="manutenzioniScadenzeBox" style="margin-bottom:20px; padding:15px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px;">
-            <h3 style="color:#0066cc; margin-bottom:10px; font-size:1.05rem;">Stato Scadenze Interventi</h3>
-            <table style="width:100%; font-size:0.85rem; border-collapse:collapse;">
-                <tr style="border-bottom:2px solid #e2e8f0; background:#f8fafc;">
-                    <th style="padding:10px; color:#0066cc;">OPERAZIONE</th>
-                    <th style="padding:10px; color:#0066cc;">STATO ATTUALE</th>
-                </tr>
-                <tr style="border-bottom:1px solid #e2e8f0;">
-                    <td style="padding:10px; font-weight:bold;">Controlavaggio</td>
-                    <td style="padding:10px; color:${ggFiltro > 4 ? '#ef4444' : '#10b981'}; font-weight:bold;">${sFiltro}</td>
-                </tr>
-                <tr style="border-bottom:1px solid #e2e8f0;">
-                    <td style="padding:10px; font-weight:bold;">Pulizia cestelli</td>
-                    <td style="padding:10px; color:${ggCestelli > 3 ? '#ef4444' : '#10b981'}; font-weight:bold;">${sCestelli}</td>
-                </tr>
-                <tr>
-                    <td style="padding:10px; font-weight:bold;">Pulizia prefiltro</td>
-                    <td style="padding:10px; color:${ggPrefiltro > 15 ? '#ef4444' : '#10b981'}; font-weight:bold;">${sPrefiltro}</td>
-                </tr>
-            </table>
-        </div>`;
-
-        const sez = document.getElementById("manutenzioniSection");
-        if (sez) {
-            let wrapper = sez.querySelector(".table-wrapper");
-            if (wrapper) {
-                wrapper.insertAdjacentHTML('beforebegin', htmlPopup);
-            }
+    function generaConsigliDosaggio(dati) {
+        // Logica interna per l'elaborazione dei parametri ideali e dei messaggi di allarme
+        if(!dati || dati.length === 0) return;
+        const ultimaRiga = dati[dati.length - 1];
+        
+        let cyaVal = ultimaRiga.Cya ? parseFloat(ultimaRiga.Cya.replace(',', '.')) : 0;
+        if (cyaVal >= 60) {
+            console.log("Allarme CYA: Soglia limite superata!"); // Notifica di sicurezza a 60ppm
         }
     }
 })();
+
+// Funzione globale per l'apertura dei grafici associati ai pulsanti mini
+function mostraGrafico(parametro) {
+    alert("Apertura andamento storico per: " + parametro);
+    // Qui si aggancia la logica di Chart.js configurata ieri
+}
