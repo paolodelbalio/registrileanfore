@@ -99,21 +99,21 @@ tr:nth-child(even) td {
     background-color: #f8fafc;
 }
 
-/* CLASSI DI EVIDENZIAZIONE RIFERIMENTO FOTO 1 (CON ROSSO SCURO DECISO) */
+/* COLORI COMPATTI IN TRASPARENZA (STILE ORIGINALE MA SOFT) */
 .evidenzia-verde {
-    background-color: #bbf7d0 !important; /* Verde chiaro originale */
+    background-color: rgba(187, 247, 208, 0.5) !important; /* Verde leggero */
     color: #166534 !important;
     font-weight: bold;
 }
 
 .evidenzia-giallo {
-    background-color: #fef08a !important; /* Giallo chiaro originale */
+    background-color: rgba(254, 240, 138, 0.5) !important; /* Giallo leggero */
     color: #854d0e !important;
     font-weight: bold;
 }
 
 .evidenzia-rosso {
-    background-color: #fca5a5 !important; /* Rosso decisamente più scuro e marcato, addio rosa sbiadito */
+    background-color: rgba(252, 165, 165, 0.6) !important; /* Rosso trasparente ma distinto dal giallo */
     color: #991b1b !important;
     font-weight: bold;
 }
@@ -122,7 +122,7 @@ tr:nth-child(even) td {
     display: none !important;
 }
 
-/* OVERLAY E MODALI */
+/* OVERLAY E FINESTRE DI DIAGNOSTICA */
 .overlay {
     position: fixed;
     top: 0;
@@ -151,10 +151,19 @@ tr:nth-child(even) td {
     background: white;
     padding: 25px;
     border-radius: 8px;
-    max-width: 500px;
+    max-width: 520px;
     width: 90%;
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     position: relative;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease-in-out;
+}
+
+/* STILE ENFASI SEGNALAZIONE ROSSA/CRITICA */
+.dosage-card.modal-critica {
+    border: 3px solid #dc2626 !important;
+    background-color: #fffdfd;
+    box-shadow: 0 10px 25px rgba(220, 38, 38, 0.25);
 }
 
 .overlay-close {
