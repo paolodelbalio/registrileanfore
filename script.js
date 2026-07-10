@@ -15,13 +15,22 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function caricaTuttiIRegistri() {
-    Object.keys(FILE_REGISTRI).forEach(chiave => {
+    let conteggioCaricamenti = 0;
+    let chiavi = Object.keys(FILE_REGISTRI);
+
+    chiavi.forEach(chiave => {
         Papa.parse(FILE_REGISTRI[chiave], {
             download: true,
             header: false,
             skipEmptyLines: true,
             complete: function(risultati) {
                 elaboraDatiTabella(chiave, risultati.data);
+                conteggioCaricamenti++;
+                
+                // Quando tutte le tabelle sono pronte, esegui lo scroll automatico all'ultimo dato + 2 righe
+                if (conteggioCaricamenti === chiavi.length) {
+                    setTimeout(scrollAllUltimaRiga, 300);
+                }
             }
         });
     });
@@ -41,7 +50,7 @@ function elaboraDatiTabella(chiave, righeGrezze) {
         intestazioni.forEach((intestazione, indice) => {
             let valoreCella = rigaCorrente[indice] ? rigaCorrente[indice].trim() : "";
             
-            // RIDUZIONE LARGHEZZA CYA: Prende solo la prima misurazione numerica
+            // RIDUZIONE LARGHEZZA CYA: Isola il blocco numerico primario
             if (intestazione.toLowerCase() === 'cya' && valoreCella !== "") {
                 let match = valoreCella.match(/^([0-9.,]+)/);
                 if (match) {
@@ -58,7 +67,6 @@ function elaboraDatiTabella(chiave, righeGrezze) {
 
     if (chiave === 'chimico') {
         creaTabellaChimica(intestazioni, datiFormattati);
-        analizzaUltimaRigaPerAllarmeAutomatico(datiFormattati);
     } else {
         creaTabellaStandard(chiave, intestazioni, datiFormattati);
     }
@@ -167,11 +175,64 @@ function creaTabellaStandard(chiaveTabella, intestazioni, dati) {
     tabella.innerHTML = html;
 }
 
+// SCROLL ALL'ULTIMA RIGA COMPILATA DI pH PIÙ 2 VUOTE SOTTO
+function scrollAllUltimaRiga() {
+    const tabellaCorpo = document.querySelector("#chimicoTable tbody");
+    
+    if (tabellaCorpo && tabellaCorpo.rows.length > 0) {
+        let indiceUltimaCompilata = -1;
+        const righe = tabellaCorpo.rows;
+
+        // 1. Identifica l'indice esatto della colonna pH guardando l'head
+        let indiceColonnaPH = 2; // Default prudenziale
+        const ths = document.querySelectorAll("#chimicoTable thead th");
+        ths.forEach((th, idx) => {
+            if (th.textContent.trim().toLowerCase() === 'ph') {
+                indiceColonnaPH = idx;
+            }
+        });
+
+        // 2. Trova l'ultimo record che ha un pH scritto (dal basso verso l'alto)
+        for (let i = righe.length - 1; i >= 0; i--) {
+            let cellaPH = righe[i].cells[indiceColonnaPH];
+            if (cellaPH && cellaPH.textContent.trim() !== "") {
+                indiceUltimaCompilata = i;
+                break;
+            }
+        }
+
+        // Fallback di sicurezza se l'intera colonna pH fosse vuota
+        if (indiceUltimaCompilata === -1) {
+            indiceUltimaCompilata = righe.length - 1;
+        }
+
+        // 3. Calcola l'indice target spostandoti di 2 righe sotto
+        let indiceTarget = indiceUltimaCompilata + 2;
+        
+        // Evita di sforare le righe totali realmente disponibili nella tabella
+        if (indiceTarget >= righe.length) {
+            indiceTarget = righe.length - 1;
+        }
+
+        // 4. Esegui lo scroll fluido sulla riga vuota calcolata
+        let rigaTarget = righe[indiceTarget];
+        rigaTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+        
+        // 5. Evidenzia visivamente l'ultimo record reale per orientarsi al colpo d'occhio
+        let rigaCompilata = righe[indiceUltimaCompilata];
+        rigaCompilata.style.transition = "background-color 0.5s";
+        let colorePrecedente = rigaCompilata.style.backgroundColor;
+        rigaCompilata.style.backgroundColor = "rgba(14, 165, 233, 0.15)";
+        setTimeout(() => {
+            rigaCompilata.style.backgroundColor = colorePrecedente;
+        }, 1500);
+    }
+}
+
 function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore) {
     let p = parametro.toLowerCase().trim();
     const modalCard = document.querySelector(".dosage-card");
     
-    // Gestione Enfasi Rossa vs Gialla
     let isRosso = (classeColore === "evidenzia-rosso");
     let intestazioneAllarme = "";
     
@@ -191,43 +252,43 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore) {
     if (p === 'ph') {
         if (valore > 7.3) {
             let dLimite = valore - 7.5;
-            let dIdeale = valore - 7.2;
+            let dIdeale = valore - 7.3;
             let gLimite = Math.round((dLimite / 0.1) * 10 * VOL_PISCINA);
             let gIdeale = Math.round((dIdeale / 0.1) * 10 * VOL_PISCINA);
             
             corpoHTML += `<h3>Stato: <span style="color:#991b1b;">pH Alto (${valore})</span></h3><br>
             <p style="margin-bottom:8px;"><strong>1. Dose correttiva di rientro (Limite 7.5):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Riduttore Acido.</p>
-            <p><strong>2. Dose ottimale di stabilizzazione (Ideale 7.2):</strong> aggiungere <strong>${gIdeale}g</strong> di Riduttore Acido.</p>`;
+            <p><strong>2. Dose ottimale di stabilizzazione (Ideale 7.3):</strong> aggiungere <strong>${gIdeale}g</strong> di Riduttore Acido.</p>`;
         } else if (valore < 7.0) {
             let dLimite = 6.5 - valore;
-            let dIdeale = 7.1 - valore;
+            let dIdeale = 7.3 - valore;
             let gLimite = Math.round((dLimite / 0.1) * 10 * VOL_PISCINA);
             let gIdeale = Math.round((dIdeale / 0.1) * 10 * VOL_PISCINA);
 
             corpoHTML += `<h3>Stato: <span style="color:#991b1b;">pH Basso (${valore})</span></h3><br>
             <p style="margin-bottom:8px;"><strong>1. Dose correttiva di rientro (Limite 6.5):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di pH Plus.</p>
-            <p><strong>2. Dose ottimale di stabilizzazione (Ideale 7.1):</strong> aggiungere <strong>${gIdeale}g</strong> di pH Plus.</p>`;
+            <p><strong>2. Dose ottimale di stabilizzazione (Ideale 7.3):</strong> aggiungere <strong>${gIdeale}g</strong> di pH Plus.</p>`;
         }
     }
     else if (p === 'cl. lib' || p === 'cl. tot') {
-        if (valore < 0.9) {
-            let dLimite = 1.0 - valore;
+        if (valore < 1.1) {
+            let dLimite = 0.9 - valore;
             let dIdeale = 1.1 - valore;
             let gLimite = Math.round((dLimite / 0.1) * 1.5 * VOL_PISCINA);
             let gIdeale = Math.round((dIdeale / 0.1) * 1.5 * VOL_PISCINA);
 
             corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Cloro Insufficiente (${valore} ppm)</span></h3><br>
-            <p style="margin-bottom:8px;"><strong>1. Dose correttiva di rientro (Limite 1.0 ppm):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Ipoclorito di Calcio.</p>
+            <p style="margin-bottom:8px;"><strong>1. Dose correttiva di rientro (Soglia minima 0.9 ppm):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Ipoclorito di Calcio.</p>
             <p><strong>2. Dose ottimale di stabilizzazione (Ideale 1.1 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Ipoclorito di Calcio.</p>`;
         } else if (valore > 1.2) {
             corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Cloro Elevato (${valore} ppm)</span></h3><br>
-            <p>Il valore supera la fascia ideale ma rientra nei limiti tollerati di legge (2.0 ppm). Sospendere i dosaggi manuali e attendere il normale abbattimento biologico.</p>`;
+            <p>Il valore supera la fascia ideale di 1.1 ppm ma rientra nei limiti tollerati di legge (2.0 ppm). Sospendere i dosaggi manuali e attendere il normale abbattimento.</p>`;
         }
     }
     else if (p === 'cl. com') {
         corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Cloro Combinato Alto (${valore} ppm)</span></h3><br>
         <p style="margin-bottom:8px;"><strong>Valore di Soglia:</strong> Massimo di benessere 0.20 ppm, Limite di legge 0.40 ppm.</p>
-        <p>Effettuare un ricambio d'acqua parziale o attivare un ciclo shock localizzato per eliminare le cloroammine e ripristinare la trasparenza.</p>`;
+        <p>Effettuare un ricambio d'acqua parziale o attivare un ciclo shock localizzato per eliminare le cloroammine.</p>`;
     }
     else if (p === 'temp') {
         if (valore > 28) {
@@ -239,7 +300,7 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore) {
             <p><strong>2. Immissione ottimale di benessere (Ideale 27°C):</strong> introdurre <strong>${lIdeale.toLocaleString()} Litri</strong> di acqua fresca di rete.</p>`;
         } else {
             corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Temperatura Bassa (${valore} °C)</span></h3><br>
-            <p>Temperatura sotto i 26°C. Funzionamento regolare, nessun reintegro termico richiesto.</p>`;
+            <p>Nessun reintegro termico richiesto.</p>`;
         }
     }
     else if (p === 'cya') {
@@ -264,7 +325,7 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore) {
             <p><strong>2. Dose ottimale di stabilizzazione (Ideale 100 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Bicarbonato di Sodio.</p>`;
         } else if (valore > 120) {
             corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Alcalinità Alta (${valore} ppm)</span></h3><br>
-            <p>Effetto tampone rigido. Frazionare piccole dosi di riduttore acido per ammorbidire gradualmente i carbonati in eccesso.</p>`;
+            <p>Effetto tampone rigido. Frazionare piccole dosi di riduttore acido.</p>`;
         }
     }
 
@@ -276,20 +337,12 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore) {
     }
 }
 
-function analizzaUltimaRigaPerAllarmeAutomatico(dati) {
-    if (dati.length === 0) return;
-    let ultimaRiga = dati[dati.length - 1];
-
-    let ph = parseFloat((ultimaRiga["pH"] || "").replace(",", "."));
-    let cl = parseFloat((ultimaRiga["Cl. Lib"] || "").replace(",", "."));
-    let cya = parseFloat((ultimaRiga["Cya"] || "").replace(",", "."));
-
-    if (!isNaN(ph) && (ph > 7.4 || ph < 7.0)) {
-        apriConsiglioDettagliato('pH', ph, `${ultimaRiga.Data || ''} ${ultimaRiga.Ora || ''}`, 'evidenzia-rosso');
-    } else if (!isNaN(cl) && cl < 0.9) {
-        apriConsiglioDettagliato('Cl. Lib', cl, `${ultimaRiga.Data || ''} ${ultimaRiga.Ora || ''}`, 'evidenzia-rosso');
-    } else if (!isNaN(cya) && cya >= 60) {
-        apriConsiglioDettagliato('Cya', cya, `${ultimaRiga.Data || ''} ${ultimaRiga.Ora || ''}`, 'evidenzia-rosso');
+function mostraSezione(idSezione) {
+    document.querySelectorAll(".register-section").forEach(s => s.classList.add("hidden"));
+    document.getElementById(idSezione)?.classList.remove("hidden");
+    
+    if (idSezione === 'chimicoSection') {
+        setTimeout(scrollAllUltimaRiga, 150);
     }
 }
 
@@ -399,11 +452,6 @@ function apriGraficoChimico(chiaveFiltro, nomeParametro, coloreLinea, tipoGrafic
         },
         plugins: configurazioneFasce.length > 0 ? [pluginFasceSfondo] : []
     });
-}
-
-function mostraSezione(idSezione) {
-    document.querySelectorAll(".register-section").forEach(s => s.classList.add("hidden"));
-    document.getElementById(idSezione)?.classList.remove("hidden");
 }
 
 function chiudiDosaggio() { document.getElementById("dosageModal")?.classList.add("hidden"); }
