@@ -1,6 +1,7 @@
 let graficoCorrente = null;
 let datiChimicoGlobali = [];
 const VOL_PISCINA = 92; // 92 m³ costanti
+const TEMP_REINTEGRO = 22.0;
 
 document.addEventListener("DOMContentLoaded", () => {
     caricaRegistroChimico();
@@ -15,7 +16,7 @@ function caricaRegistroChimico() {
             if (risultati.data && risultati.data.length > 0) {
                 datiChimicoGlobali = risultati.data;
                 creaTabellaChimica(risultati.data);
-                analizzaParametriECalcolaDosaggi(risultati.data);
+                analizzaUltimaRigaPerAllarmeAutomatico(risultati.data);
             }
         }
     });
@@ -25,48 +26,36 @@ function ottieniClasseColore(parametro, v) {
     if (isNaN(v)) return "";
     let p = parametro.toLowerCase().trim();
 
-    // pH: verde (7.0-7.3), giallo sotto (6.5-7.0) o sopra (7.3-7.5), rosso fuori (<6.5 o >7.5)
     if (p === 'ph') {
         if (v >= 7.0 && v <= 7.3) return "evidenzia-verde";
         if ((v >= 6.5 && v < 7.0) || (v > 7.3 && v <= 7.5)) return "evidenzia-giallo";
         return "evidenzia-rosso";
     }
-
-    // Cloro Libero / Cloro Totale: verde (0.9-1.2), giallo sotto (0.7-0.9) o sopra (1.2-2.0), rosso fuori (<0.7 o >2.0)
     if (p === 'cl. lib' || p === 'cl. tot') {
         if (v >= 0.9 && v <= 1.2) return "evidenzia-verde";
         if ((v >= 0.7 && v < 0.9) || (v > 1.2 && v <= 2.0)) return "evidenzia-giallo";
         return "evidenzia-rosso";
     }
-
-    // Cloro Combinato: verde (<=0.2), giallo (0.2-0.4), rosso (>0.4)
     if (p === 'cl. com') {
         if (v <= 0.20) return "evidenzia-verde";
         if (v > 0.20 && v <= 0.40) return "evidenzia-giallo";
         return "evidenzia-rosso";
     }
-
-    // Temperatura: verde (26-28), giallo sotto (<26 fino a 24) o sopra (28-30), rosso (<24 o >30)
     if (p === 'temp') {
         if (v >= 26 && v <= 28) return "evidenzia-verde";
         if ((v >= 24 && v < 26) || (v > 28 && v <= 30)) return "evidenzia-giallo";
         return "evidenzia-rosso";
     }
-
-    // CYA: verde (0-40), giallo (40-60), rosso (>60)
     if (p === 'cya') {
         if (v >= 0 && v <= 40) return "evidenzia-verde";
         if (v > 40 && v <= 60) return "evidenzia-giallo";
         return "evidenzia-rosso";
     }
-
-    // Alcalinità: verde (80-120), giallo (60-80 o 120-150), rosso (<60 o >150)
     if (p === 'alka') {
         if (v >= 80 && v <= 120) return "evidenzia-verde";
         if ((v >= 60 && v < 80) || (v > 120 && v <= 150)) return "evidenzia-giallo";
         return "evidenzia-rosso";
     }
-
     return "";
 }
 
@@ -107,9 +96,13 @@ function creaTabellaChimica(dati) {
 
             let vNum = parseFloat(valoreTesto.replace(",", "."));
             let classeColore = ottieniClasseColore(chiave, vNum);
-            let tipoGrafico = (n === 'n.ospiti') ? 'bar' : 'line';
 
-            html += `<td class="${classeColore}" onclick="apriGraficoChimico('${chiave}', '${chiave}', '#0066cc', '${tipoGrafico}')" style="cursor:pointer;">${valoreTesto}</td>`;
+            let attributoClick = "";
+            if (classeColore === "evidenzia-giallo" || classeColore === "evidenzia-rosso") {
+                attributoClick = `onclick="apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}')"`;
+            }
+
+            html += `<td class="${classeColore}" ${attributoClick} style="${attributoClick !== '' ? 'cursor:pointer;' : ''}">${valoreTesto}</td>`;
         });
         html += "</tr>";
     });
@@ -118,50 +111,100 @@ function creaTabellaChimica(dati) {
     tabella.innerHTML = html;
 }
 
-function analizzaParametriECalcolaDosaggi(dati) {
+function apriConsiglioDettagliato(parametro, valore, dataOra) {
+    let p = parametro.toLowerCase().trim();
+    let titoloModale = `Diagnostica Parametro: ${parametro}`;
+    let corpoHTML = `<p style='font-size:0.85rem; color:#64748b; margin-bottom: 10px;'>Rilevazione del ${dataOra}</p>`;
+
+    if (p === 'ph') {
+        if (valore > 7.3) {
+            let delta = valore - 7.2;
+            let grammi = Math.round((delta / 0.1) * 10 * VOL_PISCINA);
+            corpoHTML += `<h3>Stato: <span style="color:#dc2626;">pH Alto (${valore})</span></h3><br>
+            <p>Il valore misurato è superiore al limite ideale (7.0 - 7.3).</p><br>
+            <p><strong>Azione consigliata:</strong> Per abbassare il valore a 7.2, immettere nello skimmer o direttamente in vasca circa <strong>${grammi}g</strong> di <strong>Riduttore di pH Acido</strong>.</p>`;
+        } else if (valore < 7.0) {
+            let delta = 7.1 - valore;
+            let grammi = Math.round((delta / 0.1) * 10 * VOL_PISCINA);
+            corpoHTML += `<h3>Stato: <span style="color:#dc2626;">pH Basso (${valore})</span></h3><br>
+            <p>Il valore è sceso sotto i livelli ottimali.</p><br>
+            <p><strong>Azione consigliata:</strong> Per alzare il pH a 7.1, dosare circa <strong>${grammi}g</strong> di <strong>pH Plus (Innalzatore alcalino)</strong>.</p>`;
+        }
+    }
+    else if (p === 'cl. lib' || p === 'cl. tot') {
+        if (valore < 0.9) {
+            let delta = 1.1 - valore;
+            let grammiCloro = Math.round((delta / 0.1) * 1.5 * VOL_PISCINA);
+            corpoHTML += `<h3>Stato: <span style="color:#dc2626;">Cloro Insufficiente (${valore} ppm)</span></h3><br>
+            <p>Livello inferiore alla soglia ideale.</p><br>
+            <p><strong>Azione consigliata:</strong> Per riportare il disinfettante a 1.1 ppm, aggiungere uniformemente in vasca <strong>${grammiCloro}g</strong> di <strong>Ipoclorito di Calcio Granulare</strong>.</p>`;
+        } else if (valore > 1.2) {
+            corpoHTML += `<h3>Stato: <span style="color:#d97706;">Cloro Elevato (${valore} ppm)</span></h3><br>
+            <p>Il livello è alto ma provvisoriamente tollerato.</p><br>
+            <p><strong>Azione consigliata:</strong> Sospendere temporaneamente i dosaggi e attendere il consumo solare biologico naturale prima di riprendere i trattamenti.</p>`;
+        }
+    }
+    else if (p === 'cl. com') {
+        corpoHTML += `<h3>Stato: <span style="color:#dc2626;">Cloro Combinato Alto (${valore} ppm)</span></h3><br>
+        <p>Le cloroammine hanno superato la soglia di benessere (0.20 ppm) o il limite dell'Allegato A (0.40 ppm).</p><br>
+        <p><strong>Azione consigliata:</strong> Valutare un ricambio parziale d'acqua o un trattamento shock localizzato per distruggere i legami chimici combinati.</p>`;
+    }
+    else if (p === 'temp') {
+        if (valore > 28) {
+            let volumeReintegro = Math.round(((valore - 27) / (valore - TEMP_REINTEGRO)) * VOL_PISCINA * 1000);
+            corpoHTML += `<h3>Stato: <span style="color:#d97706;">Temperatura Alta (${valore} °C)</span></h3><br>
+            <p>L'acqua supera il comfort ottimale (26°C - 28°C), aumentando il consumo di cloro.</p><br>
+            <p><strong>Azione consigliata:</strong> Per scendere a 27°C, effettuare un ricambio immettendo circa <strong>${volumeReintegro.toLocaleString()} Litri</strong> di acqua fresca di rete (~22°C).</p>`;
+        } else {
+            corpoHTML += `<h3>Stato: <span style="color:#d97706;">Temperatura Bassa (${valore} °C)</span></h3><br>
+            <p>L'acqua è fresca. Nessun intervento chimico necessario.</p>`;
+        }
+    }
+    else if (p === 'cya') {
+        let frazioneRicambio = (valore - 35) / valore;
+        let litriRicambio = Math.round(frazioneRicambio * VOL_PISCINA * 1000);
+        if (litriRicambio < 0) litriRicambio = 0;
+
+        corpoHTML += `<h3>Stato: <span style="color:#dc2626;">Acido Cianurico Elevato (${valore} ppm)</span></h3><br>
+        <p>L'accumulo di stabilizzante riduce l'efficacia dell'ipoclorito.</p><br>
+        <p><strong>Azione consigliata:</strong> Per riportare la concentrazione alla quota ottimale di 35 ppm, occorre rinnovare circa <strong>${litriRicambio.toLocaleString()} Litri</strong> di acqua della vasca.</p>`;
+    }
+    else if (p === 'alka') {
+        if (valore < 80) {
+            let delta = 100 - valore;
+            let grammiBic = Math.round(delta * 1.7 * VOL_PISCINA);
+            corpoHTML += `<h3>Stato: <span style="color:#dc2626;">Alcalinità Bassa (${valore} ppm)</span></h3><br>
+            <p>Il pH rischia instabilità e continui sbalzi repentini.</p><br>
+            <p><strong>Azione consigliata:</strong> Per alzare il valore a 100 ppm, dosare in vasca circa <strong>${grammiBic}g</strong> di <strong>Bicarbonato di Sodio</strong>.</p>`;
+        } else if (valore > 120) {
+            corpoHTML += `<h3>Stato: <span style="color:#d97706;">Alcalinità Alta (${valore} ppm)</span></h3><br>
+            <p>Il pH è bloccato e difficile da modificare.</p><br>
+            <p><strong>Azione consigliata:</strong> Amministrare riduttore di pH acido a piccole dosi distribuite per abbassare gradualmente i carbonati.</p>`;
+        }
+    }
+
+    const modal = document.getElementById("dosageModal");
+    const contenitore = document.getElementById("dosageContent");
+    if (modal && contenitore) {
+        contenitore.innerHTML = `<h2>${titoloModale}</h2><br>${corpoHTML}`;
+        modal.classList.remove("hidden");
+    }
+}
+
+function analizzaUltimaRigaPerAllarmeAutomatico(dati) {
     if (dati.length === 0) return;
     let ultimaRiga = dati[dati.length - 1];
 
     let ph = parseFloat((ultimaRiga["pH"] || "").replace(",", "."));
     let cl = parseFloat((ultimaRiga["Cl. Lib"] || "").replace(",", "."));
     let cya = parseFloat((ultimaRiga["Cya"] || "").replace(",", "."));
-    let alka = parseFloat((ultimaRiga["Alka"] || "").replace(",", "."));
 
-    let consigli = [];
-
-    if (!isNaN(ph) && ph > 7.3) {
-        let delta = ph - 7.2; // Riporta a un valore ottimale sicuro
-        let grammi = Math.round((delta / 0.1) * 10 * VOL_PISCINA);
-        consigli.push(`<strong>pH Alto (${ph}):</strong> Immettere circa <strong>${gramms}g</strong> di riduttore acido granulare per scendere nella fascia ottimale.`);
-    } else if (!isNaN(ph) && ph < 7.0) {
-        let delta = 7.1 - ph;
-        let grammi = Math.round((delta / 0.1) * 10 * VOL_PISCINA);
-        consigli.push(`<strong>pH Basso (${ph}):</strong> Aggiungere circa <strong>${grammi}g</strong> di innalzatore pH Plus.`);
-    }
-
-    if (!isNaN(cl) && cl < 0.9) {
-        let delta = 1.1 - cl;
-        let grammiCloro = Math.round((delta / 0.1) * 1.5 * VOL_PISCINA);
-        consigli.push(`<strong>Cloro Libero Basso (${cl} ppm):</strong> Aggiungere <strong>${grammiCloro}g</strong> di ipoclorito di calcio granulare.`);
-    }
-
-    if (!isNaN(cya) && cya > 50) {
-        consigli.push(`<strong>⚠️ ACIDO CIANURICO ELEVATO (${cya} ppm):</strong> Livello vicino al blocco dell'acqua o fuori limite. Sospendere prodotti stabilizzati e integrare acqua pulita.`);
-    }
-
-    if (!isNaN(alka) && alka < 80) {
-        let delta = 100 - alka;
-        let grammiBic = Math.round(delta * 1.7 * VOL_PISCINA);
-        consigli.push(`<strong>Alcalinità Bassa (${alka} ppm):</strong> Per stabilizzare il pH ed evitare sbalzi repentinei, aggiungere circa <strong>${grammiBic}g</strong> di bicarbonato di sodio.`);
-    }
-
-    if (consigli.length > 0) {
-        const modal = document.getElementById("dosageModal");
-        const contenitore = document.getElementById("dosageContent");
-        if (modal && contenitore) {
-            contenitore.innerHTML = `<h3>📋 Consigli di Trattamento Vasca (92 m³)</h3><br><p>${consigli.join('</p><br><p>')}</p>`;
-            modal.classList.remove("hidden");
-        }
+    if (!isNaN(ph) && (ph > 7.4 || ph < 7.0)) {
+        apriConsiglioDettagliato('pH', ph, `${ultimaRiga.Data || ''} ${ultimaRiga.Ora || ''}`);
+    } else if (!isNaN(cl) && cl < 0.9) {
+        apriConsiglioDettagliato('Cl. Lib', cl, `${ultimaRiga.Data || ''} ${ultimaRiga.Ora || ''}`);
+    } else if (!isNaN(cya) && cya >= 60) {
+        apriConsiglioDettagliato('Cya', cya, `${ultimaRiga.Data || ''} ${ultimaRiga.Ora || ''}`);
     }
 }
 
@@ -187,47 +230,46 @@ function apriGraficoChimico(chiaveFiltro, nomeParametro, coloreLinea, tipoGrafic
 
     if (graficoCorrente) graficoCorrente.destroy();
 
-    // Generazione dinamica delle fasce di colore sullo sfondo del grafico
     let n = chiaveFiltro.trim().toLowerCase();
     let configurazioneFasce = [];
 
     if (n === 'ph') {
         configurazioneFasce = [
-            { yMin: 0, yMax: 6.5, color: 'rgba(248, 215, 218, 0.4)' },
-            { yMin: 6.5, yMax: 7.0, color: 'rgba(255, 243, 205, 0.4)' },
-            { yMin: 7.0, yMax: 7.3, color: 'rgba(209, 250, 229, 0.5)' },
-            { yMin: 7.3, yMax: 7.5, color: 'rgba(255, 243, 205, 0.4)' },
-            { yMin: 7.5, yMax: 14, color: 'rgba(248, 215, 218, 0.4)' }
+            { yMin: 0, yMax: 6.5, color: 'rgba(239, 68, 68, 0.08)' },
+            { yMin: 6.5, yMax: 7.0, color: 'rgba(245, 158, 11, 0.08)' },
+            { yMin: 7.0, yMax: 7.3, color: 'rgba(34, 197, 94, 0.09)' },
+            { yMin: 7.3, yMax: 7.5, color: 'rgba(245, 158, 11, 0.08)' },
+            { yMin: 7.5, yMax: 14, color: 'rgba(239, 68, 68, 0.08)' }
         ];
     } else if (n === 'cl. lib' || n === 'cl. tot') {
         configurazioneFasce = [
-            { yMin: 0, yMax: 0.7, color: 'rgba(248, 215, 218, 0.4)' },
-            { yMin: 0.7, yMax: 0.9, color: 'rgba(255, 243, 205, 0.4)' },
-            { yMin: 0.9, yMax: 1.2, color: 'rgba(209, 250, 229, 0.5)' },
-            { yMin: 1.2, yMax: 2.0, color: 'rgba(255, 243, 205, 0.4)' },
-            { yMin: 2.0, yMax: 5, color: 'rgba(248, 215, 218, 0.4)' }
+            { yMin: 0, yMax: 0.7, color: 'rgba(239, 68, 68, 0.08)' },
+            { yMin: 0.7, yMax: 0.9, color: 'rgba(245, 158, 11, 0.08)' },
+            { yMin: 0.9, yMax: 1.2, color: 'rgba(34, 197, 94, 0.09)' },
+            { yMin: 1.2, yMax: 2.0, color: 'rgba(245, 158, 11, 0.08)' },
+            { yMin: 2.0, yMax: 5, color: 'rgba(239, 68, 68, 0.08)' }
         ];
     } else if (n === 'cya') {
         configurazioneFasce = [
-            { yMin: 0, yMax: 40, color: 'rgba(209, 250, 229, 0.5)' },
-            { yMin: 40, yMax: 60, color: 'rgba(255, 243, 205, 0.4)' },
-            { yMin: 60, yMax: 150, color: 'rgba(248, 215, 218, 0.4)' }
+            { yMin: 0, yMax: 40, color: 'rgba(34, 197, 94, 0.09)' },
+            { yMin: 40, yMax: 60, color: 'rgba(245, 158, 11, 0.08)' },
+            { yMin: 60, yMax: 150, color: 'rgba(239, 68, 68, 0.08)' }
         ];
     } else if (n === 'temp') {
         configurazioneFasce = [
-            { yMin: 0, yMax: 24, color: 'rgba(248, 215, 218, 0.4)' },
-            { yMin: 24, yMax: 26, color: 'rgba(255, 243, 205, 0.4)' },
-            { yMin: 26, yMax: 28, color: 'rgba(209, 250, 229, 0.5)' },
-            { yMin: 28, yMax: 30, color: 'rgba(255, 243, 205, 0.4)' },
-            { yMin: 30, yMax: 50, color: 'rgba(248, 215, 218, 0.4)' }
+            { yMin: 0, yMax: 24, color: 'rgba(239, 68, 68, 0.08)' },
+            { yMin: 24, yMax: 26, color: 'rgba(245, 158, 11, 0.08)' },
+            { yMin: 26, yMax: 28, color: 'rgba(34, 197, 94, 0.09)' },
+            { yMin: 28, yMax: 30, color: 'rgba(245, 158, 11, 0.08)' },
+            { yMin: 30, yMax: 50, color: 'rgba(239, 68, 68, 0.08)' }
         ];
     } else if (n === 'alka') {
         configurazioneFasce = [
-            { yMin: 0, yMax: 60, color: 'rgba(248, 215, 218, 0.4)' },
-            { yMin: 60, yMax: 80, color: 'rgba(255, 243, 205, 0.4)' },
-            { yMin: 80, yMax: 120, color: 'rgba(209, 250, 229, 0.5)' },
-            { yMin: 120, yMax: 150, color: 'rgba(255, 243, 205, 0.4)' },
-            { yMin: 150, yMax: 300, color: 'rgba(248, 215, 218, 0.4)' }
+            { yMin: 0, yMax: 60, color: 'rgba(239, 68, 68, 0.08)' },
+            { yMin: 60, yMax: 80, color: 'rgba(245, 158, 11, 0.08)' },
+            { yMin: 80, yMax: 120, color: 'rgba(34, 197, 94, 0.09)' },
+            { yMin: 120, yMax: 150, color: 'rgba(245, 158, 11, 0.08)' },
+            { yMin: 150, yMax: 300, color: 'rgba(239, 68, 68, 0.08)' }
         ];
     }
 
@@ -254,10 +296,10 @@ function apriGraficoChimico(chiaveFiltro, nomeParametro, coloreLinea, tipoGrafic
                 label: nomeParametro,
                 data: valori,
                 borderColor: coloreLinea,
-                backgroundColor: tipoGrafico === 'bar' ? coloreLinea + 'aa' : 'transparent',
+                backgroundColor: tipoGrafico === 'bar' ? coloreLinea + '88' : 'transparent',
                 borderWidth: 1,      // Linea finissima
-                pointRadius: 1,      // Punti minuscoli
-                pointHoverRadius: 3,
+                pointRadius: 1,      // Punti microscopici
+                pointHoverRadius: 4,
                 tension: 0.1
             }]
         },
