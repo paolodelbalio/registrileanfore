@@ -167,8 +167,7 @@ tr:hover td {
     cursor: pointer;
 }
 
-<<<<<<< HEAD
-/* ECCCO LE TUE STRUTTURE DEL CHIMICO RIPRISTINATE */
+/* LE CLASSI DEL REGISTRO CHIMICO */
 .evidenzia-verde {
     background-color: #d1fae5 !important;
     color: #065f46 !important;
@@ -190,6 +189,7 @@ tr:hover td {
     text-align: center;
 }
 
+/* PULSANTI MINI PER FILTRARE I GRAFICI */
 .btn-mini-grafico {
     background-color: #475569;
     color: white;
@@ -204,8 +204,4 @@ tr:hover td {
 
 .btn-mini-grafico:hover {
     background-color: #0066cc;
-=======
-.hidden {
-    display: none !important;
->>>>>>> parent of 6745781 (Update style.css)
 }
