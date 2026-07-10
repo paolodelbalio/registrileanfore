@@ -1,142 +1,166 @@
 let graficoCorrente = null;
-let datiRegistriGlobali = { chimico: [], contatori: [], pulizie: [], manutenzioni: [] };
-
-const VOL_PISCINA = 92; // 92 m³ costanti
-const TEMP_REINTEGRO = 22.0;
-
-const FILE_REGISTRI = {
-    chimico: "REGISTRO CHIMICO 2026.csv",
-    contatori: "REGISTRO CONTATORI.csv",
-    pulizie: "REGISTRO PULIZIE PISCINA 2026.csv",
-};
+let datiChimicoGlobali = [];
+const VOL_PISCINA = 92; 
 
 document.addEventListener("DOMContentLoaded", () => {
-    caricaTuttiIRegistri();
+    caricaRegistroChimico();
 });
 
-function caricaTuttiIRegistri() {
-    Object.keys(FILE_REGISTRI).forEach(chiave => {
-        Papa.parse(FILE_REGISTRI[chiave], {
-            download: true,
-            header: false,
-            skipEmptyLines: false,
-            complete: function(risultati) {
-                elaboraDatiTabella(chiave, risultati.data);
+function caricaRegistroChimico() {
+    Papa.parse("REGISTRO CHIMICO 2026.csv", {
+        download: true,
+        header: false,
+        skipEmptyLines: true,
+        complete: function(risultati) {
+            if (risultati.data && risultati.data.length > 0) {
+                datiChimicoGlobali = risultati.data;
+                creaTabellaChimica(risultati.data);
+                analizzaParametriECalcolaDosaggi(risultati.data);
             }
-        });
+        }
     });
 }
 
-function formattaValoreNumerico(valoreStringa) {
-    if (!valoreStringa || valoreStringa.trim() === "") return "";
-    let pulito = valoreStringa.replace(/"/g, "").replace(",", ".");
-    let num = parseFloat(pulito);
-    if (isNaN(num)) return valoreStringa;
-    return num;
-}
-
-function elaboraDatiTabella(chiave, righe) {
-    if (!righe || righe.length === 0) return;
-    datiRegistriGlobali[chiave] = righe;
-
-    const idTabella = chiave + "Table";
-    const tabella = document.getElementById(idTabella);
+function creaTabellaChimica(righe) {
+    const tabella = document.getElementById("chimicoTable");
     if (!tabella) return;
 
-    let html = "";
-    let inizioIndice = 0;
-
-    // Generazione Intestazioni (Header)
-    if (righe[0] && righe[0].length > 0) {
-        html += "<thead><tr>";
+    let html = "<thead><tr>";
+    if (righe[0]) {
         righe[0].forEach((colonna, idx) => {
-            let intestazione = colonna.replace(/"/g, "").trim();
-            if (chiave === 'chimico') {
-                if (intestazione.toLowerCase() === 'ph') {
-                    intestazione += ` <button class="btn-mini-grafico" onclick="event.stopPropagation(); openChartOverlay('chimico', ${idx}, 'pH', 'line')">📈</button>`;
-                } else if (intestazione.toLowerCase() === 'cl. lib') {
-                    intestazione += ` <button class="btn-mini-grafico" onclick="event.stopPropagation(); openChartOverlay('chimico', ${idx}, 'Cloro Libero', 'line')">📈</button>`;
-                }
+            let nome = colonna.replace(/"/g, "").trim();
+            // Cliccando sul testo dell'intestazione si apre il grafico, senza icone esterne
+            if (nome.toLowerCase() === 'ph') {
+                html += `<th onclick="apriGraficoChimico(${idx}, 'pH', '#ff6384')" style="cursor:pointer; text-decoration:underline;">pH</th>`;
+            } else if (nome.toLowerCase() === 'cl. lib') {
+                html += `<th onclick="apriGraficoChimico(${idx}, 'Cloro Libero', '#36a2eb')" style="cursor:pointer; text-decoration:underline;">Cl. Lib</th>`;
+            } else {
+                html += `<th>${nome}</th>`;
             }
-            html += `<th>${intestazione}</th>`;
         });
-        html += "</tr></thead>";
-        inizioIndice = 1;
+        html += "</tr></thead><tbody>";
     }
 
-    // Generazione Corpo Tabella (Body) con filtri colore ideali
-    html += "<tbody>";
-    for (let i = inizioIndice; i < righe.length; i++) {
+    for (let i = 1; i < righe.length; i++) {
         let riga = righe[i];
-        if (!riga || riga.length === 0 || (riga.length === 1 && riga[0] === "")) continue;
+        if (!riga || riga.length === 0) continue;
 
         html += "<tr>";
         riga.forEach((cella, colIdx) => {
-            let testoCella = cella.replace(/"/g, "").trim();
-            let classeCSS = "";
+            let valoreTesto = cella.replace(/"/g, "").trim();
+            let classeColore = "";
 
-            if (chiave === 'chimico') {
-                // Colonna pH (Indice 2) -> Target 7.3 perfetto
-                if (colIdx === 2 && testoCella !== "") {
-                    let v = parseFloat(testoCella.replace(",", "."));
-                    if (!isNaN(v)) {
-                        if (v === 7.3) classeCSS = "evidenzia-verde";
-                        else if (v >= 7.2 && v <= 7.4) classeCSS = "evidenzia-giallo";
-                        else classeCSS = "evidenzia-rosso";
+            if (valoreTesto !== "") {
+                let v = parseFloat(valoreTesto.replace(",", "."));
+                if (!isNaN(v)) {
+                    // Colonna pH
+                    if (colIdx === 2) {
+                        if (v === 7.3) classeColore = "evidenzia-verde";
+                        else if (v >= 7.2 && v <= 7.4) classeColore = "evidenzia-giallo";
+                        else classeColore = "evidenzia-rosso";
                     }
-                }
-                // Colonna Cloro Libero (Indice 3) -> Target 1.1 perfetto
-                if (colIdx === 3 && testoCella !== "") {
-                    let v = parseFloat(testoCella.replace(",", "."));
-                    if (!isNaN(v)) {
-                        if (v === 1.1) classeCSS = "evidenzia-verde";
-                        else if (v >= 1.0 && v <= 1.2) classeCSS = "evidenzia-giallo";
-                        else classeCSS = "evidenzia-rosso";
+                    // Colonna Cloro Libero
+                    if (colIdx === 3) {
+                        if (v === 1.1) classeColore = "evidenzia-verde";
+                        else if (v >= 1.0 && v <= 1.2) classeColore = "evidenzia-giallo";
+                        else classeColore = "evidenzia-rosso";
                     }
                 }
             }
-
-            html += `<td class="${classeCSS}">${testoCella}</td>`;
+            html += `<td class="${classeColore}">${valoreTesto}</td>`;
         });
         html += "</tr>";
     }
     html += "</tbody>";
     tabella.innerHTML = html;
-
-    if (chiave === 'chimico') {
-        controllaUltimiParametriEAvvisa(righe);
-    }
 }
 
-function controllaUltimiParametriEAvvisa(righe) {
+function analizzaParametriECalcolaDosaggi(righe) {
     if (righe.length < 2) return;
     let ultimaRiga = righe[righe.length - 1];
-    if (!ultimaRiga || ultimaRiga.length < 9) return;
 
     let ph = parseFloat(ultimaRiga[2]?.replace(",", "."));
     let cl = parseFloat(ultimaRiga[3]?.replace(",", "."));
     let cya = parseFloat(ultimaRiga[8]?.replace(",", "."));
 
-    let messaggi = [];
-    if (!isNaN(ph) && ph > 7.4) messaggi.push(`<strong>pH Alto (${ph}):</strong> Necessario riduttore acido.`);
-    if (!isNaN(ph) && ph < 7.2) messaggi.push(`<strong>pH Basso (${ph}):</strong> Necessario correttore alcalino.`);
-    if (!isNaN(cl) && cl < 1.0) messaggi.push(`<strong>Cloro Insufficiente (${cl} ppm):</strong> Integrare con ipoclorito di calcio granulare.`);
-    if (!isNaN(cya) && cya >= 60) messaggi.push(`<strong>Allarme Acido Cianurico (${cya} ppm):</strong> Soglia limite superata!`);
+    let consigli = [];
 
-    if (messaggi.length > 0) {
+    if (!isNaN(ph) && ph > 7.4) {
+        let delta = ph - 7.3;
+        let grammiTotali = Math.round((delta / 0.1) * 10 * VOL_PISCINA);
+        consigli.push(`<strong>pH Fuori Limite (${ph}):</strong> Immettere circa <strong>${grammiTotali}g</strong> di riduttore acido.`);
+    } else if (!isNaN(ph) && ph < 7.2) {
+        let delta = 7.3 - ph;
+        let grammiTotali = Math.round((delta / 0.1) * 10 * VOL_PISCINA);
+        consigli.push(`<strong>pH Sotto i Livelli (${ph}):</strong> Immettere circa <strong>${grammiTotali}g</strong> di pH Plus.`);
+    }
+
+    if (!isNaN(cl) && cl < 1.0) {
+        let delta = 1.1 - cl;
+        let grammiCloro = Math.round(delta * 1.5 * VOL_PISCINA);
+        consigli.push(`<strong>Cloro Insufficiente (${cl} ppm):</strong> Aggiungere circa <strong>${grammiCloro}g</strong> di ipoclorito di calcio.`);
+    }
+
+    if (!isNaN(cya) && cya >= 60) {
+        consigli.push(`<strong>⚠️ ALLARME ACIDO CIANURICO (${cya} ppm):</strong> Soglia limite superata! Pianificare ricambio d'acqua.`);
+    }
+
+    if (consigli.length > 0) {
         const modal = document.getElementById("dosageModal");
-        const content = document.getElementById("dosageContent");
-        if (modal && content) {
-            content.innerHTML = `<h3>⚠️ Diagnostica Trattamento Vasca</h3><br><p>${messaggi.join('</p><p>')}</p>`;
+        const contenitore = document.getElementById("dosageContent");
+        if (modal && contenitore) {
+            contenitore.innerHTML = `<h3>📋 Tabelle di Consiglio Trattamento</h3><br><p>${consigli.join('</p><br><p>')}</p>`;
             modal.classList.remove("hidden");
         }
     }
 }
 
-function mostraSezione(idSezione) {
-    document.querySelectorAll('.register-section').forEach(s => s.classList.add('hidden'));
-    const target = document.getElementById(idSezione);
-    if (target) target.classList.remove('hidden');
+function apriGraficoChimico(colIdx, nomeParametro, coloreLinea) {
+    const overlay = document.getElementById("chartOverlay");
+    const ctx = document.getElementById("overlayCanvas")?.getContext("2d");
+    if (!overlay || !ctx) return;
+
+    document.getElementById("overlayTitle").textContent = "Andamento Storico: " + nomeParametro;
+    overlay.classList.remove("hidden");
+
+    let etichette = [];
+    let valori = [];
+
+    for (let i = 1; i < datiChimicoGlobali.length; i++) {
+        let riga = datiChimicoGlobali[i];
+        if (!riga || riga.length <= colIdx) continue;
+        
+        let dataOra = `${riga[0]} ${riga[1]}`.trim();
+        let valNum = parseFloat(riga[colIdx]?.replace(",", "."));
+        
+        if (!isNaN(valNum)) {
+            etichette.push(dataOra);
+            valori.push(valNum);
+        }
+    }
+
+    if (graficoCorrente) graficoCorrente.destroy();
+
+    graficoCorrente = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: etichette,
+            datasets: [{
+                label: nomeParametro,
+                data: valori,
+                borderColor: coloreLinea,
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                tension: 0.15
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
 }
 
 function chiudiDosaggio() {
@@ -149,50 +173,4 @@ function closeOverlay() {
         graficoCorrente.destroy();
         graficoCorrente = null;
     }
-}
-
-function openChartOverlay(chiave, colIdx, nomeParametro, tipoGrafico) {
-    const overlay = document.getElementById("chartOverlay");
-    const ctx = document.getElementById("overlayCanvas")?.getContext("2d");
-    if (!overlay || !ctx) return;
-
-    document.getElementById("overlayTitle").textContent = "Andamento Storico " + nomeParametro;
-    overlay.classList.remove("hidden");
-
-    let righe = datiRegistriGlobali[chiave];
-    let etichette = [];
-    let valori = [];
-
-    for (let i = 1; i < righe.length; i++) {
-        let riga = righe[i];
-        if (!riga || riga.length <= colIdx) continue;
-        let dataStr = riga[0] || "";
-        let valStr = riga[colIdx] || "";
-        let valNum = parseFloat(valStr.replace(",", "."));
-        if (!isNaN(valNum)) {
-            etichette.push(dataStr);
-            valori.push(valNum);
-        }
-    }
-
-    if (graficoCorrente) graficoCorrente.destroy();
-
-    graficoCorrente = new Chart(ctx, {
-        type: tipoGrafico,
-        data: {
-            labels: etichette,
-            datasets: [{
-                label: nomeParametro,
-                data: valori,
-                borderColor: "#0066cc",
-                backgroundColor: "transparent",
-                borderWidth: 2,
-                tension: 0.15
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false
-        }
-    });
 }
