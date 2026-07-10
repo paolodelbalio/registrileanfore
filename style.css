@@ -46,98 +46,71 @@ header {
 
 .top-buttons button:hover {
     background: #0066cc;
-    color: #fff;
+    color: white;
 }
 
-/* SEZIONI DEL REGISTRO */
+/* SEZIONI REGISTRI */
 .register-section {
-    background: #ffffff;
-    padding: 10px;
-    margin-bottom: 25px;
+    background: white;
+    padding: 15px;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
 }
 
 .register-section h2 {
-    font-size: 1.3rem;
-    color: #333;
-    margin-bottom: 10px;
+    color: #0066cc;
+    margin-bottom: 15px;
+    font-size: 1.25rem;
+    border-bottom: 2px solid #0066cc;
+    padding-bottom: 5px;
 }
 
+.hidden {
+    display: none !important;
+}
+
+/* TABELLE E SCORRIMENTO STANDARD PER GLI ALTRI REGISTRI */
 .table-wrapper {
-    overflow-x: auto;
-    max-height: 70vh;
-    border: 1px solid #aaaaaa;
+    max-height: 65vh;
+    overflow-y: auto;
+    border: 1px solid #dddddd;
+    border-radius: 4px;
 }
 
-/* TABELLA IDENTICA ALLA FOTO 1 */
 table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.85rem;
-    background-color: #ffffff;
+    text-align: left;
 }
 
-/* INTESTAZIONE AZZURRA DELLA FOTO ORIGINALE */
-th {
-    background-color: #bce0fd !important;
-    color: #004085 !important;
-    font-weight: bold;
+thead th {
+    background-color: #334155;
+    color: white;
     padding: 8px 10px;
-    border: 1px solid #aaaaaa !important;
-    text-align: center;
-    white-space: nowrap;
     position: sticky;
     top: 0;
-    z-index: 5;
-}
-
-/* CELLE SQUADRATE CON BORDO NETTO E TESTO CENTRATO */
-td {
-    padding: 6px 8px;
-    border: 1px solid #cccccc !important;
-    text-align: center !important;
-    color: #333333;
+    z-index: 10;
+    font-weight: bold;
     white-space: nowrap;
 }
 
-/* RIGHE ALTERNATE CHIARE */
+tbody td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #dddddd;
+    white-space: nowrap;
+}
+
 tr:nth-child(even) td {
-    background-color: #f9f9f9;
+    background-color: #f8fafc;
 }
 
-/* COLONNE GRAFICO */
-.clickable-header {
-    cursor: pointer;
-}
-.clickable-header:hover {
-    background-color: #0066cc !important;
-    color: white !important;
+tr:hover td {
+    background-color: #f1f5f9;
 }
 
-/* ========================================================================= */
-/* NUOVI STATI DELLE CELLE IN TRASPARENZA (SOSTITUITI SECONDO INDICAZIONI PAOLO) */
-/* ========================================================================= */
-
-.cell-ok { 
-    background-color: rgba(40, 167, 69, 0.20) !important; 
-    color: #155724 !important; 
-} /* Verde trasparente: Valori ottimali */
-
-.cell-warning { 
-    background-color: rgba(255, 193, 7, 0.25) !important; 
-    color: #856404 !important; 
-    cursor: pointer;
-} /* Giallo/Arancio trasparente: Fuori ottimale ma dentro Allegato A */
-
-.cell-alarm { 
-    background-color: rgba(220, 53, 69, 0.25) !important; 
-    color: #721c24 !important; 
-    font-weight: bold; 
-    cursor: pointer;
-} /* Rosso trasparente: Fuori dai parametri di Legge regionali */
-
-/* ========================================================================= */
-
-/* MODALI E FINESTRE DI DIAGNOSTICA */
+/* POPUP E OVERLAY (ANDAMENTO STORICO E DOSAGGI) */
 .overlay {
     position: fixed;
     top: 0;
@@ -194,39 +167,27 @@ tr:nth-child(even) td {
     cursor: pointer;
 }
 
-/* Forza lo scorrimento direttamente sulla tabella delle manutenzioni */
+/* =======================================================
+   SCORRIMENTO ISOLATO ED ELEGANTE DEL REGISTRO MANUTENZIONI
+   ======================================================= */
+
+/* Accorcia l'altezza massima SOLO per la scatola delle manutenzioni */
+#manutenzioniSection .table-wrapper {
+    max-height: 380px !important; 
+    overflow-y: auto !important;   
+}
+
+/* Mantiene la struttura a tabella corretta senza romperla */
 #manutenzioniTable {
-    display: block !important;
-    max-height: 450px !important;
-    overflow-y: auto !important;
+    display: table !important;
     width: 100% !important;
+    border-collapse: collapse !important;
 }
 
-/* Blocca l'intestazione in alto durante lo scorrimento */
-#manutenzioniTable thead {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background-color: #334155;
-}
-
+/* Blocca perfettamente i titoli in alto durante lo scorrimento */
 #manutenzioniTable thead th {
-    position: sticky;
-    top: 0;
-    background-color: #334155;
-}/* Scatola di scorrimento per il registro manutenzioni */
-.manutenzioni-scroll-box {
-    max-height: 450px; /* Imposta l'altezza massima che preferisci */
-    overflow-y: auto;  /* Attiva lo scorrimento solo se necessario */
-    width: 100%;
-    margin-bottom: 20px;
-    border: 1px solid #cbd5e1;
-}
-
-/* Blocca l'intestazione in alto mentre si scorre */
-.manutenzioni-scroll-box thead th {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background-color: #334155 !important; /* Colore scuro originale */
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 20 !important;
+    background-color: #334155 !important;
 }
