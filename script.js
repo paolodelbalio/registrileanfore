@@ -41,7 +41,7 @@ function elaboraDatiTabella(chiave, righeGrezze) {
         intestazioni.forEach((intestazione, indice) => {
             let valoreCella = rigaCorrente[indice] ? rigaCorrente[indice].trim() : "";
             
-            // FILTRO COLONNA CYA: Isola la prima misurazione per ridurre la larghezza della colonna
+            // RIDUZIONE LARGHEZZA CYA: Prende solo la prima misurazione numerica
             if (intestazione.toLowerCase() === 'cya' && valoreCella !== "") {
                 let match = valoreCella.match(/^([0-9.,]+)/);
                 if (match) {
@@ -137,7 +137,7 @@ function creaTabellaChimica(intestazioni, dati) {
 
             let attributoClick = "";
             if (classeColore === "evidenzia-giallo" || classeColore === "evidenzia-rosso") {
-                attributoClick = `onclick="apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}')"`;
+                attributoClick = `onclick="apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeColore}')"`;
             }
 
             html += `<td class="${classeColore}" ${attributoClick} style="${attributoClick !== '' ? 'cursor:pointer;' : ''}">${valoreTesto}</td>`;
@@ -167,10 +167,26 @@ function creaTabellaStandard(chiaveTabella, intestazioni, dati) {
     tabella.innerHTML = html;
 }
 
-function apriConsiglioDettagliato(parametro, valore, dataOra) {
+function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore) {
     let p = parametro.toLowerCase().trim();
+    const modalCard = document.querySelector(".dosage-card");
+    
+    // Gestione Enfasi Rossa vs Gialla
+    let isRosso = (classeColore === "evidenzia-rosso");
+    let intestazioneAllarme = "";
+    
+    if (modalCard) {
+        if (isRosso) {
+            modalCard.classList.add("modal-critica");
+            intestazioneAllarme = `<div style="background-color:#fee2e2; color:#b91c1c; padding:10px; border-radius:4px; font-weight:bold; margin-bottom:15px;">🚨 ATTENZIONE: SEGNALAZIONE CRITICA FUORI LIMITE</div>`;
+        } else {
+            modalCard.classList.remove("modal-critica");
+            intestazioneAllarme = `<div style="background-color:#fef9c3; color:#a16207; padding:10px; border-radius:4px; font-weight:bold; margin-bottom:15px;">⚠️ AVVISO: PARAMETRO FUORI FASCIA IDEALE</div>`;
+        }
+    }
+
     let titoloModale = `Diagnostica Parametro: ${parametro}`;
-    let corpoHTML = `<p style='font-size:0.85rem; color:#64748b; margin-bottom: 12px;'>Rilevazione del ${dataOra}</p>`;
+    let corpoHTML = `${intestazioneAllarme}<p style='font-size:0.85rem; color:#64748b; margin-bottom: 12px;'>Rilevazione del ${dataOra}</p>`;
 
     if (p === 'ph') {
         if (valore > 7.3) {
@@ -180,8 +196,8 @@ function apriConsiglioDettagliato(parametro, valore, dataOra) {
             let gIdeale = Math.round((dIdeale / 0.1) * 10 * VOL_PISCINA);
             
             corpoHTML += `<h3>Stato: <span style="color:#991b1b;">pH Alto (${valore})</span></h3><br>
-            <p><strong>Dose minima per rientrare nei limiti (7.5):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Riduttore Acido.</p>
-            <p><strong>Dose ottimale per raggiungere la fascia ideale (7.2):</strong> aggiungere <strong>${gIdeale}g</strong> di Riduttore Acido.</p>`;
+            <p style="margin-bottom:8px;"><strong>1. Dose correttiva di rientro (Limite 7.5):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Riduttore Acido.</p>
+            <p><strong>2. Dose ottimale di stabilizzazione (Ideale 7.2):</strong> aggiungere <strong>${gIdeale}g</strong> di Riduttore Acido.</p>`;
         } else if (valore < 7.0) {
             let dLimite = 6.5 - valore;
             let dIdeale = 7.1 - valore;
@@ -189,8 +205,8 @@ function apriConsiglioDettagliato(parametro, valore, dataOra) {
             let gIdeale = Math.round((dIdeale / 0.1) * 10 * VOL_PISCINA);
 
             corpoHTML += `<h3>Stato: <span style="color:#991b1b;">pH Basso (${valore})</span></h3><br>
-            <p><strong>Dose minima per rientrare nei limiti (6.5):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di pH Plus.</p>
-            <p><strong>Dose ottimale per raggiungere la fascia ideale (7.1):</strong> aggiungere <strong>${gIdeale}g</strong> di pH Plus.</p>`;
+            <p style="margin-bottom:8px;"><strong>1. Dose correttiva di rientro (Limite 6.5):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di pH Plus.</p>
+            <p><strong>2. Dose ottimale di stabilizzazione (Ideale 7.1):</strong> aggiungere <strong>${gIdeale}g</strong> di pH Plus.</p>`;
         }
     }
     else if (p === 'cl. lib' || p === 'cl. tot') {
@@ -201,16 +217,17 @@ function apriConsiglioDettagliato(parametro, valore, dataOra) {
             let gIdeale = Math.round((dIdeale / 0.1) * 1.5 * VOL_PISCINA);
 
             corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Cloro Insufficiente (${valore} ppm)</span></h3><br>
-            <p><strong>Dose minima per rientrare nei limiti (1.0 ppm):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Ipoclorito di Calcio.</p>
-            <p><strong>Dose ottimale per raggiungere la fascia ideale (1.1 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Ipoclorito di Calcio.</p>`;
+            <p style="margin-bottom:8px;"><strong>1. Dose correttiva di rientro (Limite 1.0 ppm):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Ipoclorito di Calcio.</p>
+            <p><strong>2. Dose ottimale di stabilizzazione (Ideale 1.1 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Ipoclorito di Calcio.</p>`;
         } else if (valore > 1.2) {
             corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Cloro Elevato (${valore} ppm)</span></h3><br>
-            <p>Valore superiore alla fascia ottimale ma entro i limiti massimi di legge (2.0 ppm). Sospendere i dosaggi manuali e attendere il consumo solare naturale.</p>`;
+            <p>Il valore supera la fascia ideale ma rientra nei limiti tollerati di legge (2.0 ppm). Sospendere i dosaggi manuali e attendere il normale abbattimento biologico.</p>`;
         }
     }
     else if (p === 'cl. com') {
         corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Cloro Combinato Alto (${valore} ppm)</span></h3><br>
-        <p>Valore sopra la norma (0.20 ppm) o limite massimo di legge (0.40 ppm). Effettuare un ricambio parziale d'acqua o una declorazione shock controllata.</p>`;
+        <p style="margin-bottom:8px;"><strong>Valore di Soglia:</strong> Massimo di benessere 0.20 ppm, Limite di legge 0.40 ppm.</p>
+        <p>Effettuare un ricambio d'acqua parziale o attivare un ciclo shock localizzato per eliminare le cloroammine e ripristinare la trasparenza.</p>`;
     }
     else if (p === 'temp') {
         if (valore > 28) {
@@ -218,11 +235,11 @@ function apriConsiglioDettagliato(parametro, valore, dataOra) {
             let lIdeale = Math.round(((valore - 27) / (valore - TEMP_REINTEGRO)) * VOL_PISCINA * 1000);
 
             corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Temperatura Alta (${valore} °C)</span></h3><br>
-            <p><strong>Reintegro minimo per rientrare nei limiti (30°C):</strong> immettere <strong>${lLimite > 0 ? lLimite.toLocaleString() : 0} Litri</strong> di acqua di rete.</p>
-            <p><strong>Reintegro ottimale per scendere alla fascia ideale (27°C):</strong> immettere <strong>${lIdeale.toLocaleString()} Litri</strong> di acqua fresca (~22°C).</p>`;
+            <p style="margin-bottom:8px;"><strong>1. Immissione minima di rientro (Limite 30°C):</strong> introdurre <strong>${lLimite > 0 ? lLimite.toLocaleString() : 0} Litri</strong> di acqua nuova.</p>
+            <p><strong>2. Immissione ottimale di benessere (Ideale 27°C):</strong> introdurre <strong>${lIdeale.toLocaleString()} Litri</strong> di acqua fresca di rete.</p>`;
         } else {
             corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Temperatura Bassa (${valore} °C)</span></h3><br>
-            <p>Acqua fresca. Nessun intervento correttivo richiesto.</p>`;
+            <p>Temperatura sotto i 26°C. Funzionamento regolare, nessun reintegro termico richiesto.</p>`;
         }
     }
     else if (p === 'cya') {
@@ -232,8 +249,8 @@ function apriConsiglioDettagliato(parametro, valore, dataOra) {
         let lIdeale = Math.round(fIdeale * VOL_PISCINA * 1000);
 
         corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Acido Cianurico Elevato (${valore} ppm)</span></h3><br>
-        <p><strong>Scarico minimo per scendere sotto la soglia d'allarme (60 ppm):</strong> rinnovare <strong>${lLimite > 0 ? lLimite.toLocaleString() : 0} Litri</strong> d'acqua.</p>
-        <p><strong>Scarico ottimale per tornare al valore ideale (35 ppm):</strong> rinnovare <strong>${lIdeale.toLocaleString()} Litri</strong> d'acqua pulita.</p>`;
+        <p style="margin-bottom:8px;"><strong>1. Scarico minimo di rientro (Sotto allarme 60 ppm):</strong> rinnovare <strong>${lLimite > 0 ? lLimite.toLocaleString() : 0} Litri</strong> d'acqua.</p>
+        <p><strong>2. Scarico ottimale di stabilizzazione (Valore perfetto 35 ppm):</strong> rinnovare <strong>${lIdeale.toLocaleString()} Litri</strong> d'acqua.</p>`;
     }
     else if (p === 'alka') {
         if (valore < 80) {
@@ -243,11 +260,11 @@ function apriConsiglioDettagliato(parametro, valore, dataOra) {
             let gIdeale = Math.round(dIdeale * 1.7 * VOL_PISCINA);
 
             corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Alcalinità Bassa (${valore} ppm)</span></h3><br>
-            <p><strong>Dose minima per rientrare nei limiti (60 ppm):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Bicarbonato di Sodio.</p>
-            <p><strong>Dose ottimale per raggiungere la fascia ideale (100 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Bicarbonato di Sodio.</p>`;
+            <p style="margin-bottom:8px;"><strong>1. Dose minima di rientro (Limite 60 ppm):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Bicarbonato di Sodio.</p>
+            <p><strong>2. Dose ottimale di stabilizzazione (Ideale 100 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Bicarbonato di Sodio.</p>`;
         } else if (valore > 120) {
             corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Alcalinità Alta (${valore} ppm)</span></h3><br>
-            <p>Valore rigido. Dosare riduttore acido a piccole riprese per abbattere lentamente i carbonati.</p>`;
+            <p>Effetto tampone rigido. Frazionare piccole dosi di riduttore acido per ammorbidire gradualmente i carbonati in eccesso.</p>`;
         }
     }
 
@@ -268,11 +285,11 @@ function analizzaUltimaRigaPerAllarmeAutomatico(dati) {
     let cya = parseFloat((ultimaRiga["Cya"] || "").replace(",", "."));
 
     if (!isNaN(ph) && (ph > 7.4 || ph < 7.0)) {
-        apriConsiglioDettagliato('pH', ph, `${ultimaRiga.Data || ''} ${ultimaRiga.Ora || ''}`);
+        apriConsiglioDettagliato('pH', ph, `${ultimaRiga.Data || ''} ${ultimaRiga.Ora || ''}`, 'evidenzia-rosso');
     } else if (!isNaN(cl) && cl < 0.9) {
-        apriConsiglioDettagliato('Cl. Lib', cl, `${ultimaRiga.Data || ''} ${ultimaRiga.Ora || ''}`);
+        apriConsiglioDettagliato('Cl. Lib', cl, `${ultimaRiga.Data || ''} ${ultimaRiga.Ora || ''}`, 'evidenzia-rosso');
     } else if (!isNaN(cya) && cya >= 60) {
-        apriConsiglioDettagliato('Cya', cya, `${ultimaRiga.Data || ''} ${ultimaRiga.Ora || ''}`);
+        apriConsiglioDettagliato('Cya', cya, `${ultimaRiga.Data || ''} ${ultimaRiga.Ora || ''}`, 'evidenzia-rosso');
     }
 }
 
