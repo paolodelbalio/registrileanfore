@@ -114,84 +114,72 @@ function creaTabellaChimica(dati) {
 function apriConsiglioDettagliato(parametro, valore, dataOra) {
     let p = parametro.toLowerCase().trim();
     let titoloModale = `Diagnostica Parametro: ${parametro}`;
-    let corpoHTML = `<p style='font-size:0.85rem; color:#64748b; margin-bottom: 12px;'>Rilevazione del ${dataOra}</p>`;
+    let corpoHTML = `<p style='font-size:0.85rem; color:#64748b; margin-bottom: 10px;'>Rilevazione del ${dataOra}</p>`;
 
     if (p === 'ph') {
         if (valore > 7.3) {
-            let dLimite = valore - 7.5;
-            let dIdeale = valore - 7.2;
-            let gLimite = Math.round((dLimite / 0.1) * 10 * VOL_PISCINA);
-            let gIdeale = Math.round((dIdeale / 0.1) * 10 * VOL_PISCINA);
-            
-            corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">pH Alto (${valore})</span></h3><br>
-            <p><strong>Dose minima per rientrare nei limiti (7.5):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Riduttore Acido.</p>
-            <p><strong>Dose ottimale per raggiungere la fascia ideale (7.2):</strong> aggiungere <strong>${gIdeale}g</strong> di Riduttore Acido.</p>`;
+            let delta = valore - 7.2;
+            let grammi = Math.round((delta / 0.1) * 10 * VOL_PISCINA);
+            corpoHTML += `<h3>Stato: <span style="color:#dc2626;">pH Alto (${valore})</span></h3><br>
+            <p>Il valore misurato è superiore al limite ideale (7.0 - 7.3).</p><br>
+            <p><strong>Azione consigliata:</strong> Per abbassare il valore a 7.2, immettere nello skimmer o direttamente in vasca circa <strong>${grammi}g</strong> di <strong>Riduttore di pH Acido</strong>.</p>`;
         } else if (valore < 7.0) {
-            let dLimite = 6.5 - valore;
-            let dIdeale = 7.1 - valore;
-            let gLimite = Math.round((dLimite / 0.1) * 10 * VOL_PISCINA);
-            let gIdeale = Math.round((dIdeale / 0.1) * 10 * VOL_PISCINA);
-
-            corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">pH Basso (${valore})</span></h3><br>
-            <p><strong>Dose minima per rientrare nei limiti (6.5):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di pH Plus.</p>
-            <p><strong>Dose ottimale per raggiungere la fascia ideale (7.1):</strong> aggiungere <strong>${gIdeale}g</strong> di pH Plus.</p>`;
+            let delta = 7.1 - valore;
+            let grammi = Math.round((delta / 0.1) * 10 * VOL_PISCINA);
+            corpoHTML += `<h3>Stato: <span style="color:#dc2626;">pH Basso (${valore})</span></h3><br>
+            <p>Il valore è sceso sotto i livelli ottimali.</p><br>
+            <p><strong>Azione consigliata:</strong> Per alzare il pH a 7.1, dosare circa <strong>${grammi}g</strong> di <strong>pH Plus (Innalzatore alcalino)</strong>.</p>`;
         }
     }
     else if (p === 'cl. lib' || p === 'cl. tot') {
         if (valore < 0.9) {
-            let dLimite = 1.0 - valore;
-            let dIdeale = 1.1 - valore;
-            let gLimite = Math.round((dLimite / 0.1) * 1.5 * VOL_PISCINA);
-            let gIdeale = Math.round((dIdeale / 0.1) * 1.5 * VOL_PISCINA);
-
-            corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">Cloro Insufficiente (${valore} ppm)</span></h3><br>
-            <p><strong>Dose minima per rientrare nei limiti (1.0 ppm):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Ipoclorito di Calcio.</p>
-            <p><strong>Dose ottimale per raggiungere la fascia ideale (1.1 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Ipoclorito di Calcio.</p>`;
+            let delta = 1.1 - valore;
+            let grammiCloro = Math.round((delta / 0.1) * 1.5 * VOL_PISCINA);
+            corpoHTML += `<h3>Stato: <span style="color:#dc2626;">Cloro Insufficiente (${valore} ppm)</span></h3><br>
+            <p>Livello inferiore alla soglia ideale.</p><br>
+            <p><strong>Azione consigliata:</strong> Per riportare il disinfettante a 1.1 ppm, aggiungere uniformemente in vasca <strong>${grammiCloro}g</strong> di <strong>Ipoclorito di Calcio Granulare</strong>.</p>`;
         } else if (valore > 1.2) {
-            corpoHTML += `<h3>Stato: <span style="color:#b45309;">Cloro Elevato (${valore} ppm)</span></h3><br>
-            <p>Valore superiore alla fascia ottimale ma provvisoriamente entro i limiti massimi di legge (2.0 ppm). Sospendere i dosaggi e attendere il consumo solare e biologico naturale.</p>`;
+            corpoHTML += `<h3>Stato: <span style="color:#d97706;">Cloro Elevato (${valore} ppm)</span></h3><br>
+            <p>Il livello è alto ma provvisoriamente tollerato.</p><br>
+            <p><strong>Azione consigliata:</strong> Sospendere temporaneamente i dosaggi e attendere il consumo solare biologico naturale prima di riprendere i trattamenti.</p>`;
         }
     }
     else if (p === 'cl. com') {
-        corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">Cloro Combinato Alto (${valore} ppm)</span></h3><br>
-        <p>Valore fuori norma o limite massimo (0.40 ppm). Effettuare un ricambio d'acqua parziale o una declorazione mirata per abbattere le cloroammine e rientrare sotto i 0.20 ppm.</p>`;
+        corpoHTML += `<h3>Stato: <span style="color:#dc2626;">Cloro Combinato Alto (${valore} ppm)</span></h3><br>
+        <p>Le cloroammine hanno superato la soglia di benessere (0.20 ppm) o il limite dell'Allegato A (0.40 ppm).</p><br>
+        <p><strong>Azione consigliata:</strong> Valutare un ricambio parziale d'acqua o un trattamento shock localizzato per distruggere i legami chimici combinati.</p>`;
     }
     else if (p === 'temp') {
         if (valore > 28) {
-            let lLimite = Math.round(((valore - 30) / (valore - TEMP_REINTEGRO)) * VOL_PISCINA * 1000);
-            let lIdeale = Math.round(((valore - 27) / (valore - TEMP_REINTEGRO)) * VOL_PISCINA * 1000);
-
-            corpoHTML += `<h3>Stato: <span style="color:#b45309;">Temperatura Alta (${valore} °C)</span></h3><br>
-            <p><strong>Reintegro minimo per rientrare nei limiti (30°C):</strong> immettere <strong>${lLimite > 0 ? lLimite.toLocaleString() : 0} Litri</strong> di acqua di rete.</p>
-            <p><strong>Reintegro ottimale per scendere alla fascia ideale (27°C):</strong> immettere <strong>${lIdeale.toLocaleString()} Litri</strong> di acqua fresca (~22°C).</p>`;
+            let volumeReintegro = Math.round(((valore - 27) / (valore - TEMP_REINTEGRO)) * VOL_PISCINA * 1000);
+            corpoHTML += `<h3>Stato: <span style="color:#d97706;">Temperatura Alta (${valore} °C)</span></h3><br>
+            <p>L'acqua supera il comfort ottimale (26°C - 28°C), aumentando il consumo di cloro.</p><br>
+            <p><strong>Azione consigliata:</strong> Per scendere a 27°C, effettuare un ricambio immettendo circa <strong>${volumeReintegro.toLocaleString()} Litri</strong> di acqua fresca di rete (~22°C).</p>`;
         } else {
-            corpoHTML += `<h3>Stato: <span style="color:#b45309;">Temperatura Bassa (${valore} °C)</span></h3><br>
-            <p>Acqua fresca. Nessun intervento correttivo chimico richiesto.</p>`;
+            corpoHTML += `<h3>Stato: <span style="color:#d97706;">Temperatura Bassa (${valore} °C)</span></h3><br>
+            <p>L'acqua è fresca. Nessun intervento chimico necessario.</p>`;
         }
     }
     else if (p === 'cya') {
-        let fLimite = (valore - 60) / valore;
-        let fIdeale = (valore - 35) / valore;
-        let lLimite = Math.round(fLimite * VOL_PISCINA * 1000);
-        let lIdeale = Math.round(fIdeale * VOL_PISCINA * 1000);
+        let frazioneRicambio = (valore - 35) / valore;
+        let litriRicambio = Math.round(frazioneRicambio * VOL_PISCINA * 1000);
+        if (litriRicambio < 0) litriRicambio = 0;
 
-        corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">Acido Cianurico Elevato (${valore} ppm)</span></h3><br>
-        <p><strong>Scarico minimo per rientrare sotto la soglia di allarme (60 ppm):</strong> rinnovare <strong>${lLimite > 0 ? lLimite.toLocaleString() : 0} Litri</strong> d'acqua.</p>
-        <p><strong>Scarico ottimale per tornare nella fascia ideale sicuro (35 ppm):</strong> rinnovare <strong>${lIdeale.toLocaleString()} Litri</strong> d'acqua.</p>`;
+        corpoHTML += `<h3>Stato: <span style="color:#dc2626;">Acido Cianurico Elevato (${valore} ppm)</span></h3><br>
+        <p>L'accumulo di stabilizzante riduce l'efficacia dell'ipoclorito.</p><br>
+        <p><strong>Azione consigliata:</strong> Per riportare la concentrazione alla quota ottimale di 35 ppm, occorre rinnovare circa <strong>${litriRicambio.toLocaleString()} Litri</strong> di acqua della vasca.</p>`;
     }
     else if (p === 'alka') {
         if (valore < 80) {
-            let dLimite = 60 - valore;
-            let dIdeale = 100 - valore;
-            let gLimite = Math.round(dLimite * 1.7 * VOL_PISCINA);
-            let gIdeale = Math.round(dIdeale * 1.7 * VOL_PISCINA);
-
-            corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">Alcalinità Bassa (${valore} ppm)</span></h3><br>
-            <p><strong>Dose minima per rientrare nei limiti (60 ppm):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Bicarbonato di Sodio.</p>
-            <p><strong>Dose ottimale per raggiungere la fascia ideale (100 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Bicarbonato di Sodio.</p>`;
+            let delta = 100 - valore;
+            let grammiBic = Math.round(delta * 1.7 * VOL_PISCINA);
+            corpoHTML += `<h3>Stato: <span style="color:#dc2626;">Alcalinità Bassa (${valore} ppm)</span></h3><br>
+            <p>Il pH rischia instabilità e continui sbalzi repentini.</p><br>
+            <p><strong>Azione consigliata:</strong> Per alzare il valore a 100 ppm, dosare in vasca circa <strong>${grammiBic}g</strong> di <strong>Bicarbonato di Sodio</strong>.</p>`;
         } else if (valore > 120) {
-            corpoHTML += `<h3>Stato: <span style="color:#b45309;">Alcalinità Alta (${valore} ppm)</span></h3><br>
-            <p>Valore rigido. Dosare riduttore acido a piccole riprese per sgretolare l'eccesso di carbonati complessivo senza far crollare il pH.</p>`;
+            corpoHTML += `<h3>Stato: <span style="color:#d97706;">Alcalinità Alta (${valore} ppm)</span></h3><br>
+            <p>Il pH è bloccato e difficile da modificare.</p><br>
+            <p><strong>Azione consigliata:</strong> Amministrare riduttore di pH acido a piccole dosi distribuite per abbassare gradualmente i carbonati.</p>`;
         }
     }
 
@@ -285,7 +273,7 @@ function apriGraficoChimico(chiaveFiltro, nomeParametro, coloreLinea, tipoGrafic
         ];
     }
 
-    const pluginFasceSfondo = {
+    const pluginSfondoFasce = {
         id: 'boxFasceSfondo',
         beforeDraw: (chart) => {
             const { ctx, scales: { y, x } } = chart;
@@ -309,8 +297,8 @@ function apriGraficoChimico(chiaveFiltro, nomeParametro, coloreLinea, tipoGrafic
                 data: valori,
                 borderColor: coloreLinea,
                 backgroundColor: tipoGrafico === 'bar' ? coloreLinea + '88' : 'transparent',
-                borderWidth: 1,
-                pointRadius: 1,
+                borderWidth: 1,      // Linea finissima
+                pointRadius: 1,      // Punti microscopici
                 pointHoverRadius: 4,
                 tension: 0.1
             }]
@@ -323,7 +311,7 @@ function apriGraficoChimico(chiaveFiltro, nomeParametro, coloreLinea, tipoGrafic
                 x: { grid: { display: false } }
             }
         },
-        plugins: configurazioneFasce.length > 0 ? [pluginFasceSfondo] : []
+        plugins: configurazioneFasce.length > 0 ? [pluginSfondoFasce] : []
     });
 }
 
