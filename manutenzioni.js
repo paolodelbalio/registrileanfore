@@ -1,5 +1,6 @@
 // Gestore Isolato per il Registro Manutenzioni con Scadenziario in riga
 (function() {
+    // IMPORTANTE: Verifica che sul tuo repository Git questo nome file sia scritto ESATTAMENTE così, spazi inclusi
     const FILE_MANUTENZIONI = "REGISTRO MANUTENZIONE INTERVENTI .csv";
 
     // Mappatura delle scadenze in giorni
@@ -12,187 +13,190 @@
     let statoScadenzeGlobali = [];
 
     document.addEventListener("DOMContentLoaded", () => {
-        setTimeout(caricaRegistroManutenzioniIsolato, 1200);
+        // Un piccolo ritardo iniziale garantisce che PapaParse sia pronto sul server
+        setTimeout(caricaRegistroManutenzioniIsolato, 1000);
     });
 
     function caricaRegistroManutenzioniIsolato() {
-        if (typeof Papa === 'undefined') return;
+        if (typeof Papa === 'undefined') {
+            console.error("PapaParse non trovato sul server.");
+            return;
+        }
+        
+        // Configurazione corretta per il download da Git Server
         Papa.parse(FILE_MANUTENZIONI, {
             download: true,
             header: false,
-            skipEmptyLines: false,
+            skipEmptyLines: true,
             complete: function(risultati) {
                 elaboraManutenzioniProtetto(risultati.data);
+            },
+            error: function(errore) {
+                console.error("Errore nel download del file da Git:", errore);
             }
         });
     }
 
     function analizzaData(stringaData) {
         if (!stringaData) return null;
-        let pulita = stringaData.replace(/^(dom|lun|mar|mer|gio|ven|sab)\s+/i, '').trim();
+        let pulita = stringaData.trim();
+        let parti = pulita.split(' ');
+        let elementoData = parti.length > 1 ? parti[1] : parti[0];
         
-        const mesi = {
-            'gen': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'mag': 4, 'giu': 5,
-            'lug': 6, 'ago': 7, 'set': 8, 'ott': 9, 'nov': 10, 'dic': 11
-        };
-
-        let parti = pulita.split(/\s+/);
-        if (parti.length >= 3) {
-            let giorno = parseInt(parti[0], 10);
-            let meseStr = parti[1].toLowerCase().substring(0, 3);
-            let anno = parseInt(parti[2], 10);
-            
-            if (!isNaN(giorno) && mesi[meseStr] !== undefined && !isNaN(anno)) {
-                return new Date(anno, mesi[meseStr], giorno);
-            }
-        }
-        return null;
+        let subParti = elementoData.split('/');
+        if (subParti.length !== 3) return null;
+        
+        let giorno = parseInt(subParti[0], 10);
+        let mese = parseInt(subParti[1], 10) - 1;
+        let anno = parseInt(subParti[2], 10);
+        if (anno < 100) anno += 2000;
+        
+        let d = new Date(anno, mese, giorno);
+        return isNaN(d.getTime()) ? null : d;
     }
 
     function elaboraManutenzioniProtetto(righe) {
-        const tabella = document.getElementById("manutenzioniTable");
-        if (!tabella || !righe || righe.length === 0) return;
+        if (!righe || righe.length === 0) return;
 
-        let html = "<thead><tr>";
-        let indiceData = 0;
-        let indiceNote = -1;
-        let numeroColonne = 6; // Default standard del registro
+        let rigaIntestazione = null;
+        let indiceData = -1;
+        let indiceIntervento = -1;
+        let indiceImpianto = -1;
+        let righeDatiGrezze = [];
 
-        if (righe[0]) {
-            numeroColonne = righe[0].length;
-            righe[0].forEach((col, idx) => {
-                let nomeCol = col.replace(/"/g, "").trim();
-                html += `<th>${nomeCol}</th>`;
-                if (nomeCol.toLowerCase().includes("data")) indiceData = idx;
-                if (nomeCol.toLowerCase().includes("note") || nomeCol.toLowerCase().includes("intervento")) indiceNote = idx;
-            });
-            html += "</tr></thead><tbody>";
-        }
-
-        let ultimeDate = { "CONTROLAVAGGIO": null, "PULIZIA CESTELLI": null, "PULIZIA PREFILTRO": null };
-        let conteggioRigheValide = 0;
-
-        for (let i = 1; i < righe.length; i++) {
-            let riga = righe[i];
-            if (!riga || riga.length === 0 || (riga.length === 1 && riga[0] === "")) continue;
-
-            let haContenuto = riga.some(cella => cella.strip ? cella.strip() !== "" : cella.trim() !== "");
-            if (haContenuto) conteggioRigheValide = i;
-
-            html += "<tr>";
-            riga.forEach(cella => {
-                html += `<td>${cella.replace(/"/g, "").trim()}</td>`;
-            });
-            html += "</tr>";
-
-            if (indiceNote !== -1 && riga[indiceNote] && riga[indiceData]) {
-                let testoNote = riga[indiceNote].toUpperCase();
-                let dataValida = analizzaData(riga[indiceData]);
-
-                if (dataValida) {
-                    Object.keys(ultimeDate).forEach(chiave => {
-                        if (testoNote.includes(chiave)) {
-                            if (!ultimeDate[chiave] || dataValida > ultimeDate[chiave]) {
-                                ultimeDate[chiave] = dataValida;
-                            }
-                        }
-                    });
-                }
+        for (let i = 0; i < righe.length; i++) {
+            let r = righe[i];
+            if (!r || r.length === 0) continue;
+            let testoUnito = r.join("").toUpperCase();
+            
+            if (testoUnito.includes("DATA") && (testoUnito.includes("INTERVENTO") || testoUnito.includes("OPERAZIONE"))) {
+                rigaIntestazione = r.map(c => c.trim().toUpperCase());
+                indiceData = rigaIntestazione.findIndex(c => c.includes("DATA"));
+                indiceIntervento = rigaIntestazione.findIndex(c => c.includes("INTERVENTO") || c.includes("OPERAZIONE") || c.includes("DESCRIZIONE"));
+                indiceImpianto = rigaIntestazione.findIndex(c => c.includes("IMPIANTO") || c.includes("AREA") || c.includes("COMPONENTE"));
+                
+                righeDatiGrezze = righe.slice(i + 1);
+                break;
             }
         }
 
-        // Calcoliamo lo stato per capire il colore da dare alla riga pulsante
-        let statoScadenze = calcolaStatoAllarmi(ultimeDate);
+        if (!rigaIntestazione) {
+            rigaIntestazione = ["Data", "Impianto/Componente", "Intervento/Operazione", "Note", "Firma"];
+            indiceData = 0;
+            indiceImpianto = 1;
+            indiceIntervento = 2;
+            righeDatiGrezze = righe.filter(r => r && r.length > 0 && r.join("").trim() !== "");
+            if (righeDatiGrezze.length > 0 && righeDatiGrezze[0].join("").toUpperCase().includes("REGISTRO")) {
+                righeDatiGrezze.shift();
+            }
+        }
 
-        // Inseriamo la riga speciale con il pulsante integrato che occupa tutte le colonne
-        html += `
-            <tr id="riga-pulsante-scadenze">
-                <td colspan="${numeroColonne}" style="padding: 10px; text-align: center; background-color: #f8f9fa;">
-                    <button id="btn-stato-manutenzioni" style="
-                        width: 95%; padding: 10px; font-size: 15px; font-weight: bold;
-                        color: ${statoScadenze.stato === 'GIALLO' ? '#000' : '#fff'}; 
-                        background-color: ${statoScadenze.colore};
-                        border: none; border-radius: 4px; cursor: pointer; transition: 0.2s;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                    ">
-                        ${statoScadenze.testo}
-                    </button>
-                </td>
-            </tr>
-            <tr><td colspan="${numeroColonne}">&nbsp;</td></tr> `;
+        let ultimiInterventi = {};
+        Object.keys(SCADENZE).forEach(k => { ultimiInterventi[k] = null; });
+
+        let righeValideElaborate = [];
+
+        righeDatiGrezze.forEach(r => {
+            if (!r || r.length === 0 || !r[indiceData]) return;
+            let stringaData = r[indiceData].trim();
+            if (stringaData === "" || stringaData.toUpperCase().includes("DATA")) return;
+
+            let oggettoData = analizzaData(stringaData);
+            righeValideElaborate.push({ rigaGrezza: r, dataObj: oggettoData });
+
+            if (oggettoData) {
+                let testoCampi = r.join(" ").toUpperCase();
+                Object.keys(SCADENZE).forEach(chiave => {
+                    if (testoCampi.includes(chiave)) {
+                        if (!ultimiInterventi[chiave] || oggettoData > ultimiInterventi[chiave]) {
+                            ultimiInterventi[chiave] = oggettoData;
+                        }
+                    }
+                });
+            }
+        });
+
+        let oggi = new Date();
+        oggi.setHours(0,0,0,0);
+        statoScadenzeGlobali = [];
+
+        Object.keys(SCADENZE).forEach(chiave => {
+            let config = SCADENZE[chiave];
+            let ultimaData = ultimiInterventi[chiave];
+            if (!ultimaData) {
+                statoScadenzeGlobali.push({ chiave: chiave, stato: "rosso", giorni: "MAI ESEGUITO", msg: config.msg });
+            } else {
+                let diffTempo = oggi.getTime() - ultimaData.getTime();
+                let diffGiorni = Math.floor(diffTempo / (1000 * 60 * 60 * 24));
+                let stato = "verde";
+                if (diffGiorni >= config.rosso) stato = "rosso";
+                else if (diffGiorni >= config.giallo) stato = "giallo";
+                
+                statoScadenzeGlobali.push({ chiave: chiave, stato: stato, giorni: diffGiorni, msg: config.msg });
+            }
+        });
+
+        // Cerca la tabella corretta definita nell'HTML
+        const tabella = document.getElementById("tabellaManutenzioniIsolata");
+        if (!tabella) return;
+
+        let html = "<thead><tr>";
+        rigaIntestazione.forEach(h => {
+            html += `<th>${h || ""}</th>`;
+        });
+        html += "</tr></thead><tbody>";
+
+        righeValideElaborate.forEach(item => {
+            let r = item.rigaGrezza;
+            let stileRiga = "";
+            
+            if (item.dataObj) {
+                let testoCampi = r.join(" ").toUpperCase();
+                let peggiorStato = "";
+                
+                Object.keys(SCADENZE).forEach(chiave => {
+                    if (testoCampi.includes(chiave)) {
+                        let infoScadenza = statoScadenzeGlobali.find(s => s.chiave === chiave);
+                        if (infoScadenza) {
+                            if (infoScadenza.stato === "rosso") peggiorStato = "rosso";
+                            else if (infoScadenza.stato === "giallo" && peggiorStato !== "rosso") peggiorStato = "giallo";
+                        }
+                    }
+                });
+
+                if (peggiorStato === "rosso") stileRiga = ' class="evidenzia-rosso"';
+                else if (peggiorStato === "giallo") stileRiga = ' class="evidenzia-giallo"';
+            }
+
+            html += `<tr${stileRiga}>`;
+            r.forEach(cella => {
+                html += `<td>${cella || ""}</td>`;
+            });
+            html += "</tr>";
+        });
 
         html += "</tbody>";
         tabella.innerHTML = html;
 
-        // Agganciamo l'evento al click sul pulsante appena creato nella tabella
-        document.getElementById("btn-stato-manutenzioni").addEventListener("click", mostraFinestraDettagli);
-
-        // Scroll automatico calibrato esattamente sulla riga del pulsante
-        setTimeout(() => {
-            const rigaPulsante = document.getElementById("riga-pulsante-scadenze");
-            if (rigaPulsante) {
-                rigaPulsante.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }, 300);
-    }
-
-    function calcolaStatoAllarmi(ultimeDate) {
-        const oggi = new Date();
-        let peggiorStato = "VERDE";
-        statoScadenzeGlobali = [];
-
-        Object.keys(SCADENZE).forEach(chiave => {
-            let ultimaData = ultimeDate[chiave];
-            let giorniTrascorsi = "-";
-            let coloreTask = "green";
-
-            if (ultimaData) {
-                let diffTempo = Math.abs(oggi - ultimaData);
-                giorniTrascorsi = Math.floor(diffTempo / (1000 * 60 * 60 * 24));
-
-                if (giorniTrascorsi >= SCADENZE[chiave].rosso) {
-                    coloreTask = "red";
-                    if (peggiorStato !== "ROSSO") peggiorStato = "ROSSO";
-                } else if (giorniTrascorsi >= SCADENZE[chiave].giallo) {
-                    coloreTask = "orange";
-                    if (peggiorStato !== "ROSSO") peggiorStato = "GIALLO";
-                }
-            } else {
-                coloreTask = "red";
-                peggiorStato = "ROSSO";
-                giorniTrascorsi = "MAI ESEGUITO";
-            }
-
-            statoScadenzeGlobali.push({
-                intervento: SCADENZE[chiave].msg,
-                giorni: giorniTrascorsi,
-                colore: coloreTask
-            });
-        });
-
-        let configurazione = { colore: "#28a745", testo: "✅ Impianti OK - Nessuna Scadenza", stato: peggiorStato };
-        if (peggiorStato === "ROSSO") {
-            configurazione.colore = "#dc3545";
-            configurazione.testo = "🚨 ATTENZIONE: Interventi Scaduti! Clicca per i dettagli";
-        } else if (peggiorStato === "GIALLO") {
-            configurazione.colore = "#ffc107";
-            configurazione.testo = "⚠️ Interventi in Scadenza - Clicca per i dettagli";
+        if (statoScadenzeGlobali.some(s => s.stato === "rosso" || s.stato === "giallo")) {
+            mostraPopupAllarmiManutenzioni();
         }
-
-        return configurazione;
     }
 
-    function mostraFinestraDettagli() {
-        let vecchioPopup = document.getElementById("popup-scadenze");
-        if (vecchioPopup) vecchioPopup.remove();
+    function mostraPopupAllarmiManutenzioni() {
+        if (document.getElementById("popup-scadenze")) return;
 
         let htmlElenco = "";
         statoScadenzeGlobali.forEach(item => {
-            let cerchioColore = `<span style="display:inline-block; width:12px; height:12px; border-radius:50%; background-color:${item.colore}; margin-right:8px;"></span>`;
+            let coloreSfondo = "#d4edda"; 
+            let coloreTesto = "#155724";
+            if (item.stato === "rosso") { coloreSfondo = "#f8d7da"; coloreTesto = "#721c24"; }
+            else if (item.stato === "giallo") { coloreSfondo = "#fff3cd"; coloreTesto = "#856404"; }
+
             htmlElenco += `
-                <div style="padding: 10px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center;">${cerchioColore} <strong>${item.intervento}</strong></div>
-                    <div>Ultimo intervento: <span style="font-weight:bold; color:${item.colore === 'orange' ? '#d97706' : item.colore}">${item.giorni} ${typeof item.giorni === 'number' ? 'giorni fa' : ''}</span></div>
+                <div style="background: ${coloreSfondo}; color: ${coloreTesto}; padding: 10px; margin-bottom: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                    <strong>${item.msg}</strong>
+                    <div><span style="font-size: 0.85rem; background: rgba(255,255,255,0.6); padding: 2px 6px; border-radius: 3px;">${item.giorni} ${typeof item.giorni === 'number' ? 'giorni fa' : ''}</span></div>
                 </div>
             `;
         });
@@ -207,19 +211,22 @@
 
         popup.innerHTML = `
             <div style="background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-family: sans-serif;">
-                <h3 style="margin-top: 0; border-bottom: 2px solid #0275d8; padding-bottom: 10px; color: #333;">📋 Stato Scadenziario Manutenzioni</h3>
+                <h3 style="margin-top: 0; border-bottom: 2px solid #0066cc; padding-bottom: 10px; color: #333;">📋 Stato Scadenziario Manutenzioni</h3>
                 <div style="margin: 20px 0;">
                     ${htmlElenco}
                 </div>
                 <button id="chiudi-popup-scadenze" style="
-                    width: 100%; padding: 10px; background: #0275d8; color: #fff;
-                    border: none; border-radius: 4px; font-weight: bold; cursor: pointer;
-                ">Chiudi Finestra</button>
+                    width: 100%; padding: 10px; background: #0066cc; color: #fff;
+                    border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+                    Ho preso visione
+                </button>
             </div>
         `;
 
         document.body.appendChild(popup);
-        document.getElementById("chiudi-popup-scadenze").addEventListener("click", () => popup.remove());
-        popup.addEventListener("click", (e) => { if (e.target === popup) popup.remove(); });
+
+        document.getElementById("chiudi-popup-scadenze").addEventListener("click", () => {
+            popup.remove();
+        });
     }
 })();
