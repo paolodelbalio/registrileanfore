@@ -5,7 +5,7 @@
     // Scadenze per gli allarmi visivi (Giallo a 4 giorni, Rosso a 7 giorni)
     const SCADENZE = {
         "CONTROLAVAGGIO": { giallo: 4, rosso: 7, msg: "Controlavaggio filtri", paroleChiave: ["CONTROLAVAGGIO", "LAVAGGIO FILTRI", "LAVAGGIO"] },
-        "PULIZIA CESTELLI": { giallo: 5, rosso: 7, msg: "Pulizia cestelli skimmer", paroleChiave: ["CESTELLI", "SKIMMER"] },
+        "PULIZIA CESTELLI": { giallo: 5, rosso: 7, msg: "Pulizia cestelli skimmer", paroleChiave: ["CESTELLI", "SKIMMER", "PULITO CESTELLI"] },
         "PULIZIA PREFILTRO": { giallo: 10, rosso: 15, msg: "Pulizia prefiltro pompa", paroleChiave: ["PREFILTRO", "PRE-FILTRO"] }
     };
 
@@ -58,17 +58,17 @@
         Object.keys(SCADENZE).forEach(k => { ultimiInterventi[k] = null; });
 
         righe.forEach(riga => {
-            if (!riga || riga.length < 3) return;
+            if (!riga || riga.length < 2) return;
             let dataGrezza = riga[0] ? riga[0].toString().trim() : "";
             if (dataGrezza === "" || dataGrezza.toUpperCase().includes("DATA") || dataGrezza.toUpperCase().includes("REGISTRO")) return;
 
             let oggettoData = analizzaData(dataGrezza);
             if (oggettoData) {
-                let testoUnito = riga.join(" ").toUpperCase();
+                // Uniamo e puliamo tutte le celle della riga eliminando spazi superflui
+                let testoUnito = riga.map(cella => cella ? cella.toString().trim().toUpperCase() : "").join(" ");
                 
                 Object.keys(SCADENZE).forEach(chiave => {
                     let config = SCADENZE[chiave];
-                    // Controlla se il testo della riga contiene una delle parole chiave flessibili
                     let corrisponde = config.paroleChiave.some(p => testoUnito.includes(p));
                     
                     if (corrisponde) {
@@ -97,7 +97,7 @@
             }
         });
 
-        // Disegna le righe del file CSV
+        // Disegna le righe visibili della tabella
         righe.forEach(riga => {
             if (!riga || riga.length === 0) return;
             
@@ -108,7 +108,7 @@
             let stileRiga = "";
 
             if (oggettoData) {
-                let testoUnito = riga.join(" ").toUpperCase();
+                let testoUnito = riga.map(cella => cella ? cella.toString().trim().toUpperCase() : "").join(" ");
                 let peggiorStato = "";
                 
                 Object.keys(SCADENZE).forEach(chiave => {
@@ -135,18 +135,18 @@
             html += "</tr>";
         });
 
-        // STILE PULSANTE: ADATTATO PIATTO, LARGO E IN TRASPARENZA RGBA
+        // Configurazione Colore e Trasparenza Pulsante
         let infoControlavaggio = window.statoScadenzeGlobali.find(s => s.chiave === "CONTROLAVAGGIO");
-        let coloreSfondo = "rgba(40, 167, 69, 0.15)"; // Verde trasparente
+        let coloreSfondo = "rgba(40, 167, 69, 0.15)";
         let coloreBordo = "rgba(40, 167, 69, 0.6)";
         let coloreTesto = "#1e7e34";
         
         if (infoControlavaggio && infoControlavaggio.stato === "rosso") {
-            coloreSfondo = "rgba(220, 53, 69, 0.15)"; // Rosso trasparente
+            coloreSfondo = "rgba(220, 53, 69, 0.15)";
             coloreBordo = "rgba(220, 53, 69, 0.6)";
             coloreTesto = "#bd2130";
         } else if (infoControlavaggio && infoControlavaggio.stato === "giallo") {
-            coloreSfondo = "rgba(255, 193, 7, 0.2)"; // Giallo trasparente
+            coloreSfondo = "rgba(255, 193, 7, 0.2)";
             coloreBordo = "rgba(211, 158, 0, 0.6)";
             coloreTesto = "#d39e00";
         }
@@ -156,23 +156,23 @@
         // 1a Riga vuota di stacco normale
         html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
 
-        // 2a Riga: Il pulsante occupa l'intera larghezza delle righe ed è piatto ed elegante
+        // 2a Riga: Pulsante CORTO, CENTRATO e in TRASPARENZA
         html += `
             <tr>
-                <td colspan="5" style="padding: 0; background: transparent; border: none;">
+                <td colspan="5" style="padding: 10px; background: transparent; border: none; text-align: center;">
                     <button onclick="window.apriDettaglioControlavaggio()" style="
-                        width: 100%; box-sizing: border-box; background: ${coloreSfondo}; 
+                        width: 90%; max-width: 320px; box-sizing: border-box; background: ${coloreSfondo}; 
                         color: ${coloreTesto}; border: 1px solid ${coloreBordo};
-                        padding: 8px 15px; font-size: 0.95rem; font-weight: bold; 
+                        padding: 8px 12px; font-size: 0.92rem; font-weight: bold; 
                         cursor: pointer; text-align: center; font-family: Arial, sans-serif;
-                        transition: background 0.2s;">
-                        🔄 Stato Controlavaggio: ${testoGiorni} (Clicca qui per la Guida Tecnica)
+                        border-radius: 4px; display: inline-block;">
+                        🔄 Stato Controlavaggio: ${testoGiorni}
                     </button>
                 </td>
             </tr>
         `;
 
-        // Ulteriori 5 righe vuote sotto per consentire lo scroll ottimale
+        // Ulteriori righe vuote sotto per lo scroll
         for (let k = 0; k < 5; k++) {
             html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
         }
@@ -212,7 +212,7 @@
                 <ol style="padding-left: 20px; line-height: 1.5; color: #444; font-size: 0.92rem;">
                     <li style="margin-bottom: 6px;"><strong>Spegnere la pompa</strong> di filtrazione della piscina.</li>
                     <li style="margin-bottom: 6px;">Ruotare la valvola selettrice del filtro sulla posizione <strong>"CONTROLAVAGGIO" (Backwash)</strong>.</li>
-                    <li style="margin-bottom: 6px;">Aprire la valvola di scarico (se presente) e <strong>riaccendere la pompa</strong>.</li>
+                    <li style="margin-bottom: 6px;">Aprire la valvola di scarico (se present) e <strong>riaccendere la pompa</strong>.</li>
                     <li style="margin-bottom: 6px;">Lasciare circolare l'acqua per circa <strong>2-3 minuti</strong>, o finché la spia trasparente dello scarico non torna perfettamente limpida.</li>
                     <li style="margin-bottom: 6px;"><strong>Spegnere nuovamente la pompa</strong>.</li>
                     <li style="margin-bottom: 6px;">Spostare la valvola selettrice sulla posizione <strong>"RISCIACQUO" (Rinse)</strong>.</li>
