@@ -46,7 +46,7 @@
     <section id="manutenzioniSection" class="register-section hidden">
         <h2>Registro Manutenzioni</h2>
         <div class="table-wrapper">
-            <table id="manutenzioniTable"></table>
+            <table id="tabellaManutenzioniIsolata"></table>
         </div>
     </section>
 
@@ -70,25 +70,22 @@
 
     <script>
         function apriRegistro(idSezione, bottoneCliccato) {
-            // Nasconde tutte le sezioni dei registri
             document.querySelectorAll('.register-section').forEach(sec => {
                 sec.classList.add('hidden');
             });
-            // Disattiva lo stato visivo di tutti i bottoni
             document.querySelectorAll('.top-buttons button').forEach(btn => {
                 btn.classList.remove('active');
             });
-            // Mostra la sezione desiderata e attiva il bottone corrispondente
             document.getElementById(idSezione).classList.remove('hidden');
             bottoneCliccato.classList.add('active');
 
-            // Forza il riallineamento dei grafici se presenti
             window.dispatchEvent(new Event('resize'));
         }
     </script>
 
     <script src="script.js"></script>
     <script src="contatori.js"></script>
+    <script src="manutenzioni.js"></script>
 
 </body>
 </html>
