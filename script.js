@@ -1,4 +1,3 @@
-let graficoCorrente = null;
 let datiRegistriGlobali = { chimico: [], contatori: [], pulizie: [] };
 
 const FILE_REGISTRI = {
@@ -7,47 +6,30 @@ const FILE_REGISTRI = {
     pulizie: "REGISTRO PULIZIE PISCINA 2026.csv"
 };
 
+// Inizializzazione globale
 document.addEventListener("DOMContentLoaded", () => {
-    caricaTuttiIRegistri();
-});
-
-function caricaTuttiIRegistri() {
     Object.keys(FILE_REGISTRI).forEach(chiave => {
         Papa.parse(FILE_REGISTRI[chiave], {
             download: true,
-            header: false,
+            header: true,
             skipEmptyLines: true,
-            complete: function(risultati) {
-                elaboraDatiTabella(chiave, risultati.data);
+            complete: (res) => {
+                datiRegistriGlobali[chiave] = res.data;
+                console.log(`Caricato: ${chiave}`);
+                // Se è il chimico, disegna subito
+                if(chiave === 'chimico') renderizzaChimico();
             }
         });
     });
-}
+});
 
-function elaboraDatiTabella(chiave, righeGrezze) {
-    if (!righeGrezze || righeGrezze.length < 2) return;
-    let intestazioni = righeGrezze[0].map(h => h ? h.trim() : "");
-    let datiFormattati = righeGrezze.slice(1).map(riga => {
-        let obj = {};
-        intestazioni.forEach((h, i) => obj[h] = riga[i] ? riga[i].trim() : "");
-        return obj;
-    });
-    
-    datiRegistriGlobali[chiave] = datiFormattati;
-    
-    if (chiave === 'chimico') {
-        creaTabellaChimica(intestazioni, datiFormattati);
-    }
-}
+// Funzione specifica per renderizzare il Chimico
+function renderizzaChimico() {
+    const table = document.getElementById("chimicoTable");
+    const dati = datiRegistriGlobali.chimico;
+    if(!table || dati.length === 0) return;
 
-function creaTabellaChimica(intestazioni, dati) {
-    const tabella = document.getElementById("chimicoTable");
-    if (!tabella) return;
-    
-    let html = "<thead><tr>" + intestazioni.map(h => `<th>${h}</th>`).join('') + "</tr></thead>";
-    html += "<tbody>" + dati.map(riga => 
-        "<tr>" + intestazioni.map(h => `<td>${riga[h] || ""}</td>`).join('') + "</tr>"
-    ).join('') + "</tbody>";
-    
-    tabella.innerHTML = html;
+    let html = `<thead><tr>${Object.keys(dati[0]).map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
+    html += `<tbody>${dati.map(row => `<tr>${Object.values(row).map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>`;
+    table.innerHTML = html;
 }
