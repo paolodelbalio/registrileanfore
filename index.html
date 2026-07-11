@@ -2,75 +2,62 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard Registri Piscina</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Piscina 2026</title>
     <style>
-        body { font-family: sans-serif; background: #f4f4f9; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
-        .tabs button { padding: 10px 15px; cursor: pointer; border: none; background: #eee; font-weight: bold; }
-        .tabs button.active { background: #007bff; color: white; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background-color: #f4f4f4; text-align: center; }
+        
+        /* Intestazione Blu */
+        .header { background-color: #0066cc; color: white; padding: 40px 20px; }
+        .header h1 { margin: 0; font-size: 2.5em; }
+        .header p { font-size: 1.2em; opacity: 0.9; }
+
+        /* Area Pulsanti */
+        .nav-bar { background-color: #f8f9fa; padding: 20px; border-bottom: 2px solid #ddd; }
+        .tab-button { 
+            padding: 12px 25px; margin: 5px; cursor: pointer; 
+            border: 1px solid #0066cc; border-radius: 8px; 
+            background-color: white; color: #0066cc; font-size: 16px; font-weight: 600; 
+        }
+        .tab-button.active { background-color: #0066cc; color: white; }
+        .tab-button:hover { background-color: #e6f0ff; }
+
+        /* Contenuto */
+        .content { padding: 30px; }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Gestione Registri</h1>
-    
-    <div class="tabs">
-        <button class="tab-button active" onclick="openTab(event, 'chimico')">Chimico</button>
-        <button class="tab-button" onclick="openTab(event, 'contatori')">Contatori</button>
-        <button class="tab-button" onclick="openTab(event, 'manutenzione')">Manutenzione</button>
-        <button class="tab-button" onclick="openTab(event, 'impianti')">Impianti</button>
-    </div>
+<div class="header">
+    <h1>Dashboard Piscina 2026</h1>
+    <p>Analisi automatica dei registri</p>
+</div>
 
-    <div id="chimico" class="tab-content active">
-        <h2>Registro Chimico</h2>
-        </div>
+<div class="nav-bar">
+    <button class="tab-button active" onclick="showTab('chimico', this)">Chimico</button>
+    <button class="tab-button" onclick="showTab('contatori', this)">Contatori</button>
+    <button class="tab-button" onclick="showTab('pulizie', this)">Pulizie</button>
+    <button class="tab-button" onclick="showTab('manutenzioni', this)">Manutenzioni</button>
+</div>
 
-    <div id="contatori" class="tab-content">
-        <h2>Registro Contatori</h2>
-        </div>
-
-    <div id="manutenzione" class="tab-content">
-        <h2>Registro Manutenzione</h2>
-        <table>
-            <thead>
-                <tr><th>Data</th><th>Area</th><th>Intervento</th><th>Tecnico</th><th>Note</th></tr>
-            </thead>
-            <tbody id="manutenzioneBody"></tbody>
-        </table>
-    </div>
-
-    <div id="impianti" class="tab-content">
-        <h2>Registro Impianti</h2>
-        </div>
+<div class="content">
+    <div id="chimico" class="tab-pane active"><h2>Registro Chimico</h2></div>
+    <div id="contatori" class="tab-pane"><h2>Registro Contatori</h2></div>
+    <div id="pulizie" class="tab-pane"><h2>Registro Pulizie</h2></div>
+    <div id="manutenzioni" class="tab-pane"><h2>Registro Manutenzioni</h2></div>
 </div>
 
 <script>
-    // Funzione per cambiare scheda
-    function openTab(evt, tabName) {
-        let contents = document.getElementsByClassName("tab-content");
-        for (let i = 0; i < contents.length; i++) contents[i].style.display = "none";
+    function showTab(tabId, btn) {
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
         
-        let buttons = document.getElementsByClassName("tab-button");
-        for (let i = 0; i < buttons.length; i++) buttons[i].className = buttons[i].className.replace(" active", "");
-        
-        document.getElementById(tabName).style.display = "block";
-        evt.currentTarget.className += " active";
+        document.getElementById(tabId).classList.add('active');
+        btn.classList.add('active');
     }
-
-    // Esempio logica per caricare i dati (da adattare con i tuoi dati reali)
-    function loadManutenzione() {
-        const dati = JSON.parse(localStorage.getItem('manutenzioni')) || [];
-        const body = document.getElementById('manutenzioneBody');
-        body.innerHTML = dati.map(item => `<tr><td>${item.date}</td><td>${item.area}</td><td>${item.type}</td><td>${item.technician}</td><td>${item.notes}</td></tr>`).join('');
-    }
-    
-    window.onload = loadManutenzione;
 </script>
+
 </body>
 </html>
