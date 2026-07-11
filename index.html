@@ -70,84 +70,72 @@
 
     <script>
         function apriRegistro(idSezione, bottoneCliccato) {
-            // 1. Nasconde tutte le sezioni
-            document.querySelectorAll('.register-section').forEach(sec => {
-                sec.classList.add('hidden');
-            });
+            // Mostra la sezione
+            document.querySelectorAll('.register-section').forEach(sec => sec.classList.add('hidden'));
+            document.querySelectorAll('.top-buttons button').forEach(btn => btn.classList.remove('active'));
             
-            // 2. Disattiva lo stato visivo di tutti i bottoni
-            document.querySelectorAll('.top-buttons button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // 3. Mostra la sezione desiderata
             const sezioneAttiva = document.getElementById(idSezione);
-            if (sezioneAttiva) {
-                sezioneAttiva.classList.remove('hidden');
-                bottoneCliccato.classList.add('active');
-                
-                window.dispatchEvent(new Event('resize'));
+            if (!sezioneAttiva) return;
+            
+            sezioneAttiva.classList.remove('hidden');
+            bottoneCliccato.classList.add('active');
+            window.dispatchEvent(new Event('resize'));
 
-                // 4. STRATEGIA AD INTERVALLI: Controlla finché la tabella non è realmente popolata da Git
-                let tentativi = 0;
-                const controlloTabella = setInterval(() => {
-                    const wrapper = sezioneAttiva.querySelector('.table-wrapper');
-                    const tabella = sezioneAttiva.querySelector('table');
-                    const righe = tabella ? tabella.querySelectorAll('tbody tr') : [];
+            // Esegui lo scroll cercando la data odierna o l'ultimo pH compilato
+            setTimeout(() => {
+                const wrapper = sezioneAttiva.querySelector('.table-wrapper');
+                const righe = sezioneAttiva.querySelectorAll('tbody tr');
+                if (!wrapper || righe.length === 0) return;
 
-                    tentativi++;
+                // Generiamo la stringa della data di oggi (es: "11/07/2026")
+                const oggi = new Date();
+                const giorno = String(oggi.getDate()).padStart(2, '0');
+                const mese = String(oggi.getMonth() + 1).padStart(2, '0');
+                const anno = oggi.getFullYear();
+                const stringaOggi = `${giorno}/${mese}/${anno}`;
 
-                    // Se le righe sono state generate o abbiamo superato i 3 secondi di attesa
-                    if (righe.length > 0 || tentativi > 15) {
-                        clearInterval(controlloTabella); // Stop al ciclo di controllo
+                let rigaTarget = null;
+                let indiceTrovato = -1;
 
-                        if (righe.length > 0 && wrapper) {
-                            let indiceRigaPresente = -1;
+                // 1. Cerca prima se esiste esattamente la riga di OGGI
+                for (let i = 0; i < righe.length; i++) {
+                    if (righe[i].textContent.includes(stringaOggi)) {
+                        indiceTrovato = i;
+                        break;
+                    }
+                }
 
-                            // Scansione dal basso verso l'alto per individuare l'ultima riga del presente
-                            for (let i = righe.length - 1; i >= 0; i--) {
-                                let celle = righe[i].querySelectorAll('td');
-                                let rigaValida = false;
-
-                                if (idSezione === 'chimicoSection') {
-                                    // Trova la cella che contiene il valore del pH reale (es. 7.2 o 7,4)
-                                    celle.forEach(td => {
-                                        let testo = td.textContent.trim().replace(',', '.');
-                                        let num = parseFloat(testo);
-                                        if (!isNaN(num) && num >= 6.0 && num <= 8.5) {
-                                            rigaValida = true;
-                                        }
-                                    });
-                                } else {
-                                    // Per gli altri registri guarda se le celle dei dati non sono vuote o zero
-                                    if (celle.length > 2 && celle[1].textContent.trim() !== "" && celle[1].textContent.trim() !== "0") {
-                                        rigaValida = true;
-                                    }
-                                }
-
-                                if (rigaValida) {
-                                    indiceRigaPresente = i;
-                                    break;
-                                }
+                // 2. Se non trova oggi, cerca l'ultima riga compilata (pH valido) dal basso
+                if (indiceTrovato === -1) {
+                    for (let i = righe.length - 1; i >= 0; i--) {
+                        let celle = righe[i].querySelectorAll('td');
+                        let haDati = false;
+                        celle.forEach((td, idx) => {
+                            if (idx > 0 && td.textContent.trim() !== "" && td.textContent.trim() !== "0") {
+                                haDati = true;
                             }
-
-                            // Posizionamento sulla riga del presente + 2 righe vuote del futuro
-                            if (indiceRigaPresente !== -1) {
-                                let rigaTargetVisiva = righe[Math.min(indiceRigaPresente + 2, righe.length - 1)];
-                                if (rigaTargetVisiva) {
-                                    let posizioneTop = rigaTargetVisiva.offsetTop;
-                                    let altezzaWrapper = wrapper.clientHeight;
-                                    
-                                    // Sposta l'inquadratura bloccandola sul fondo del rettangolo visibile
-                                    wrapper.scrollTop = posizioneTop - altezzaWrapper + rigaTargetVisiva.clientHeight + 15;
-                                }
-                            }
+                        });
+                        if (haDati) {
+                            indiceTrovato = i;
+                            break;
                         }
                     }
-                }, 150); // Controlla ogni 150 millisecondi
-            }
+                }
+
+                // Applica lo scroll calcolando le 2 righe sotto di margine
+                if (indiceTrovato !== -1) {
+                    let indiceVisuale = Math.min(indiceTrovato + 2, righe.length - 1);
+                    let rigaMargine = righe[indiceVisuale];
+                    
+                    wrapper.scrollTop = rigaMargine.offsetTop - wrapper.clientHeight + rigaMargine.clientHeight + 10;
+                }
+            }, 350); // Ritardo fisso sicuro per il disegno della tabella
         }
     </script>
+
+    <script src="script.js"></script>
+    <script src="contatori.js"></script>
+    <script src="manutenzioni.js"></script>
 
 </body>
 </html>
