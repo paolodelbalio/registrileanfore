@@ -19,7 +19,6 @@ header {
     margin-bottom: 20px;
 }
 
-/* LA PULSANTIERA ORIGINALE */
 .top-buttons {
     display: flex;
     justify-content: center;
@@ -33,7 +32,7 @@ header {
     margin-bottom: 20px;
 }
 
-.top-buttons .tab-btn {
+.top-buttons button {
     padding: 6px 12px;
     font-size: 0.85rem;
     border: 1px solid #0066cc;
@@ -42,15 +41,14 @@ header {
     border-radius: 4px;
     cursor: pointer;
     font-weight: bold;
-    transition: background 0.2s, color 0.2s;
 }
 
-.top-buttons .tab-btn:hover {
+.top-buttons button:hover {
     background: #d0e4f7;
 }
 
-/* BLOCCO FORZATO PER IL PULSANTE SELEZIONATO */
-.top-buttons .tab-btn.active {
+/* Regola specifica per fare diventare il tasto attivo Blu con il testo Bianco */
+.top-buttons button.active {
     background-color: #0066cc !important;
     color: white !important;
 }
@@ -108,12 +106,11 @@ th {
     font-weight: bold;
 }
 
-/* CLASSE DI NASCONDIMENTO FORZATO (NON TOCCA I METODI DI JAVASCRIPT) */
-.register-section.hidden {
+.hidden {
     display: none !important;
 }
 
-/* OVERLAY E FINESTRE DI DIAGNOSTICA ORIGINALI */
+/* OVERLAY E FINESTRE DI DIAGNOSTICA */
 .overlay {
     position: fixed;
     top: 0;
