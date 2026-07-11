@@ -16,10 +16,10 @@
     </header>
 
     <div class="top-buttons">
-        <button id="btn-chimico" class="active" onclick="cambiaScheda('chimicoSection', this)">🧪 Chimico</button>
-        <button id="btn-contatori" onclick="cambiaScheda('contatoriSection', this)">💧 Contatori</button>
-        <button id="btn-pulizie" onclick="cambiaScheda('pulizieSection', this)">🧹 Pulizie</button>
-        <button id="btn-manutenzioni" onclick="cambiaScheda('manutenzioniSection', this)">🛠️ Manutenzioni</button>
+        <button id="btn-chimico" class="active" onclick="apriRegistro('chimicoSection', this)">🧪 Chimico</button>
+        <button id="btn-contatori" onclick="apriRegistro('contatoriSection', this)">💧 Contatori</button>
+        <button id="btn-pulizie" onclick="apriRegistro('pulizieSection', this)">🧹 Pulizie</button>
+        <button id="btn-manutenzioni" onclick="apriRegistro('manutenzioniSection', this)">🛠️ Manutenzioni</button>
     </div>
 
     <section id="chimicoSection" class="register-section">
@@ -32,30 +32,21 @@
     <section id="contatoriSection" class="register-section hidden">
         <h2>Registro Contatori</h2>
         <div class="table-wrapper">
-            <table id="contatoriTable">
-                <thead><tr><th>Data</th><th>Lettura (mc)</th><th>Consumo</th><th>Note</th></tr></thead>
-                <tbody><tr><td colspan="4" style="text-align:center; padding:20px; color:#666;">Nessun dato presente - Area Contatori predisposta</td></tr></tbody>
-            </table>
+            <table id="contatoriTable"></table>
         </div>
     </section>
 
     <section id="pulizieSection" class="register-section hidden">
         <h2>Registro Pulizie</h2>
         <div class="table-wrapper">
-            <table id="pulizieTable">
-                <thead><tr><th>Data</th><th>Area Sanificata</th><th>Operatore</th><th>Note</th></tr></thead>
-                <tbody><tr><td colspan="4" style="text-align:center; padding:20px; color:#666;">Nessun dato presente - Area Pulizie predisposta</td></tr></tbody>
-            </table>
+            <table id="pulizieTable"></table>
         </div>
     </section>
 
     <section id="manutenzioniSection" class="register-section hidden">
         <h2>Registro Manutenzioni</h2>
         <div class="table-wrapper">
-            <table id="manutenzioniTable">
-                <thead><tr><th>Data</th><th>Componente</th><th>Intervento</th><th>Note</th></tr></thead>
-                <tbody><tr><td colspan="4" style="text-align:center; padding:20px; color:#666;">Nessun dato presente - Area Manutenzioni predisposta</td></tr></tbody>
-            </table>
+            <table id="manutenzioniTable"></table>
         </div>
     </section>
 
@@ -78,24 +69,28 @@
     </div>
 
     <script>
-        function cambiaScheda(idSezione, bottoneCliccato) {
+        function apriRegistro(idSezione, bottoneCliccato) {
             // Nasconde tutte le sezioni dei registri
             document.querySelectorAll('.register-section').forEach(sec => {
                 sec.classList.add('hidden');
             });
-            // Rimuove lo stato attivo (sfondo blu) da tutti i pulsanti
+            // Disattiva lo stato visivo di tutti i bottoni
             document.querySelectorAll('.top-buttons button').forEach(btn => {
                 btn.classList.remove('active');
             });
-            // Mostra solo la sezione legata al pulsante e lo colora di blu
+            // Mostra la sezione desiderata e attiva il bottone corrispondente
             document.getElementById(idSezione).classList.remove('hidden');
             bottoneCliccato.classList.add('active');
 
-            // Notifica un finto ridimensionamento per forzare Chart.js a ricalcolare i grafici se necessario
+            // Forza il riallineamento dei grafici se presenti
             window.dispatchEvent(new Event('resize'));
         }
     </script>
 
     <script src="script.js"></script>
+    <script src="contatori.js"></script>
+    <script src="pulizie.js"></script>
+    <script src="manutenzioni.js"></script>
+
 </body>
 </html>
