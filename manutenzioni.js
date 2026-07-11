@@ -1,8 +1,8 @@
-// Gestore Isolato e Protetto per il Registro Manutenzioni
+// Gestore Isolato Separato per il Registro Manutenzioni
 (function() {
     const FILE_MANUTENZIONI = "REGISTRO MANUTENZIONE INTERVENTI .csv";
 
-    // Mappatura delle scadenze in giorni
+    // Scadenze per gli allarmi visivi
     const SCADENZE = {
         "CONTROLAVAGGIO": { giallo: 5, rosso: 7, msg: "Controlavaggio filtri" },
         "PULIZIA CESTELLI": { giallo: 5, rosso: 7, msg: "Pulizia cestelli skimmer" },
@@ -12,15 +12,11 @@
     let statoScadenzeGlobali = [];
 
     document.addEventListener("DOMContentLoaded", () => {
-        // Avvio ritardato per non sovrapporsi al chimico
         setTimeout(caricaRegistroManutenzioniIsolato, 1000);
     });
 
     function caricaRegistroManutenzioniIsolato() {
-        if (typeof Papa === 'undefined') {
-            console.error("PapaParse non caricato.");
-            return;
-        }
+        if (typeof Papa === 'undefined') return;
         
         Papa.parse(FILE_MANUTENZIONI, {
             download: true,
@@ -28,11 +24,8 @@
             skipEmptyLines: true,
             complete: function(risultati) {
                 if (risultati && risultati.data) {
-                    elaboraManutenzioniProtetto(risultati.data);
+                    disegnaTabellaManutenzioniFissa(risultati.data);
                 }
-            },
-            error: function(errore) {
-                console.error("File manutenzioni non trovato o errore Git 404. Verificare nome file.");
             }
         });
     }
@@ -55,53 +48,33 @@
         return isNaN(d.getTime()) ? null : d;
     }
 
-    function elaboraManutenzioniProtetto(righe) {
-        if (!righe || righe.length === 0) return;
+    function disegnaTabellaManutenzioniFissa(righe) {
+        const tabella = document.getElementById("tabellaManutenzioniIsolata");
+        if (!tabella) return;
 
-        let rigaIntestazione = null;
-        let indiceData = -1;
-        let righeDatiGrezze = [];
-
-        // Trova la riga delle intestazioni stabili
-        for (let i = 0; i < righe.length; i++) {
-            let r = righe[i];
-            if (!r || r.length === 0) continue;
-            let testoUnito = r.join("").toUpperCase();
-            
-            if (testoUnito.includes("DATA") && (testoUnito.includes("INTERVENTO") || testoUnito.includes("OPERAZIONE"))) {
-                rigaIntestazione = r.map(c => c ? c.trim() : "");
-                indiceData = r.findIndex(c => c && c.toUpperCase().includes("DATA"));
-                righeDatiGrezze = righe.slice(i + 1);
-                break;
-            }
-        }
-
-        // Se non trova intestazioni standard nel CSV, ne usa una di sicurezza
-        if (!rigaIntestazione) {
-            rigaIntestazione = ["Data", "Impianto/Componente", "Intervento/Operazione", "Note", "Firma"];
-            indiceData = 0;
-            righeDatiGrezze = righe.filter(r => r && r.length > 0 && r.join("").trim() !== "");
-            if (righeDatiGrezze.length > 0 && righeDatiGrezze[0].join("").toUpperCase().includes("REGISTRO")) {
-                righeDatiGrezze.shift();
-            }
-        }
+        // Forziamo le intestazioni pulite del vero registro
+        let intestazioniFisse = ["Data", "Impianto/Componente", "Intervento/Operazione", "Note", "Firma"];
+        
+        let html = "<thead><tr>";
+        intestazioniFisse.forEach(h => {
+            html += `<th>${h}</th>`;
+        });
+        html += "</tr></thead><tbody>";
 
         let ultimiInterventi = {};
         Object.keys(SCADENZE).forEach(k => { ultimiInterventi[k] = null; });
-        let righeValideElaborate = [];
 
-        righeDatiGrezze.forEach(r => {
-            if (!r || r.length === 0 || indiceData === -1 || !r[indiceData]) return;
-            let stringaData = r[indiceData].trim();
-            if (stringaData === "" || stringaData.toUpperCase().includes("DATA")) return;
+        // Primo passaggio: calcolo delle scadenze per gli allarmi
+        righe.forEach(riga => {
+            if (!riga || riga.length < 3) return;
+            let dataGrezza = riga[0] ? riga[0].toString().trim() : "";
+            if (dataGrezza === "" || dataGrezza.toUpperCase().includes("DATA") || dataGrezza.toUpperCase().includes("REGISTRO")) return;
 
-            let oggettoData = analizzaData(stringaData);
-            righeValideElaborate.push({ rigaGrezza: r, dataObj: objetoData });
-
+            let oggettoData = analizzaData(dataGrezza);
             if (oggettoData) {
-                let testoCampi = r.join(" ").toUpperCase();
+                let testoUnito = riga.join(" ").toUpperCase();
                 Object.keys(SCADENZE).forEach(chiave => {
-                    if (testoCampi.includes(chiave)) {
+                    if (testoUnito.includes(chiave)) {
                         if (!ultimiInterventi[chiave] || oggettoData > ultimiInterventi[chiave]) {
                             ultimiInterventi[chiave] = oggettoData;
                         }
@@ -110,70 +83,63 @@
             }
         });
 
+        // Configurazione stati allarmi
         let oggi = new Date();
         oggi.setHours(0,0,0,0);
         statoScadenzeGlobali = [];
-
         Object.keys(SCADENZE).forEach(chiave => {
             let config = SCADENZE[chiave];
             let ultimaData = ultimiInterventi[chiave];
             if (!ultimaData) {
                 statoScadenzeGlobali.push({ chiave: chiave, stato: "rosso", giorni: "MAI ESEGUITO", msg: config.msg });
             } else {
-                let diffTempo = oggi.getTime() - ultimaData.getTime();
-                let diffGiorni = Math.floor(diffTempo / (1000 * 60 * 60 * 24));
+                let diffGiorni = Math.floor((oggi.getTime() - ultimaData.getTime()) / (1000 * 60 * 60 * 24));
                 let stato = "verde";
                 if (diffGiorni >= config.rosso) stato = "rosso";
                 else if (diffGiorni >= config.giallo) stato = "giallo";
-                
                 statoScadenzeGlobali.push({ chiave: chiave, stato: stato, giorni: diffGiorni, msg: config.msg });
             }
         });
 
-        const tabella = document.getElementById("tabellaManutenzioniIsolata");
-        if (!tabella) return;
-
-        // COSTRUZIONE SICURA DELLA TESTATA HTML
-        let html = "<thead><tr>";
-        rigaIntestazione.forEach(h => {
-            html += `<th>${h || ""}</th>`;
-        });
-        html += "</tr></thead><tbody>";
-
-        // COSTRUZIONE DEL CORPO DELLA TABELLA
-        righeValideElaborate.forEach(item => {
-            let r = item.rigaGrezza;
-            let stileRiga = "";
+        // Secondo passaggio: Costruzione reale delle righe della tabella
+        righe.forEach(riga => {
+            if (!riga || riga.length === 0) return;
             
-            if (item.dataObj) {
-                let testoCampi = r.join(" ").toUpperCase();
+            let colData = riga[0] ? riga[0].toString().trim() : "";
+            // Saltiamo le righe di intestazione del foglio LibreOffice per non sporcare la tabella
+            if (colData === "" || colData.toUpperCase().includes("DATA") || colData.toUpperCase().includes("REGISTRO")) return;
+
+            let oggettoData = analizzaData(colData);
+            let stileRiga = "";
+
+            if (oggettoData) {
+                let testoUnito = riga.join(" ").toUpperCase();
                 let peggiorStato = "";
-                
                 Object.keys(SCADENZE).forEach(chiave => {
-                    if (testoCampi.includes(chiave)) {
-                        let infoScadenza = statoScadenzeGlobali.find(s => s.chiave === chiave);
-                        if (infoScadenza) {
-                            if (infoScadenza.stato === "rosso") peggiorStato = "rosso";
-                            else if (infoScadenza.stato === "giallo" && peggiorStato !== "rosso") peggiorStato = "giallo";
+                    if (testoUnito.includes(chiave)) {
+                        let info = statoScadenzeGlobali.find(s => s.chiave === chiave);
+                        if (info) {
+                            if (info.stato === "rosso") peggiorStato = "rosso";
+                            else if (info.stato === "giallo" && peggiorStato !== "rosso") peggiorStato = "giallo";
                         }
                     }
                 });
-
                 if (peggiorStato === "rosso") stileRiga = ' class="evidenzia-rosso"';
                 else if (peggiorStato === "giallo") stileRiga = ' class="evidenzia-giallo"';
             }
 
             html += `<tr${stileRiga}>`;
-            r.forEach(cella => {
-                html += `<td>${cella || ""}</td>`;
-            });
+            // Stampiamo solo le prime 5 colonne standard per evitare sfasamenti visivi
+            for (let i = 0; i < 5; i++) {
+                let contenutoCella = riga[i] ? riga[i].toString().trim() : "";
+                html += `<td>${contenutoCella}</td>`;
+            }
             html += "</tr>";
         });
 
         html += "</tbody>";
         tabella.innerHTML = html;
 
-        // Mostra il popup allarmi solo se ci sono reali elementi fuori scadenza
         if (statoScadenzeGlobali.some(s => s.stato === "rosso" || s.stato === "giallo")) {
             mostraPopupAllarmiManutenzioni();
         }
@@ -184,8 +150,7 @@
 
         let htmlElenco = "";
         statoScadenzeGlobali.forEach(item => {
-            let coloreSfondo = "#d4edda"; 
-            let coloreTesto = "#155724";
+            let coloreSfondo = "#d4edda"; let coloreTesto = "#155724";
             if (item.stato === "rosso") { coloreSfondo = "#f8d7da"; coloreTesto = "#721c24"; }
             else if (item.stato === "giallo") { coloreSfondo = "#fff3cd"; coloreTesto = "#856404"; }
 
@@ -220,9 +185,6 @@
         `;
 
         document.body.appendChild(popup);
-
-        document.getElementById("chiudi-popup-scadenze").addEventListener("click", () => {
-            popup.remove();
-        });
+        document.getElementById("chiudi-popup-scadenze").addEventListener("click", () => { popup.remove(); });
     }
 })();
