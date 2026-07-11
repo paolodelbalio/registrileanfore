@@ -25,7 +25,7 @@
             complete: function(risultati) {
                 if (risultati && risultati.data) {
                     disegnaTabellaManutenzioniFissa(risultati.data);
-                    aggiornaPulsanteStatoDinamico();
+                    window.aggiornaPulsanteStatoDinamico();
                 }
             }
         });
@@ -136,7 +136,8 @@
         tabular.innerHTML = html;
     }
 
-    function aggiornaPulsanteStatoDinamico() {
+    // RESA PUBBLICA CON WINDOW. PRIMA MANCAVA QUESTO PASSO!
+    window.aggiornaPulsanteStatoDinamico = function() {
         const container = document.getElementById("container-bottone-stato");
         if (!container) return;
 
