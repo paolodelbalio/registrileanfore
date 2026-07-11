@@ -30,11 +30,10 @@
         });
     }
 
-    // Estrae la data GG/MM/AAAA pulendola da eventuali giorni della settimana (es. "giovedì 09/07/2026")
-    function analizzaData(cellaData) {
-        if (!cellaData) return null;
-        let stringa = cellaData.toString().trim();
-        let match = stringa.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+    // Estrae in modo robusto la data cercando il pattern GG/MM/AAAA all'interno del testo
+    function analizzaData(testo) {
+        if (!testo) return null;
+        let match = testo.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
         if (!match) return null;
         
         let giorno = parseInt(match[1], 10);
@@ -55,21 +54,19 @@
         let ultimiInterventi = {};
         Object.keys(SCADENZE).forEach(k => { ultimiInterventi[k] = null; });
 
-        // Fase 1: Calcolo scadenze analizzando le colonne separate dal punto e virgola
+        // Fase 1: Calcolo delle scadenze analizzando il testo intero (per evitare problemi di colonne non separate)
         righe.forEach(riga => {
             if (!riga || riga.length === 0) return;
             
-            let colData = riga[0] ? riga[0].toString().trim() : "";
-            if (colData === "" || colData.toUpperCase().includes("DATA") || colData.toUpperCase().includes("REGISTRO")) return;
+            // Convertiamo l'intera riga (comprese le stringhe separate da punto e virgola) in un unico testo maiuscolo
+            let testoIntero = riga.map(c => c ? c.toString() : "").join(" ").toUpperCase();
+            if (testoIntero.trim() === "" || testoIntero.includes("DATA") || testoIntero.includes("REGISTRO")) return;
 
-            let oggettoData = analizzaData(colData);
+            let oggettoData = analizzaData(testoIntero);
             if (oggettoData) {
-                // Uniamo i testi delle colonne successive per cercare le parole chiave
-                let testoContesto = riga.slice(1).map(c => c ? c.toString().trim().toUpperCase() : "").join(" ");
-                
                 Object.keys(SCADENZE).forEach(chiave => {
                     let config = SCADENZE[chiave];
-                    let corrisponde = config.paroleChiave.some(p => testoContesto.includes(p));
+                    let corrisponde = config.paroleChiave.some(p => testoIntero.includes(p));
                     
                     if (corrisponde) {
                         if (!ultimiInterventi[chiave] || oggettoData > ultimiInterventi[chiave]) {
@@ -97,23 +94,21 @@
             }
         });
 
-        // Fase 2: Costruzione grafica delle celle reali della tabella
+        // Fase 2: Costruzione grafica delle righe visibili
         righe.forEach(riga => {
             if (!riga || riga.length === 0) return;
             
-            let colData = riga[0] ? riga[0].toString().trim() : "";
-            if (colData === "" || colData.toUpperCase().includes("DATA") || colData.toUpperCase().includes("REGISTRO")) return;
+            let testoIntero = riga.map(c => c ? c.toString() : "").join(" ").toUpperCase();
+            if (testoIntero.trim() === "" || testoIntero.includes("DATA") || testoIntero.includes("REGISTRO")) return;
 
-            let oggettoData = analizzaData(colData);
+            let oggettoData = analizzaData(testoIntero);
             let stileRiga = "";
 
             if (oggettoData) {
-                let testoContesto = riga.slice(1).map(c => c ? c.toString().trim().toUpperCase() : "").join(" ");
                 let peggiorStato = "";
-                
                 Object.keys(SCADENZE).forEach(chiave => {
                     let config = SCADENZE[chiave];
-                    let corrisponde = config.paroleChiave.some(p => testoContesto.includes(p));
+                    let corrisponde = config.paroleChiave.some(p => testoIntero.includes(p));
                     if (corrisponde) {
                         let info = window.statoScadenzeGlobali.find(s => s.chiave === chiave);
                         if (info) {
@@ -127,14 +122,23 @@
             }
 
             html += `<tr${stileRiga}>`;
+            
+            // Se la riga contiene i punti e virgola accorpati in riga[0], la dividiamo a mano
+            let celleInterne = [];
+            if (riga.length === 1 || (riga[0] && riga[0].includes(';'))) {
+                celleInterne = riga[0].split(';');
+            } else {
+                celleInterne = riga.map(c => c ? c.toString().trim() : "");
+            }
+
             for (let i = 0; i < 5; i++) {
-                let valoreCella = riga[i] ? riga[i].toString().trim() : "";
+                let valoreCella = celleInterne[i] ? celleInterne[i].trim() : "";
                 html += `<td>${valoreCella}</td>`;
             }
             html += "</tr>";
         });
 
-        // Fase 3: Rendering del Pulsante Corto, Centrato e Trasparente RGBA
+        // Fase 3: Rendering del Pulsante Corto e Centrato
         let infoControlavaggio = window.statoScadenzeGlobali.find(s => s.chiave === "CONTROLAVAGGIO");
         let coloreSfondo = "rgba(40, 167, 69, 0.12)";
         let coloreBordo = "rgba(40, 167, 69, 0.5)";
@@ -155,7 +159,7 @@
         // Riga vuota di stacco sotto i dati
         html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
 
-        // Pulsante inserito centralmente con dimensioni controllate
+        // Pulsante inserito centralmente con dimensioni controllate (max-width 240px)
         html += `
             <tr>
                 <td colspan="5" style="padding: 12px; background: transparent; border: none; text-align: center;">
@@ -171,7 +175,6 @@
             </tr>
         `;
 
-        // Spazio finale per lo scorrimento dello schermo
         for (let k = 0; k < 5; k++) {
             html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
         }
