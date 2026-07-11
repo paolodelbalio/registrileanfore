@@ -88,61 +88,63 @@
                 
                 window.dispatchEvent(new Event('resize'));
 
-                // 4. POSIZIONAMENTO SULL'ULTIMA RIGA COMPILATA (RIFERIMENTO pH)
-                setTimeout(() => {
+                // 4. STRATEGIA AD INTERVALLI: Controlla finché la tabella non è realmente popolata da Git
+                let tentativi = 0;
+                const controlloTabella = setInterval(() => {
                     const wrapper = sezioneAttiva.querySelector('.table-wrapper');
                     const tabella = sezioneAttiva.querySelector('table');
-                    
-                    if (wrapper && tabella) {
-                        const righe = tabella.querySelectorAll('tbody tr');
-                        let indiceRigaPresente = -1;
+                    const righe = tabella ? tabella.querySelectorAll('tbody tr') : [];
 
-                        // Analizziamo dal basso verso l'alto per trovare l'ultimo inserimento vero
-                        for (let i = righe.length - 1; i >= 0; i--) {
-                            let celle = righe[i].querySelectorAll('td');
-                            let rigaValida = false;
+                    tentativi++;
 
-                            if (idSezione === 'chimicoSection') {
-                                // Nel chimico, controlliamo dove c'è un pH valido (valore numerico es. tra 6.0 e 8.5)
-                                celle.forEach(td => {
-                                    let testo = td.textContent.trim().replace(',', '.');
-                                    let num = parseFloat(testo);
-                                    if (!isNaN(num) && num >= 6.0 && num <= 8.5) {
+                    // Se le righe sono state generate o abbiamo superato i 3 secondi di attesa
+                    if (righe.length > 0 || tentativi > 15) {
+                        clearInterval(controlloTabella); // Stop al ciclo di controllo
+
+                        if (righe.length > 0 && wrapper) {
+                            let indiceRigaPresente = -1;
+
+                            // Scansione dal basso verso l'alto per individuare l'ultima riga del presente
+                            for (let i = righe.length - 1; i >= 0; i--) {
+                                let celle = righe[i].querySelectorAll('td');
+                                let rigaValida = false;
+
+                                if (idSezione === 'chimicoSection') {
+                                    // Trova la cella che contiene il valore del pH reale (es. 7.2 o 7,4)
+                                    celle.forEach(td => {
+                                        let testo = td.textContent.trim().replace(',', '.');
+                                        let num = parseFloat(testo);
+                                        if (!isNaN(num) && num >= 6.0 && num <= 8.5) {
+                                            rigaValida = true;
+                                        }
+                                    });
+                                } else {
+                                    // Per gli altri registri guarda se le celle dei dati non sono vuote o zero
+                                    if (celle.length > 2 && celle[1].textContent.trim() !== "" && celle[1].textContent.trim() !== "0") {
                                         rigaValida = true;
                                     }
-                                });
-                            } else {
-                                // Per gli altri registri, controlliamo la presenza di dati nelle colonne centrali
-                                if (celle.length > 2 && celle[1].textContent.trim() !== "" && celle[1].textContent.trim() !== "0") {
-                                    rigaValida = true;
+                                }
+
+                                if (rigaValida) {
+                                    indiceRigaPresente = i;
+                                    break;
                                 }
                             }
 
-                            if (rigaValida) {
-                                indiceRigaPresente = i;
-                                break;
+                            // Posizionamento sulla riga del presente + 2 righe vuote del futuro
+                            if (indiceRigaPresente !== -1) {
+                                let rigaTargetVisiva = righe[Math.min(indiceRigaPresente + 2, righe.length - 1)];
+                                if (rigaTargetVisiva) {
+                                    let posizioneTop = rigaTargetVisiva.offsetTop;
+                                    let altezzaWrapper = wrapper.clientHeight;
+                                    
+                                    // Sposta l'inquadratura bloccandola sul fondo del rettangolo visibile
+                                    wrapper.scrollTop = posizioneTop - altezzaWrapper + rigaTargetVisiva.clientHeight + 15;
+                                }
                             }
                         }
-
-                        // Se abbiamo trovato il presente, calcoliamo il blocco includendo ESATTAMENTE le 2 righe sotto
-                        if (indiceRigaPresente !== -1) {
-                            // Scegliamo come riga visibile finale quella del presente + 2 righe vuote successive
-                            let rigaTargetInquadratura = righe[Math.min(indiceRigaPresente + 2, righe.length - 1)];
-                            
-                            if (rigaTargetInquadratura) {
-                                // Allinea l'inquadratura in modo che la riga target si trovi sul fondo del contenitore visibile
-                                let posizioneTop = rigaTargetInquadratura.offsetTop;
-                                let altezzaWrapper = wrapper.clientHeight;
-                                
-                                wrapper.scrollTop = posizioneTop - altezzaWrapper + rigaTargetInquadratura.clientHeight + 20;
-                                return;
-                            }
-                        }
-                        
-                        // Emergenza (se tutto è vuoto): vai in cima
-                        wrapper.scrollTop = 0;
                     }
-                }, 250);
+                }, 150); // Controlla ogni 150 millisecondi
             }
         }
     </script>
