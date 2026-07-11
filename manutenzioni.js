@@ -2,7 +2,7 @@
 (function() {
     const FILE_MANUTENZIONI = "REGISTRO MANUTENZIONE INTERVENTI .csv";
 
-    // Scadenze per gli allarmi visivi (Giallo a 4 giorni, Rosso a 7 giorni)
+    // Scadenze per gli allarmi visivi
     const SCADENZE = {
         "CONTROLAVAGGIO": { giallo: 4, rosso: 7, msg: "Controlavaggio filtri", paroleChiave: ["CONTROLAVAGGIO", "LAVAGGIO FILTRI", "LAVAGGIO"] },
         "PULIZIA CESTELLI": { giallo: 5, rosso: 7, msg: "Pulizia cestelli skimmer", paroleChiave: ["CESTELLI", "SKIMMER", "PULITO CESTELLI"] },
@@ -30,19 +30,15 @@
         });
     }
 
-    function analizzaData(stringaData) {
-        if (!stringaData) return null;
-        let pulita = stringaData.trim();
-        // Estrae la prima parola (che deve essere la data es. 09/07/2026)
-        let parti = pulita.split(/\s+/);
-        let elementoData = parti[0];
+    // Estrae la data in modo robusto cercando il pattern GG/MM/AAAA all'interno del testo
+    function analizzaData(testo) {
+        if (!testo) return null;
+        let match = testo.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+        if (!match) return null;
         
-        let subParti = elementoData.split('/');
-        if (subParti.length !== 3) return null;
-        
-        let giorno = parseInt(subParti[0], 10);
-        let mese = parseInt(subParti[1], 10) - 1;
-        let anno = parseInt(subParti[2], 10);
+        let giorno = parseInt(match[1], 10);
+        let mese = parseInt(match[2], 10) - 1;
+        let anno = parseInt(match[3], 10);
         if (anno < 100) anno += 2000;
         
         let d = new Date(anno, mese, giorno);
@@ -58,12 +54,11 @@
         let ultimiInterventi = {};
         Object.keys(SCADENZE).forEach(k => { ultimiInterventi[k] = null; });
 
+        // Fase 1: Calcolo scadenze analizzando il testo in maniera flessibile
         righe.forEach(riga => {
-            if (!riga || riga.length === 0) return;
-            
-            // Uniamo l'intera riga in un'unica stringa per evitare i problemi di divisione colonne del CSV
-            let testoIntero = riga.map(cella => cella ? cella.toString() : "").join(" ").trim().toUpperCase();
-            if (testoIntero === "" || testoIntero.includes("DATA") || testoIntero.includes("REGISTRO")) return;
+            if (!riga) return;
+            let testoIntero = riga.map(c => c ? c.toString() : "").join(" ").toUpperCase();
+            if (testoIntero.trim() === "" || testoIntero.includes("DATA") || testoIntero.includes("REGISTRO")) return;
 
             let oggettoData = analizzaData(testoIntero);
             if (oggettoData) {
@@ -97,12 +92,11 @@
             }
         });
 
-        // Genera le righe grafiche della tabella
+        // Fase 2: Costruzione visiva delle righe
         righe.forEach(riga => {
-            if (!riga || riga.length === 0) return;
-            
-            let testoIntero = riga.map(cella => cella ? cella.toString() : "").join(" ").trim().toUpperCase();
-            if (testoIntero === "" || testoIntero.includes("DATA") || testoIntero.includes("REGISTRO")) return;
+            if (!riga) return;
+            let testoIntero = riga.map(c => c ? c.toString() : "").join(" ").toUpperCase();
+            if (testoIntero.trim() === "" || testoIntero.includes("DATA") || testoIntero.includes("REGISTRO")) return;
 
             let oggettoData = analizzaData(testoIntero);
             let stileRiga = "";
@@ -112,7 +106,6 @@
                 Object.keys(SCADENZE).forEach(chiave => {
                     let config = SCADENZE[chiave];
                     let corrisponde = config.paroleChiave.some(p => testoIntero.includes(p));
-                    
                     if (corrisponde) {
                         let info = window.statoScadenzeGlobali.find(s => s.chiave === chiave);
                         if (info) {
@@ -126,23 +119,21 @@
             }
 
             html += `<tr${stileRiga}>`;
-            // Se i dati sono tutti nella prima colonna, proviamo a distribuirli o mostriamo la riga intera
-            if (riga.length === 1 || riga[1] === undefined || riga[1].trim() === "") {
-                let partiEstrai = riga[0].split(/\s{2,}/); // Spezza dove ci sono almeno 2 spazi consecutivi
+            // Gestione del parsing se tutto condensato in colonna 0 o diviso
+            if (riga.length === 1 || !riga[1] || riga[1].trim() === "") {
+                let partiEstrai = riga[0].split(/\s{2,}/);
                 for (let i = 0; i < 5; i++) {
-                    let val = partiEstrai[i] ? partiEstrai[i].trim() : "";
-                    html += `<td>${val}</td>`;
+                    html += `<td>${partiEstrai[i] ? partiEstrai[i].trim() : ""}</td>`;
                 }
             } else {
                 for (let i = 0; i < 5; i++) {
-                    let contenutoCella = riga[i] ? riga[i].toString().trim() : "";
-                    html += `<td>${contenutoCella}</td>`;
+                    html += `<td>${riga[i] ? riga[i].toString().trim() : ""}</td>`;
                 }
             }
             html += "</tr>";
         });
 
-        // Configurazione Colore e Trasparenza del Pulsante
+        // Fase 3: Rendering del pulsante (Stretto, corto e centrato)
         let infoControlavaggio = window.statoScadenzeGlobali.find(s => s.chiave === "CONTROLAVAGGIO");
         let coloreSfondo = "rgba(40, 167, 69, 0.12)";
         let coloreBordo = "rgba(40, 167, 69, 0.5)";
@@ -160,26 +151,26 @@
 
         let testoGiorni = infoControlavaggio ? (infoControlavaggio.giorni === 'MAI ESEGUITO' ? 'MAI ESEGUITO' : infoControlavaggio.giorni + ' giorni fa') : '-';
 
-        // 1a Riga vuota di stacco normale
+        // Riga di stacco vuota
         html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
 
-        // 2a Riga: Pulsante CORTO, CENTRATO e in TRASPARENZA RGBA
+        // Riga Pulsante Ottimizzato (Corto e in trasparenza)
         html += `
             <tr>
                 <td colspan="5" style="padding: 10px; background: transparent; border: none; text-align: center;">
                     <button onclick="window.apriDettaglioControlavaggio()" style="
-                        width: 90%; max-width: 320px; box-sizing: border-box; background: ${coloreSfondo}; 
+                        width: 220px; box-sizing: border-box; background: ${coloreSfondo}; 
                         color: ${coloreTesto}; border: 1px solid ${coloreBordo};
-                        padding: 8px 12px; font-size: 0.92rem; font-weight: bold; 
+                        padding: 6px 10px; font-size: 0.88rem; font-weight: bold; 
                         cursor: pointer; text-align: center; font-family: Arial, sans-serif;
                         border-radius: 4px; display: inline-block;">
-                        🔄 Stato Controlavaggio: ${testoGiorni}
+                        🔄 Controlavaggio: ${testoGiorni}
                     </button>
                 </td>
             </tr>
         `;
 
-        // Ulteriori 5 righe vuote sotto per lo scroll ideale
+        // Righe cuscinetto per lo scroll
         for (let k = 0; k < 5; k++) {
             html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
         }
