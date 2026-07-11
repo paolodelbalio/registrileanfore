@@ -16,37 +16,16 @@
     </header>
 
     <div class="top-buttons">
-        <button id="btn-chimico" class="tab-btn active" onclick="switchRegistro('chimicoSection', this)">🧪 Chimico</button>
-        <button id="btn-contatori" class="tab-btn" onclick="switchRegistro('contatoriSection', this)">💧 Contatori</button>
-        <button id="btn-pulizie" class="tab-btn" onclick="switchRegistro('pulizieSection', this)">🧹 Pulizie</button>
-        <button id="btn-manutenzioni" class="tab-btn" onclick="switchRegistro('manutenzioniSection', this)">🛠️ Manutenzioni</button>
+        <button id="btn-chimico" class="active">🧪 Chimico</button>
+        <button id="btn-contatori">💧 Contatori</button>
+        <button id="btn-pulizie">🧹 Pulizie</button>
+        <button id="btn-manutenzioni">🛠️ Manutenzioni</button>
     </div>
 
     <section id="chimicoSection" class="register-section">
         <h2>Registro Chimico</h2>
         <div class="table-wrapper">
             <table id="chimicoTable"></table>
-        </div>
-    </section>
-
-    <section id="contatoriSection" class="register-section hidden">
-        <h2>Registro Contatori</h2>
-        <div class="table-wrapper">
-            <table id="contatoriTable"></table>
-        </div>
-    </section>
-
-    <section id="pulizieSection" class="register-section hidden">
-        <h2>Registro Pulizie</h2>
-        <div class="table-wrapper">
-            <table id="pulizieTable"></table>
-        </div>
-    </section>
-
-    <section id="manutenzioniSection" class="register-section hidden">
-        <h2>Registro Manutenzioni</h2>
-        <div class="table-wrapper">
-            <table id="manutenzioniTable"></table>
         </div>
     </section>
 
@@ -66,25 +45,6 @@
             <div id="dosageModalContent"></div>
         </div>
     </div>
-
-    <script>
-        function switchRegistro(idSezione, bottone) {
-            // Nasconde tutte le sezioni usando la classe hidden
-            document.querySelectorAll('.register-section').forEach(sec => {
-                sec.classList.add('hidden');
-            });
-            // Rimuove la classe attiva da tutti i bottoni della barra
-            document.querySelectorAll('.top-buttons .tab-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            // Mostra solo quella selezionata
-            document.getElementById(idSezione).classList.remove('hidden');
-            bottone.classList.add('active');
-            
-            // Forza il refresh per non rompere il layout
-            window.dispatchEvent(new Event('resize'));
-        }
-    </script>
 
     <script src="script.js"></script>
 </body>
