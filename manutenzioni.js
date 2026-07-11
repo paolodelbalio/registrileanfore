@@ -33,8 +33,9 @@
     function analizzaData(stringaData) {
         if (!stringaData) return null;
         let pulita = stringaData.trim();
-        let parti = pulita.split(' ');
-        let elementoData = parti.length > 1 ? parti[1] : parti[0];
+        // Estrae la prima parola (che deve essere la data es. 09/07/2026)
+        let parti = pulita.split(/\s+/);
+        let elementoData = parti[0];
         
         let subParti = elementoData.split('/');
         if (subParti.length !== 3) return null;
@@ -58,18 +59,17 @@
         Object.keys(SCADENZE).forEach(k => { ultimiInterventi[k] = null; });
 
         righe.forEach(riga => {
-            if (!riga || riga.length < 2) return;
-            let dataGrezza = riga[0] ? riga[0].toString().trim() : "";
-            if (dataGrezza === "" || dataGrezza.toUpperCase().includes("DATA") || dataGrezza.toUpperCase().includes("REGISTRO")) return;
+            if (!riga || riga.length === 0) return;
+            
+            // Uniamo l'intera riga in un'unica stringa per evitare i problemi di divisione colonne del CSV
+            let testoIntero = riga.map(cella => cella ? cella.toString() : "").join(" ").trim().toUpperCase();
+            if (testoIntero === "" || testoIntero.includes("DATA") || testoIntero.includes("REGISTRO")) return;
 
-            let oggettoData = analizzaData(dataGrezza);
+            let oggettoData = analizzaData(testoIntero);
             if (oggettoData) {
-                // Uniamo e puliamo tutte le celle della riga eliminando spazi superflui
-                let testoUnito = riga.map(cella => cella ? cella.toString().trim().toUpperCase() : "").join(" ");
-                
                 Object.keys(SCADENZE).forEach(chiave => {
                     let config = SCADENZE[chiave];
-                    let corrisponde = config.paroleChiave.some(p => testoUnito.includes(p));
+                    let corrisponde = config.paroleChiave.some(p => testoIntero.includes(p));
                     
                     if (corrisponde) {
                         if (!ultimiInterventi[chiave] || oggettoData > ultimiInterventi[chiave]) {
@@ -97,23 +97,21 @@
             }
         });
 
-        // Disegna le righe visibili della tabella
+        // Genera le righe grafiche della tabella
         righe.forEach(riga => {
             if (!riga || riga.length === 0) return;
             
-            let colData = riga[0] ? riga[0].toString().trim() : "";
-            if (colData === "" || colData.toUpperCase().includes("DATA") || colData.toUpperCase().includes("REGISTRO")) return;
+            let testoIntero = riga.map(cella => cella ? cella.toString() : "").join(" ").trim().toUpperCase();
+            if (testoIntero === "" || testoIntero.includes("DATA") || testoIntero.includes("REGISTRO")) return;
 
-            let oggettoData = analizzaData(colData);
+            let oggettoData = analizzaData(testoIntero);
             let stileRiga = "";
 
             if (oggettoData) {
-                let testoUnito = riga.map(cella => cella ? cella.toString().trim().toUpperCase() : "").join(" ");
                 let peggiorStato = "";
-                
                 Object.keys(SCADENZE).forEach(chiave => {
                     let config = SCADENZE[chiave];
-                    let corrisponde = config.paroleChiave.some(p => testoUnito.includes(p));
+                    let corrisponde = config.paroleChiave.some(p => testoIntero.includes(p));
                     
                     if (corrisponde) {
                         let info = window.statoScadenzeGlobali.find(s => s.chiave === chiave);
@@ -128,26 +126,35 @@
             }
 
             html += `<tr${stileRiga}>`;
-            for (let i = 0; i < 5; i++) {
-                let contenutoCella = riga[i] ? riga[i].toString().trim() : "";
-                html += `<td>${contenutoCella}</td>`;
+            // Se i dati sono tutti nella prima colonna, proviamo a distribuirli o mostriamo la riga intera
+            if (riga.length === 1 || riga[1] === undefined || riga[1].trim() === "") {
+                let partiEstrai = riga[0].split(/\s{2,}/); // Spezza dove ci sono almeno 2 spazi consecutivi
+                for (let i = 0; i < 5; i++) {
+                    let val = partiEstrai[i] ? partiEstrai[i].trim() : "";
+                    html += `<td>${val}</td>`;
+                }
+            } else {
+                for (let i = 0; i < 5; i++) {
+                    let contenutoCella = riga[i] ? riga[i].toString().trim() : "";
+                    html += `<td>${contenutoCella}</td>`;
+                }
             }
             html += "</tr>";
         });
 
-        // Configurazione Colore e Trasparenza Pulsante
+        // Configurazione Colore e Trasparenza del Pulsante
         let infoControlavaggio = window.statoScadenzeGlobali.find(s => s.chiave === "CONTROLAVAGGIO");
-        let coloreSfondo = "rgba(40, 167, 69, 0.15)";
-        let coloreBordo = "rgba(40, 167, 69, 0.6)";
+        let coloreSfondo = "rgba(40, 167, 69, 0.12)";
+        let coloreBordo = "rgba(40, 167, 69, 0.5)";
         let coloreTesto = "#1e7e34";
         
         if (infoControlavaggio && infoControlavaggio.stato === "rosso") {
-            coloreSfondo = "rgba(220, 53, 69, 0.15)";
-            coloreBordo = "rgba(220, 53, 69, 0.6)";
+            coloreSfondo = "rgba(220, 53, 69, 0.12)";
+            coloreBordo = "rgba(220, 53, 69, 0.5)";
             coloreTesto = "#bd2130";
         } else if (infoControlavaggio && infoControlavaggio.stato === "giallo") {
-            coloreSfondo = "rgba(255, 193, 7, 0.2)";
-            coloreBordo = "rgba(211, 158, 0, 0.6)";
+            coloreSfondo = "rgba(255, 193, 7, 0.15)";
+            coloreBordo = "rgba(211, 158, 0, 0.5)";
             coloreTesto = "#d39e00";
         }
 
@@ -156,7 +163,7 @@
         // 1a Riga vuota di stacco normale
         html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
 
-        // 2a Riga: Pulsante CORTO, CENTRATO e in TRASPARENZA
+        // 2a Riga: Pulsante CORTO, CENTRATO e in TRASPARENZA RGBA
         html += `
             <tr>
                 <td colspan="5" style="padding: 10px; background: transparent; border: none; text-align: center;">
@@ -172,7 +179,7 @@
             </tr>
         `;
 
-        // Ulteriori righe vuote sotto per lo scroll
+        // Ulteriori 5 righe vuote sotto per lo scroll ideale
         for (let k = 0; k < 5; k++) {
             html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
         }
@@ -212,7 +219,7 @@
                 <ol style="padding-left: 20px; line-height: 1.5; color: #444; font-size: 0.92rem;">
                     <li style="margin-bottom: 6px;"><strong>Spegnere la pompa</strong> di filtrazione della piscina.</li>
                     <li style="margin-bottom: 6px;">Ruotare la valvola selettrice del filtro sulla posizione <strong>"CONTROLAVAGGIO" (Backwash)</strong>.</li>
-                    <li style="margin-bottom: 6px;">Aprire la valvola di scarico (se present) e <strong>riaccendere la pompa</strong>.</li>
+                    <li style="margin-bottom: 6px;">Aprire la valvola di scarico (se presente) e <strong>riaccendere la pompa</strong>.</li>
                     <li style="margin-bottom: 6px;">Lasciare circolare l'acqua per circa <strong>2-3 minuti</strong>, o finché la spia trasparente dello scarico non torna perfettamente limpida.</li>
                     <li style="margin-bottom: 6px;"><strong>Spegnere nuovamente la pompa</strong>.</li>
                     <li style="margin-bottom: 6px;">Spostare la valvola selettrice sulla posizione <strong>"RISCIACQUO" (Rinse)</strong>.</li>
