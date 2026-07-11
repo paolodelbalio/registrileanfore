@@ -2,29 +2,55 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Piscina 2026</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <header><h1>Dashboard Piscina 2026</h1></header>
 
-    <div class="top-buttons">
-        <button class="tab-button" onclick="mostraTab('chimicoSection')">Chimico</button>
-        <button class="tab-button" onclick="mostraTab('contatoriSection')">Contatori</button>
-        <button class="tab-button" onclick="mostraTab('pulizieSection')">Pulizie</button>
-    </div>
+<header><h1>Dashboard Piscina 2026</h1></header>
 
-    <div id="chimicoSection" class="register-section">
-        <h2>Registro Chimico</h2>
-        <table id="chimicoTable"></table>
+<div class="top-buttons">
+    <button class="tab-button active" onclick="mostraSezione('chimicoSection', this)">Chimico</button>
+    <button class="tab-button" onclick="mostraSezione('contatoriSection', this)">Contatori</button>
+    <button class="tab-button" onclick="mostraSezione('pulizieSection', this)">Pulizie</button>
+</div>
+
+<div id="chimicoSection" class="register-section">
+    <h2>Registro Chimico</h2>
+    <div class="table-wrapper"><table id="chimicoTable"></table></div>
+</div>
+
+<div id="contatoriSection" class="register-section hidden"><table id="contatoriTable"></table></div>
+<div id="pulizieSection" class="register-section hidden"><table id="pulizieTable"></table></div>
+
+<div id="dosageModal" class="overlay hidden">
+    <div class="dosage-card">
+        <span class="overlay-close" onclick="chiudiDosaggio()">&times;</span>
+        <div id="dosageContent"></div>
+        <button class="dosage-close-btn" onclick="chiudiDosaggio()">Chiudi</button>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    <script src="script.js"></script>
-    <script>
-        function mostraTab(id) {
-            document.querySelectorAll('.register-section').forEach(s => s.style.display = 'none');
-            document.getElementById(id).style.display = 'block';
-        }
-    </script>
+</div>
+
+<div id="chartOverlay" class="overlay hidden">
+    <div class="overlay-content">
+        <span class="overlay-close" onclick="closeOverlay()">&times;</span>
+        <h2 id="overlayTitle"></h2>
+        <canvas id="overlayCanvas"></canvas>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+<script src="script.js"></script>
+<script>
+    function mostraSezione(idSezione, btn) {
+        document.querySelectorAll(".register-section").forEach(s => s.classList.add("hidden"));
+        document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
+        document.getElementById(idSezione).classList.remove("hidden");
+        btn.classList.add("active");
+        if (idSezione === 'chimicoSection') setTimeout(scrollAllUltimaRiga, 150);
+    }
+</script>
 </body>
 </html>
