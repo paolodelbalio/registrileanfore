@@ -6,51 +6,140 @@
     <title>Dashboard Piscina 2026</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
 
-<header><h1>Dashboard Piscina 2026</h1></header>
+    <header>
+        <h1>Dashboard Piscina 2026</h1>
+        <p>Seleziona un registro per visualizzare i dati</p>
+    </header>
 
-<div class="top-buttons">
-    <button class="tab-button active" onclick="mostraSezione('chimicoSection', this)">Chimico</button>
-    <button class="tab-button" onclick="mostraSezione('contatoriSection', this)">Contatori</button>
-    <button class="tab-button" onclick="mostraSezione('pulizieSection', this)">Pulizie</button>
-</div>
-
-<div id="chimicoSection" class="register-section">
-    <h2>Registro Chimico</h2>
-    <div class="table-wrapper"><table id="chimicoTable"></table></div>
-</div>
-
-<div id="contatoriSection" class="register-section hidden"><table id="contatoriTable"></table></div>
-<div id="pulizieSection" class="register-section hidden"><table id="pulizieTable"></table></div>
-
-<div id="dosageModal" class="overlay hidden">
-    <div class="dosage-card">
-        <span class="overlay-close" onclick="chiudiDosaggio()">&times;</span>
-        <div id="dosageContent"></div>
-        <button class="dosage-close-btn" onclick="chiudiDosaggio()">Chiudi</button>
+    <div class="top-buttons">
+        <button id="btn-chimico" onclick="apriRegistro('chimicoSection', this)">🧪 Chimico</button>
+        <button id="btn-contatori" onclick="apriRegistro('contatoriSection', this)">💧 Contatori</button>
+        <button id="btn-pulizie" onclick="apriRegistro('pulizieSection', this)">🧹 Pulizie</button>
+       <button id="btn-manutenzioni" onclick="apriRegistro('manutenzioniSection', this); setTimeout(() => { if(window.aggiornaPulsanteStatoDinamico) window.aggiornaPulsanteStatoDinamico(); }, 100);">🛠️ Manutenzioni</button>
     </div>
-</div>
 
-<div id="chartOverlay" class="overlay hidden">
-    <div class="overlay-content">
-        <span class="overlay-close" onclick="closeOverlay()">&times;</span>
-        <h2 id="overlayTitle"></h2>
-        <canvas id="overlayCanvas"></canvas>
+    <section id="chimicoSection" class="register-section hidden">
+        <h2>Registro Chimico</h2>
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
+            <table id="chimicoTable" style="width: 100%; min-width: 800px;"></table>
+        </div>
+    </section>
+
+    <section id="contatoriSection" class="register-section hidden">
+        <h2>Registro Contatori</h2>
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
+            <table id="contatoriTable" style="width: 100%; min-width: 800px;"></table>
+        </div>
+    </section>
+
+    <section id="pulizieSection" class="register-section hidden">
+        <h2>Registro Pulizie</h2>
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
+            <table id="pulizieTable" style="width: 100%; min-width: 800px;"></table>
+        </div>
+    </section>
+
+    <section id="manutenzioniSection" class="register-section hidden">
+        <h2>Registro Manutenzioni</h2>
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
+            <table id="tabellaManutenzioniIsolata" style="width: 100%; min-width: 800px;"></table>
+        </div>
+    </section>
+
+    <div id="chartOverlay" class="overlay hidden">
+        <div class="overlay-content">
+            <span class="overlay-close" onclick="closeOverlay()">✖</span>
+            <h3 id="overlayTitle">Andamento Storico</h3>
+     <section id="manutenzioniSection" class="register-section hidden">
+     <section id="manutenzioniSection" class="register-section hidden">
+        <h2>Registro Manutenzioni</h2>
+        <div class="table-wrapper">
+            <table id="tabellaManutenzioniIsolata"></table>
+        </div>
+    </section>
+    <div id="dosageModal" class="overlay hidden">
+        <div class="dosage-card">
+            <span class="overlay-close" onclick="chiudiDosaggio()">✖</span>
+            <div id="dosageContent"></div>
+            <button class="dosage-close-btn" onclick="chiudiDosaggio()">Chiudi Finestra</button>
+        </div>
     </div>
-</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-<script src="script.js"></script>
-<script>
-    function mostraSezione(idSezione, btn) {
-        document.querySelectorAll(".register-section").forEach(s => s.classList.add("hidden"));
-        document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
-        document.getElementById(idSezione).classList.remove("hidden");
-        btn.classList.add("active");
-        if (idSezione === 'chimicoSection') setTimeout(scrollAllUltimaRiga, 150);
-    }
-</script>
+    <script>
+        function apriRegistro(idSezione, bottoneCliccato) {
+            document.querySelectorAll('.register-section').forEach(sec => sec.classList.add('hidden'));
+            document.querySelectorAll('.top-buttons button').forEach(btn => btn.classList.remove('active'));
+            
+            const sezioneAttiva = document.getElementById(idSezione);
+            if (!sezioneAttiva) return;
+            
+            sezioneAttiva.classList.remove('hidden');
+            bottoneCliccato.classList.add('active');
+            window.dispatchEvent(new Event('resize'));
+
+            setTimeout(() => {
+                const wrapper = sezioneAttiva.querySelector('.table-wrapper');
+                const righe = sezioneAttiva.querySelectorAll('tbody tr');
+                if (!wrapper || righe.length === 0) return;
+
+                let indiceUltimaRigaPiena = -1;
+
+                // Controlliamo dal basso verso l'alto
+                for (let i = righe.length - 1; i >= 0; i--) {
+                    let celle = righe[i].querySelectorAll('td');
+                    if (celle.length < 3) continue;
+
+                    let rigaValida = false;
+
+                    if (idSezione === 'chimicoSection') {
+                        // Nel registro chimico, cerchiamo l'ultimo valore NUMERICO reale del pH 
+                        // Ispezioniamo tutte le celle della riga per trovare il pH (es. 7.2 o 7,4)
+                        for (let j = 2; j < celle.length; j++) {
+                            let valTesto = celle[j].textContent.trim().replace(',', '.');
+                            let valNum = parseFloat(valTesto);
+                            // Se è un numero valido ed è un valore coerente di pH
+                            if (!isNaN(valNum) && valNum >= 6.5 && valNum <= 8.5) {
+                                rigaValida = true;
+                                break;
+                            }
+                        }
+                    } else {
+                        // Per gli altri registri, basta che ci sia scritto qualcosa oltre a data/ora nelle colonne centrali
+                        for (let j = 2; j < celle.length; j++) {
+                            let testo = celle[j].textContent.trim();
+                            if (testo !== "" && testo !== "0" && testo !== "0,0" && testo !== "0.0") {
+                                rigaValida = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (rigaValida) {
+                        indiceUltimaRigaPiena = i;
+                        break;
+                    }
+                }
+
+                // Applica lo scroll portandosi dietro le 2 righe vuote successive
+                if (indiceUltimaRigaPiena !== -1) {
+                    let indiceTarget = Math.min(indiceUltimaRigaPiena + 6, righe.length - 1);
+                    let rigaTarget = righe[indiceTarget];
+                    
+                    wrapper.scrollTop = rigaTarget.offsetTop - wrapper.clientHeight + rigaTarget.clientHeight + 10;
+                } else {
+                    wrapper.scrollTop = 0;
+                }
+            }, 350);
+        }
+    </script>
+
+    <script src="script.js"></script>
+    <script src="contatori.js"></script>
+    <script src="manutenzioni.js"></script>
+
 </body>
 </html>
