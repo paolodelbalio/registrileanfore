@@ -70,7 +70,6 @@
 
     <script>
         function apriRegistro(idSezione, bottoneCliccato) {
-            // Mostra la sezione selezionata e nasconde le altre
             document.querySelectorAll('.register-section').forEach(sec => sec.classList.add('hidden'));
             document.querySelectorAll('.top-buttons button').forEach(btn => btn.classList.remove('active'));
             
@@ -81,7 +80,6 @@
             bottoneCliccato.classList.add('active');
             window.dispatchEvent(new Event('resize'));
 
-            // Applica lo scroll calcolato sui dati effettivi inseriti dall'utente
             setTimeout(() => {
                 const wrapper = sezioneAttiva.querySelector('.table-wrapper');
                 const righe = sezioneAttiva.querySelectorAll('tbody tr');
@@ -89,38 +87,52 @@
 
                 let indiceUltimaRigaPiena = -1;
 
-                // Analizziamo le righe dal basso verso l'alto
+                // Controlliamo dal basso verso l'alto
                 for (let i = righe.length - 1; i >= 0; i--) {
                     let celle = righe[i].querySelectorAll('td');
-                    let haDatiVeri = false;
+                    if (celle.length < 3) continue;
 
-                    // Ignoriamo la cella 0 (Data) e la cella 1 (Ora). Controlliamo solo i parametri reali inseriti
-                    for (let j = 2; j < celle.length; j++) {
-                        let contenuto = celle[j].textContent.trim();
-                        // Se c'è un valore scritto che non sia vuoto o un semplice "0" di default
-                        if (contenuto !== "" && contenuto !== "0" && contenuto !== "0,0" && contenuto !== "0.0") {
-                            haDatiVeri = true;
-                            break;
+                    let rigaValida = false;
+
+                    if (idSezione === 'chimicoSection') {
+                        // Nel registro chimico, cerchiamo l'ultimo valore NUMERICO reale del pH 
+                        // Ispezioniamo tutte le celle della riga per trovare il pH (es. 7.2 o 7,4)
+                        for (let j = 2; j < celle.length; j++) {
+                            let valTesto = celle[j].textContent.trim().replace(',', '.');
+                            let valNum = parseFloat(valTesto);
+                            // Se è un numero valido ed è un valore coerente di pH
+                            if (!isNaN(valNum) && valNum >= 6.5 && valNum <= 8.5) {
+                                rigaValida = true;
+                                break;
+                            }
+                        }
+                    } else {
+                        // Per gli altri registri, basta che ci sia scritto qualcosa oltre a data/ora nelle colonne centrali
+                        for (let j = 2; j < celle.length; j++) {
+                            let testo = celle[j].textContent.trim();
+                            if (testo !== "" && testo !== "0" && testo !== "0,0" && testo !== "0.0") {
+                                rigaValida = true;
+                                break;
+                            }
                         }
                     }
 
-                    if (haDatiVeri) {
+                    if (rigaValida) {
                         indiceUltimaRigaPiena = i;
                         break;
                     }
                 }
 
-                // Se trova la riga con i dati veri (il presente), scende fino a lì lasciando 2 righe vuote sotto di margine
+                // Applica lo scroll portandosi dietro le 2 righe vuote successive
                 if (indiceUltimaRigaPiena !== -1) {
-                    let indiceVisuale = Math.min(indiceUltimaRigaPiena + 2, righe.length - 1);
-                    let rigaMargine = righe[indiceVisuale];
+                    let indiceTarget = Math.min(indiceUltimaRigaPiena + 2, righe.length - 1);
+                    let rigaTarget = righe[indiceTarget];
                     
-                    wrapper.scrollTop = rigaMargine.offsetTop - wrapper.clientHeight + rigaMargine.clientHeight + 10;
+                    wrapper.scrollTop = rigaTarget.offsetTop - wrapper.clientHeight + rigaTarget.clientHeight + 10;
                 } else {
-                    // Se per assurdo non trovasse nulla, rimane in cima
                     wrapper.scrollTop = 0;
                 }
-            }, 300); // Ritardo fisso sicuro per il rendering dei dati da Git
+            }, 350);
         }
     </script>
 
