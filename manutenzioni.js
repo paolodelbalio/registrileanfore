@@ -50,8 +50,8 @@
     }
 
     function disegnaTabellaManutenzioniFissa(righe) {
-        const tabella = document.getElementById("tabellaManutenzioniIsolata");
-        if (!tabella) return;
+        const tabular = document.getElementById("tabellaManutenzioniIsolata");
+        if (!tabular) return;
 
         let intestazioniFisse = ["Data", "Impianto/Componente", "Intervento/Operazione", "Note", "Firma"];
         
@@ -133,7 +133,7 @@
         });
 
         html += "</tbody>";
-        tabella.innerHTML = html;
+        tabular.innerHTML = html;
     }
 
     function aggiornaPulsanteStatoDinamico() {
@@ -158,7 +158,7 @@
                 background: ${coloreBottone}; color: ${coloreTesto};
                 padding: 12px 20px; font-size: 1rem; border: none;
                 border-radius: 6px; font-weight: bold; cursor: pointer;
-                box-shadow: 0 3px 6px rgba(0,0,0,0.15); margin-bottom: 15px;">
+                box-shadow: 0 3px 6px rgba(0,0,0,0.15); margin-bottom: 15px; font-family: Arial, sans-serif;">
                 🔄 Stato Controlavaggio: ${infoControlavaggio.giorni === 'MAI ESEGUITO' ? 'MAI ESEGUITO' : infoControlavaggio.giorni + ' giorni fa'}
             </button>
         `;
