@@ -70,7 +70,7 @@
 
     <script>
         function apriRegistro(idSezione, bottoneCliccato) {
-            // 1. Nasconde tutte le sezioni dei registri
+            // 1. Nasconde tutte le sezioni
             document.querySelectorAll('.register-section').forEach(sec => {
                 sec.classList.add('hidden');
             });
@@ -80,27 +80,67 @@
                 btn.classList.remove('active');
             });
             
-            // 3. Mostra la sezione desiderata e attiva il bottone corrispondente
+            // 3. Mostra la sezione desiderata
             const sezioneAttiva = document.getElementById(idSezione);
             if (sezioneAttiva) {
                 sezioneAttiva.classList.remove('hidden');
                 bottoneCliccato.classList.add('active');
                 
-                // Forza il riallineamento visivo prima del calcolo dell'altezza
                 window.dispatchEvent(new Event('resize'));
 
-                // 4. ESEGUE L'AUTOSCROLL FINO ALLE RIGHE DEL PRESENTE (IN FONDO)
-                // Usiamo un brevissimo ritardo (150ms) per dare il tempo alla tabella di caricare i dati reali
+                // 4. CALCOLO DELLO SCROLL SULL'ULTIMO DATO REALE (pH O RIGHE COMPILATE)
                 setTimeout(() => {
                     const wrapper = sezioneAttiva.querySelector('.table-wrapper');
-                    if (wrapper) {
-                        // Fa scorrere il contenitore interno della tabella fino alla sua massima altezza
-                        wrapper.scrollTo({
-                            top: wrapper.scrollHeight,
-                            behavior: 'smooth' // Effetto scorrimento fluido elegante
-                        });
+                    const tabella = sezioneAttiva.querySelector('table');
+                    
+                    if (wrapper && tabella) {
+                        const righe = tabella.querySelectorAll('tbody tr');
+                        let rigaTarget = null;
+
+                        if (idSezione === 'chimicoSection') {
+                            // Cerca dal basso verso l'alto la prima riga che ha il valore del pH compilato (colonna 2 o 3 a seconda dell'indice)
+                            for (let i = righe.length - 1; i >= 0; i--) {
+                                let celle = righe[i].querySelectorAll('td');
+                                // Verifichiamo se c'è un valore numerico o scritto nella cella del pH (solitamente colonna indice 1 o 2)
+                                let haPH = false;
+                                celle.forEach((td, idx) => {
+                                    // Monitora le colonne centrali del pH
+                                    if ((idx === 1 || idx === 2) && td.textContent.trim() !== "") {
+                                        haPH = true;
+                                    }
+                                });
+                                
+                                if (haPH) {
+                                    // Trovata! Prendiamo come riferimento questa riga per fermarci qui
+                                    rigaTarget = righe[i];
+                                    break;
+                                }
+                            }
+                        } else {
+                            // Per gli altri registri (contatori/pulizie) cerca l'ultima riga generica che ha dati reali nelle colonne centrali
+                            for (let i = righe.length - 1; i >= 0; i--) {
+                                let celle = righe[i].querySelectorAll('td');
+                                if (celle.length > 2 && celle[1].textContent.trim() !== "") {
+                                    rigaTarget = righe[i];
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Se ha trovato la riga del presente, si ferma lì lasciando visibili le due righe sotto
+                        if (rigaTarget) {
+                            let posizioneRiga = rigaTarget.offsetTop;
+                            // Sottraiamo una piccola quota o centriamo per far vedere bene le 2 righe successive vuote sotto
+                            wrapper.scrollTo({
+                                top: posizioneRiga - 100, 
+                                behavior: 'smooth'
+                            });
+                        } else {
+                            // Se per qualunque motivo fallisce il rilevamento, va in fondo come emergenza
+                            wrapper.scrollTo({ top: wrapper.scrollHeight, behavior: 'smooth' });
+                        }
                     }
-                }, 150);
+                }, 200);
             }
         }
     </script>
