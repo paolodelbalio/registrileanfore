@@ -2,7 +2,7 @@
 (function() {
     const FILE_MANUTENZIONI = "REGISTRO MANUTENZIONE INTERVENTI .csv";
 
-    // Scadenze per gli allarmi visivi
+    // Scadenze per gli allarmi visivi (Giallo a 4 giorni, Rosso a 7 giorni)
     const SCADENZE = {
         "CONTROLAVAGGIO": { giallo: 4, rosso: 7, msg: "Controlavaggio filtri", paroleChiave: ["CONTROLAVAGGIO", "LAVAGGIO FILTRI", "LAVAGGIO"] },
         "PULIZIA CESTELLI": { giallo: 5, rosso: 7, msg: "Pulizia cestelli skimmer", paroleChiave: ["CESTELLI", "SKIMMER", "PULITO CESTELLI"] },
@@ -30,7 +30,7 @@
         });
     }
 
-    // Estrae in modo robusto la data cercando il pattern GG/MM/AAAA all'interno del testo
+    // Estrae la data cercando il pattern GG/MM/AAAA ovunque nel testo della riga
     function analizzaData(testo) {
         if (!testo) return null;
         let match = testo.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
@@ -54,12 +54,12 @@
         let ultimiInterventi = {};
         Object.keys(SCADENZE).forEach(k => { ultimiInterventi[k] = null; });
 
-        // Fase 1: Calcolo delle scadenze analizzando il testo intero (per evitare problemi di colonne non separate)
+        // Fase 1: Scansione di sicurezza per calcolare i giorni trascorsi dall'ultimo intervento
         righe.forEach(riga => {
             if (!riga || riga.length === 0) return;
             
-            // Convertiamo l'intera riga (comprese le stringhe separate da punto e virgola) in un unico testo maiuscolo
-            let testoIntero = riga.map(c => c ? c.toString() : "").join(" ").toUpperCase();
+            // Uniamo la riga intera in un'unica stringa pulita
+            let testoIntero = riga.map(c => c ? c.toString() : "").join(" ").replace(/"/g, "").toUpperCase();
             if (testoIntero.trim() === "" || testoIntero.includes("DATA") || testoIntero.includes("REGISTRO")) return;
 
             let oggettoData = analizzaData(testoIntero);
@@ -94,11 +94,11 @@
             }
         });
 
-        // Fase 2: Costruzione grafica delle righe visibili
+        // Fase 2: Rendering grafico delle singole righe all'interno della tabella HTML
         righe.forEach(riga => {
             if (!riga || riga.length === 0) return;
             
-            let testoIntero = riga.map(c => c ? c.toString() : "").join(" ").toUpperCase();
+            let testoIntero = riga.map(c => c ? c.toString() : "").join(" ").replace(/"/g, "").toUpperCase();
             if (testoIntero.trim() === "" || testoIntero.includes("DATA") || testoIntero.includes("REGISTRO")) return;
 
             let oggettoData = analizzaData(testoIntero);
@@ -123,22 +123,22 @@
 
             html += `<tr${stileRiga}>`;
             
-            // Se la riga contiene i punti e virgola accorpati in riga[0], la dividiamo a mano
-            let celleInterne = [];
-            if (riga.length === 1 || (riga[0] && riga[0].includes(';'))) {
-                celleInterne = riga[0].split(';');
+            // Gestione e suddivisione dei dati se accorpati con il punto e virgola
+            let celleDivise = [];
+            if (riga.length === 1 || (riga[0] && riga[0].toString().includes(';'))) {
+                celleDivise = riga[0].toString().split(';');
             } else {
-                celleInterne = riga.map(c => c ? c.toString().trim() : "");
+                celleDivise = riga.map(c => c ? c.toString().trim() : "");
             }
 
             for (let i = 0; i < 5; i++) {
-                let valoreCella = celleInterne[i] ? celleInterne[i].trim() : "";
-                html += `<td>${valoreCella}</td>`;
+                let valoreGrafico = celleDivise[i] ? celleDivise[i].replace(/"/g, "").trim() : "";
+                html += `<td>${valoreGrafico}</td>`;
             }
             html += "</tr>";
         });
 
-        // Fase 3: Rendering del Pulsante Corto e Centrato
+        // Fase 3: Rendering del Pulsante (Stretto, Corto e Trasparente RGBA)
         let infoControlavaggio = window.statoScadenzeGlobali.find(s => s.chiave === "CONTROLAVAGGIO");
         let coloreSfondo = "rgba(40, 167, 69, 0.12)";
         let coloreBordo = "rgba(40, 167, 69, 0.5)";
@@ -156,10 +156,10 @@
 
         let testoGiorni = infoControlavaggio ? (infoControlavaggio.giorni === 'MAI ESEGUITO' ? 'MAI ESEGUITO' : infoControlavaggio.giorni + ' giorni fa') : '-';
 
-        // Riga vuota di stacco sotto i dati
+        // Riga di stacco vuota sotto il contenuto
         html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
 
-        // Pulsante inserito centralmente con dimensioni controllate (max-width 240px)
+        // Pulsante centrato e proporzionato a larghezza ridotta (max-width: 240px)
         html += `
             <tr>
                 <td colspan="5" style="padding: 12px; background: transparent; border: none; text-align: center;">
@@ -175,6 +175,7 @@
             </tr>
         `;
 
+        // Spazi cuscinetto per lo scroll ottimale su display
         for (let k = 0; k < 5; k++) {
             html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
         }
