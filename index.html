@@ -70,7 +70,7 @@
 
     <script>
         function apriRegistro(idSezione, bottoneCliccato) {
-            // Mostra la sezione
+            // Mostra la sezione selezionata e nasconde le altre
             document.querySelectorAll('.register-section').forEach(sec => sec.classList.add('hidden'));
             document.querySelectorAll('.top-buttons button').forEach(btn => btn.classList.remove('active'));
             
@@ -81,55 +81,46 @@
             bottoneCliccato.classList.add('active');
             window.dispatchEvent(new Event('resize'));
 
-            // Esegui lo scroll cercando la data odierna o l'ultimo pH compilato
+            // Applica lo scroll calcolato sui dati effettivi inseriti dall'utente
             setTimeout(() => {
                 const wrapper = sezioneAttiva.querySelector('.table-wrapper');
                 const righe = sezioneAttiva.querySelectorAll('tbody tr');
                 if (!wrapper || righe.length === 0) return;
 
-                // Generiamo la stringa della data di oggi (es: "11/07/2026")
-                const oggi = new Date();
-                const giorno = String(oggi.getDate()).padStart(2, '0');
-                const mese = String(oggi.getMonth() + 1).padStart(2, '0');
-                const anno = oggi.getFullYear();
-                const stringaOggi = `${giorno}/${mese}/${anno}`;
+                let indiceUltimaRigaPiena = -1;
 
-                let rigaTarget = null;
-                let indiceTrovato = -1;
+                // Analizziamo le righe dal basso verso l'alto
+                for (let i = righe.length - 1; i >= 0; i--) {
+                    let celle = righe[i].querySelectorAll('td');
+                    let haDatiVeri = false;
 
-                // 1. Cerca prima se esiste esattamente la riga di OGGI
-                for (let i = 0; i < righe.length; i++) {
-                    if (righe[i].textContent.includes(stringaOggi)) {
-                        indiceTrovato = i;
+                    // Ignoriamo la cella 0 (Data) e la cella 1 (Ora). Controlliamo solo i parametri reali inseriti
+                    for (let j = 2; j < celle.length; j++) {
+                        let contenuto = celle[j].textContent.trim();
+                        // Se c'è un valore scritto che non sia vuoto o un semplice "0" di default
+                        if (contenuto !== "" && contenuto !== "0" && contenuto !== "0,0" && contenuto !== "0.0") {
+                            haDatiVeri = true;
+                            break;
+                        }
+                    }
+
+                    if (haDatiVeri) {
+                        indiceUltimaRigaPiena = i;
                         break;
                     }
                 }
 
-                // 2. Se non trova oggi, cerca l'ultima riga compilata (pH valido) dal basso
-                if (indiceTrovato === -1) {
-                    for (let i = righe.length - 1; i >= 0; i--) {
-                        let celle = righe[i].querySelectorAll('td');
-                        let haDati = false;
-                        celle.forEach((td, idx) => {
-                            if (idx > 0 && td.textContent.trim() !== "" && td.textContent.trim() !== "0") {
-                                haDati = true;
-                            }
-                        });
-                        if (haDati) {
-                            indiceTrovato = i;
-                            break;
-                        }
-                    }
-                }
-
-                // Applica lo scroll calcolando le 2 righe sotto di margine
-                if (indiceTrovato !== -1) {
-                    let indiceVisuale = Math.min(indiceTrovato + 2, righe.length - 1);
+                // Se trova la riga con i dati veri (il presente), scende fino a lì lasciando 2 righe vuote sotto di margine
+                if (indiceUltimaRigaPiena !== -1) {
+                    let indiceVisuale = Math.min(indiceUltimaRigaPiena + 2, righe.length - 1);
                     let rigaMargine = righe[indiceVisuale];
                     
                     wrapper.scrollTop = rigaMargine.offsetTop - wrapper.clientHeight + rigaMargine.clientHeight + 10;
+                } else {
+                    // Se per assurdo non trovasse nulla, rimane in cima
+                    wrapper.scrollTop = 0;
                 }
-            }, 350); // Ritardo fisso sicuro per il disegno della tabella
+            }, 300); // Ritardo fisso sicuro per il rendering dei dati da Git
         }
     </script>
 
