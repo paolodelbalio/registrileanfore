@@ -88,66 +88,64 @@
                 
                 window.dispatchEvent(new Event('resize'));
 
-                // 4. CALCOLO DELLO SCROLL SULL'ULTIMO DATO REALE (pH O RIGHE COMPILATE)
+                // 4. POSIZIONAMENTO SULL'ULTIMA RIGA COMPILATA (RIFERIMENTO pH)
                 setTimeout(() => {
                     const wrapper = sezioneAttiva.querySelector('.table-wrapper');
                     const tabella = sezioneAttiva.querySelector('table');
                     
                     if (wrapper && tabella) {
                         const righe = tabella.querySelectorAll('tbody tr');
-                        let rigaTarget = null;
+                        let indiceRigaPresente = -1;
 
-                        if (idSezione === 'chimicoSection') {
-                            // Cerca dal basso verso l'alto la prima riga che ha il valore del pH compilato (colonna 2 o 3 a seconda dell'indice)
-                            for (let i = righe.length - 1; i >= 0; i--) {
-                                let celle = righe[i].querySelectorAll('td');
-                                // Verifichiamo se c'è un valore numerico o scritto nella cella del pH (solitamente colonna indice 1 o 2)
-                                let haPH = false;
-                                celle.forEach((td, idx) => {
-                                    // Monitora le colonne centrali del pH
-                                    if ((idx === 1 || idx === 2) && td.textContent.trim() !== "") {
-                                        haPH = true;
+                        // Analizziamo dal basso verso l'alto per trovare l'ultimo inserimento vero
+                        for (let i = righe.length - 1; i >= 0; i--) {
+                            let celle = righe[i].querySelectorAll('td');
+                            let rigaValida = false;
+
+                            if (idSezione === 'chimicoSection') {
+                                // Nel chimico, controlliamo dove c'è un pH valido (valore numerico es. tra 6.0 e 8.5)
+                                celle.forEach(td => {
+                                    let testo = td.textContent.trim().replace(',', '.');
+                                    let num = parseFloat(testo);
+                                    if (!isNaN(num) && num >= 6.0 && num <= 8.5) {
+                                        rigaValida = true;
                                     }
                                 });
-                                
-                                if (haPH) {
-                                    // Trovata! Prendiamo come riferimento questa riga per fermarci qui
-                                    rigaTarget = righe[i];
-                                    break;
+                            } else {
+                                // Per gli altri registri, controlliamo la presenza di dati nelle colonne centrali
+                                if (celle.length > 2 && celle[1].textContent.trim() !== "" && celle[1].textContent.trim() !== "0") {
+                                    rigaValida = true;
                                 }
                             }
-                        } else {
-                            // Per gli altri registri (contatori/pulizie) cerca l'ultima riga generica che ha dati reali nelle colonne centrali
-                            for (let i = righe.length - 1; i >= 0; i--) {
-                                let celle = righe[i].querySelectorAll('td');
-                                if (celle.length > 2 && celle[1].textContent.trim() !== "") {
-                                    rigaTarget = righe[i];
-                                    break;
-                                }
+
+                            if (rigaValida) {
+                                indiceRigaPresente = i;
+                                break;
                             }
                         }
 
-                        // Se ha trovato la riga del presente, si ferma lì lasciando visibili le due righe sotto
-                        if (rigaTarget) {
-                            let posizioneRiga = rigaTarget.offsetTop;
-                            // Sottraiamo una piccola quota o centriamo per far vedere bene le 2 righe successive vuote sotto
-                            wrapper.scrollTo({
-                                top: posizioneRiga - 100, 
-                                behavior: 'smooth'
-                            });
-                        } else {
-                            // Se per qualunque motivo fallisce il rilevamento, va in fondo come emergenza
-                            wrapper.scrollTo({ top: wrapper.scrollHeight, behavior: 'smooth' });
+                        // Se abbiamo trovato il presente, calcoliamo il blocco includendo ESATTAMENTE le 2 righe sotto
+                        if (indiceRigaPresente !== -1) {
+                            // Scegliamo come riga visibile finale quella del presente + 2 righe vuote successive
+                            let rigaTargetInquadratura = righe[Math.min(indiceRigaPresente + 2, righe.length - 1)];
+                            
+                            if (rigaTargetInquadratura) {
+                                // Allinea l'inquadratura in modo che la riga target si trovi sul fondo del contenitore visibile
+                                let posizioneTop = rigaTargetInquadratura.offsetTop;
+                                let altezzaWrapper = wrapper.clientHeight;
+                                
+                                wrapper.scrollTop = posizioneTop - altezzaWrapper + rigaTargetInquadratura.clientHeight + 20;
+                                return;
+                            }
                         }
+                        
+                        // Emergenza (se tutto è vuoto): vai in cima
+                        wrapper.scrollTop = 0;
                     }
-                }, 200);
+                }, 250);
             }
         }
     </script>
-
-    <script src="script.js"></script>
-    <script src="contatori.js"></script>
-    <script src="manutenzioni.js"></script>
 
 </body>
 </html>
