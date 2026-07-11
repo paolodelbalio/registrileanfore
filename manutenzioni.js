@@ -12,7 +12,8 @@
     window.statoScadenzeGlobali = [];
 
     document.addEventListener("DOMContentLoaded", () => {
-        setTimeout(caricaRegistroManutenzioniIsolato, 1000);
+        // Carica subito i dati senza ritardi pesanti
+        caricaRegistroManutenzioniIsolato();
     });
 
     function caricaRegistroManutenzioniIsolato() {
@@ -25,6 +26,7 @@
             complete: function(risultati) {
                 if (risultati && risultati.data) {
                     disegnaTabellaManutenzioniFissa(risultati.data);
+                    // Disegna subito il pulsante non appena i dati sono pronti!
                     window.aggiornaPulsanteStatoDinamico();
                 }
             }
@@ -53,13 +55,7 @@
         const tabular = document.getElementById("tabellaManutenzioniIsolata");
         if (!tabular) return;
 
-        let intestazioniFisse = ["Data", "Impianto/Componente", "Intervento/Operazione", "Note", "Firma"];
-        
-        let html = "<thead><tr>";
-        intestazioniFisse.forEach(h => {
-            html += `<th>${h}</th>`;
-        });
-        html += "</tr></thead><tbody>";
+        let html = "<thead><tr><th>Data</th><th>Impianto/Componente</th><th>Intervento/Operazione</th><th>Note</th><th>Firma</th></tr></thead><tbody>";
 
         let ultimiInterventi = {};
         Object.keys(SCADENZE).forEach(k => { ultimiInterventi[k] = null; });
@@ -136,7 +132,6 @@
         tabular.innerHTML = html;
     }
 
-    // RESA PUBBLICA CON WINDOW. PRIMA MANCAVA QUESTO PASSO!
     window.aggiornaPulsanteStatoDinamico = function() {
         const container = document.getElementById("container-bottone-stato");
         if (!container) return;
