@@ -19,7 +19,7 @@ header {
     margin-bottom: 20px;
 }
 
-/* Contenitore della barra dei pulsanti (Tab) */
+/* LA PULSANTIERA ORIGINALE */
 .top-buttons {
     display: flex;
     justify-content: center;
@@ -33,7 +33,6 @@ header {
     margin-bottom: 20px;
 }
 
-/* Stile base dei pulsanti della barra */
 .top-buttons .tab-btn {
     padding: 6px 12px;
     font-size: 0.85rem;
@@ -50,13 +49,12 @@ header {
     background: #d0e4f7;
 }
 
-/* Stato attivo del pulsante selezionato (Diventa Blu con testo Bianco) */
+/* BLOCCO FORZATO PER IL PULSANTE SELEZIONATO */
 .top-buttons .tab-btn.active {
-    background: #0066cc !important;
+    background-color: #0066cc !important;
     color: white !important;
 }
 
-/* Contenitori dei registri */
 .register-section {
     background: white;
     padding: 15px;
@@ -110,12 +108,12 @@ th {
     font-weight: bold;
 }
 
-/* Regola fondamentale per nascondere i contenuti non attivi */
-.hidden {
+/* CLASSE DI NASCONDIMENTO FORZATO (NON TOCCA I METODI DI JAVASCRIPT) */
+.register-section.hidden {
     display: none !important;
 }
 
-/* OVERLAY E FINESTRE DI DIAGNOSTICA (CONSIGLI PRODOTTI E POPUP) */
+/* OVERLAY E FINESTRE DI DIAGNOSTICA ORIGINALI */
 .overlay {
     position: fixed;
     top: 0;
