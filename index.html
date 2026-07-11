@@ -15,10 +15,38 @@
         <p>Monitoraggio Isolato - Registro Chimico</p>
     </header>
 
+    <div class="top-buttons">
+        <button id="btn-chimico" class="tab-btn active" onclick="navigaTab('chimicoSection', this)">🧪 Chimico</button>
+        <button id="btn-contatori" class="tab-btn" onclick="navigaTab('contatoriSection', this)">💧 Contatori</button>
+        <button id="btn-pulizie" class="tab-btn" onclick="navigaTab('pulizieSection', this)">🧹 Pulizie</button>
+        <button id="btn-manutenzioni" class="tab-btn" onclick="navigaTab('manutenzioniSection', this)">🛠️ Manutenzioni</button>
+    </div>
+
     <section id="chimicoSection" class="register-section">
         <h2>Registro Chimico</h2>
         <div class="table-wrapper">
             <table id="chimicoTable"></table>
+        </div>
+    </section>
+
+    <section id="contatoriSection" class="register-section hidden">
+        <h2>Registro Contatori</h2>
+        <div class="table-wrapper">
+            <table id="contatoriTable"></table>
+        </div>
+    </section>
+
+    <section id="pulizieSection" class="register-section hidden">
+        <h2>Registro Pulizie</h2>
+        <div class="table-wrapper">
+            <table id="pulizieTable"></table>
+        </div>
+    </section>
+
+    <section id="manutenzioniSection" class="register-section hidden">
+        <h2>Registro Manutenzioni</h2>
+        <div class="table-wrapper">
+            <table id="manutenzioniTable"></table>
         </div>
     </section>
 
@@ -34,11 +62,29 @@
 
     <div id="dosageModal" class="overlay hidden">
         <div class="dosage-card">
-            <span class="overlay-close" onclick="chiudiDosaggio()">✖</span>
-            <div id="dosageContent"></div>
-            <button class="dosage-close-btn" onclick="chiudiDosaggio()">Chiudi Finestra</button>
+            <span class="overlay-close" onclick="closeDosageModal()">✖</span>
+            <div id="dosageModalContent"></div>
         </div>
     </div>
+
+    <script>
+        function navigaTab(idSezione, bottoneSelezionato) {
+            // Nasconde tutte le sezioni
+            const sezioni = document.querySelectorAll('.register-section');
+            sezioni.forEach(sec => sec.classList.add('hidden'));
+
+            // Rimuove lo stato attivo (blu) da tutti i pulsanti
+            const pulsanti = document.querySelectorAll('.tab-btn');
+            pulsanti.forEach(btn => btn.classList.remove('active'));
+
+            // Mostra la sezione cliccata e attiva il pulsante corrispondente
+            document.getElementById(idSezione).classList.remove('hidden');
+            bottoneSelezionato.classList.add('active');
+
+            // Forza il refresh grafico (utile per i grafici di Chart.js)
+            window.dispatchEvent(new Event('resize'));
+        }
+    </script>
 
     <script src="script.js"></script>
 </body>
