@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Piscina 2026</title>
+    <link rel="stylesheet" href="dashboard-style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
+<body>
+
+    <div class="header-dashboard">
+        <h1>Dashboard Piscina 2026</h1>
+        <p>Piscina Anfore — Registro Digitale Autocontrollo</p>
+    </div>
+
+    <div class="tab-container">
+        <button class="tab-btn active" onclick="apriTab(event, 'sezione-chimico')">🧪 Chimico</button>
+        <button class="tab-btn" onclick="apriTab(event, 'sezione-contatori')">💧 Contatori</button>
+        <button class="tab-btn" onclick="apriTab(event, 'sezione-pulizie')">🧹 Pulizie</button>
+        <button class="tab-btn" onclick="apriTab(event, 'sezione-manutenzioni')">🛠️ Manutenzioni</button>
+    </div>
+
+    <div class="main-content">
+
+        <div id="sezione-chimico" class="tab-content">
+            <h2>1. Registro Parametri Chimici (pH, Cloro, CYA)</h2>
+            <table id="chimicoTable" class="tabella-registri"></table>
+        </div>
+
+        <div id="sezione-contatori" class="tab-content" style="display:none;">
+            <h2>2. Registro Lettura Contatori (Acqua di Reintegro)</h2>
+            <table id="contatoriTable" class="tabella-registri"></table>
+        </div>
+
+        <div id="sezione-pulizie" class="tab-content" style="display:none;">
+            <h2>3. Registro Pulizie e Sanificazione</h2>
+            <table id="pulizieTable" class="tabella-registri"></table>
+        </div>
+
+        <div id="sezione-manutenzioni" class="tab-content" style="display:none;">
+            <h2>4. Registro Manutenzione Interventi</h2>
+            <table id="manutenzioniTable" class="tabella-registri"></table>
+        </div>
+
+    </div>
+
+    <script>
+        function apriTab(evt, nomeSezione) {
+            // Nascondi tutte le sezioni
+            const contenuti = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < contenuti.length; i++) {
+                contenuti[i].style.display = "none";
+            }
+
+            // Rimuovi la classe "active" da tutti i pulsanti
+            const pulsanti = document.getElementsByClassName("tab-btn");
+            for (let i = 0; i < pulsanti.length; i++) {
+                pulsanti[i].className = pulsanti[i].className.replace(" active", "");
+            }
+
+            // Mostra la sezione corrente e aggiungi la classe "active" al pulsante cliccato
+            document.getElementById(nomeSezione).style.display = "block";
+            evt.currentTarget.className += " active";
+            
+            // Forziamo lo scroll o il ricalcolo se necessario quando si cambia scheda
+            window.dispatchEvent(new Event('resize'));
+        }
+    </script>
+
+    <script src="manutenzioni.js"></script>
+    </body>
+</html>
