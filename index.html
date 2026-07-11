@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Piscina - Registro Chimico</title>
+    <title>Dashboard Piscina - Home</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -12,17 +12,17 @@
 
     <header>
         <h1>Dashboard Piscina 2026</h1>
-        <p>Monitoraggio Isolato - Registro Chimico</p>
+        <p>Seleziona un registro per visualizzare i dati</p>
     </header>
 
     <div class="top-buttons">
-        <button id="btn-chimico" class="active" onclick="apriRegistro('chimicoSection', this)">🧪 Chimico</button>
+        <button id="btn-chimico" onclick="apriRegistro('chimicoSection', this)">🧪 Chimico</button>
         <button id="btn-contatori" onclick="apriRegistro('contatoriSection', this)">💧 Contatori</button>
         <button id="btn-pulizie" onclick="apriRegistro('pulizieSection', this)">🧹 Pulizie</button>
         <button id="btn-manutenzioni" onclick="apriRegistro('manutenzioniSection', this)">🛠️ Manutenzioni</button>
     </div>
 
-    <section id="chimicoSection" class="register-section">
+    <section id="chimicoSection" class="register-section hidden">
         <h2>Registro Chimico</h2>
         <div class="table-wrapper">
             <table id="chimicoTable"></table>
@@ -70,15 +70,19 @@
 
     <script>
         function apriRegistro(idSezione, bottoneCliccato) {
+            // Nasconde tutte le sezioni dei registri
             document.querySelectorAll('.register-section').forEach(sec => {
                 sec.classList.add('hidden');
             });
+            // Disattiva lo stato visivo di tutti i bottoni
             document.querySelectorAll('.top-buttons button').forEach(btn => {
                 btn.classList.remove('active');
             });
+            // Mostra la sezione desiderata e attiva il bottone corrispondente
             document.getElementById(idSezione).classList.remove('hidden');
             bottoneCliccato.classList.add('active');
 
+            // Forza il riallineamento dei grafici se presenti
             window.dispatchEvent(new Event('resize'));
         }
     </script>
