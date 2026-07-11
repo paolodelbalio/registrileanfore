@@ -125,7 +125,7 @@
 
                 // Applica lo scroll portandosi dietro le 2 righe vuote successive
                 if (indiceUltimaRigaPiena !== -1) {
-                    let indiceTarget = Math.min(indiceUltimaRigaPiena + 4, righe.length - 1);
+                    let indiceTarget = Math.min(indiceUltimaRigaPiena + 6, righe.length - 1);
                     let rigaTarget = righe[indiceTarget];
                     
                     wrapper.scrollTop = rigaTarget.offsetTop - wrapper.clientHeight + rigaTarget.clientHeight + 10;
