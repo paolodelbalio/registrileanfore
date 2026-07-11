@@ -141,11 +141,11 @@
         tabella.innerHTML = html;
 
         if (statoScadenzeGlobali.some(s => s.stato === "rosso" || s.stato === "giallo")) {
-            mostraPopupAllarmiManutenzioni();
+           // mostraPopupAllarmiManutenzioni();
         }
     }
 
-    function mostraPopupAllarmiManutenzioni() {
+    148    window.mostraPopupAllarmiManutenzioni = function() {
         if (document.getElementById("popup-scadenze")) return;
 
         let htmlElenco = "";
