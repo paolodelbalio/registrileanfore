@@ -69,19 +69,19 @@
 
     <script>
         function navigaTab(idSezione, bottoneSelezionato) {
-            // Nasconde tutte le sezioni
+            // Nasconde tutte le macro sezioni dei registri
             const sezioni = document.querySelectorAll('.register-section');
             sezioni.forEach(sec => sec.classList.add('hidden'));
 
-            // Rimuove lo stato attivo (blu) da tutti i pulsanti
+            // Rimuove la colorazione blu attiva da tutti i pulsanti della barra
             const pulsanti = document.querySelectorAll('.tab-btn');
             pulsanti.forEach(btn => btn.classList.remove('active'));
 
-            // Mostra la sezione cliccata e attiva il pulsante corrispondente
+            // Mostra la sezione cliccata e imposta il rispettivo pulsante come blu attivo
             document.getElementById(idSezione).classList.remove('hidden');
             bottoneSelezionato.classList.add('active');
 
-            // Forza il refresh grafico (utile per i grafici di Chart.js)
+            // Notifica l'evento resize in modo che tabelle e grafici si riallineino istantaneamente
             window.dispatchEvent(new Event('resize'));
         }
     </script>
