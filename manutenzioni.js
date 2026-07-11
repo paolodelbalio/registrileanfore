@@ -9,7 +9,7 @@
         "PULIZIA PREFILTRO": { giallo: 10, rosso: 15, msg: "Pulizia prefiltro pompa" }
     };
 
-    let statoScadenzeGlobali = [];
+    window.statoScadenzeGlobali = [];
 
     document.addEventListener("DOMContentLoaded", () => {
         setTimeout(caricaRegistroManutenzioniIsolato, 1000);
