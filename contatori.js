@@ -3,37 +3,37 @@ document.addEventListener("DOMContentLoaded", function () {
     fetch("REGISTRO CONTATORI.csv")
         .then(response => response.text())
         .then(csvText => {
-            // Analizza il CSV riga per riga
+            // Analizza il CSV riga per riga tramite PapaParse
             Papa.parse(csvText, {
-                header: false, // false perché saltiamo la primissima riga di titolo a mano
+                header: false, // Disattivato per gestire manualmente il salto della prima riga
                 skipEmptyLines: true,
                 complete: function (results) {
                     const data = results.data;
                     
-                    // Se il file è vuoto o ha meno di 2 righe (titolo + intestazioni), si ferma
+                    // Se il file ha meno di 2 righe (titolo iniziale + colonne reali), si ferma
                     if (data.length < 2) return; 
 
-                    // Riga 0: "Registro Lettura Contatori,,,,,," (la ignoriamo)
-                    // Riga 1: I titoli veri ("Data", "Contatore Reintegro (L)", etc.)
-                    const intestazioni Reali = data[1]; 
+                    // Riga 0: "Registro Lettura Contatori,,,,,," -> La saltiamo di proposito
+                    // Riga 1: I titoli delle colonne reali ("Data", "Contatore Reintegro (L)", ecc.)
+                    const intestazioniReali = data[1]; 
                     
-                    // Dalla riga 2 in poi ci sono i dati dei giorni
+                    // Dalla riga 2 in poi ci sono i dati storici delle letture
                     const righeDati = data.slice(2); 
 
                     const tabella = document.getElementById("contatoriTable");
                     if (!tabella) return;
 
-                    // Genera la testata della tabella (<th>)
+                    // 1. Genera l'intestazione HTML (<thead>)
                     let tabellaHtml = "<thead><tr>";
                     intestazioniReali.forEach(titolo => {
                         tabellaHtml += `<th>${titolo || ""}</th>`;
                     });
                     tabellaHtml += "</tr></thead>";
 
-                    // Genera il corpo della tabella (<td>)
+                    // 2. Genera il corpo HTML (<tbody>) con le letture giornaliere
                     tabellaHtml += "<tbody>";
                     righeDati.forEach(riga => {
-                        // Salta le righe totalmente vuote
+                        // Salta le righe totalmente vuote per sicurezza
                         if (riga.length === 0 || !riga[0]) return;
 
                         tabellaHtml += "<tr>";
@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     });
                     tabellaHtml += "</tbody>";
 
-                    // Inserisce i dati nella tabella HTML dei contatori
+                    // Inserisce l'intera struttura dentro la tabella dei contatori
                     tabella.innerHTML = tabellaHtml;
                 }
             });
