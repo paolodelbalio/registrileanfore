@@ -1,7 +1,7 @@
 // Gestore Isolato per il Registro Manutenzioni con Scadenziario in riga
 (function() {
-    // IMPORTANTE: Verifica che sul tuo repository Git questo nome file sia scritto ESATTAMENTE così, spazi inclusi
-    const FILE_MANUTENZIONI = "REGISTRO MANUTENZIONE INTERVENTI .csv";
+    // Nome file normalizzato senza spazi critici per i server Git
+    const FILE_MANUTENZIONI = "registro_manutenzioni_interventi.csv";
 
     // Mappatura delle scadenze in giorni
     const SCADENZE = {
@@ -13,7 +13,6 @@
     let statoScadenzeGlobali = [];
 
     document.addEventListener("DOMContentLoaded", () => {
-        // Un piccolo ritardo iniziale garantisce che PapaParse sia pronto sul server
         setTimeout(caricaRegistroManutenzioniIsolato, 1000);
     });
 
@@ -23,7 +22,6 @@
             return;
         }
         
-        // Configurazione corretta per il download da Git Server
         Papa.parse(FILE_MANUTENZIONI, {
             download: true,
             header: false,
@@ -136,7 +134,6 @@
             }
         });
 
-        // Cerca la tabella corretta definita nell'HTML
         const tabella = document.getElementById("tabellaManutenzioniIsolata");
         if (!tabella) return;
 
