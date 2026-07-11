@@ -2,62 +2,54 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Piscina 2026</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background-color: #f4f4f4; text-align: center; }
-        
-        /* Intestazione Blu */
-        .header { background-color: #0066cc; color: white; padding: 40px 20px; }
-        .header h1 { margin: 0; font-size: 2.5em; }
-        .header p { font-size: 1.2em; opacity: 0.9; }
-
-        /* Area Pulsanti */
-        .nav-bar { background-color: #f8f9fa; padding: 20px; border-bottom: 2px solid #ddd; }
-        .tab-button { 
-            padding: 12px 25px; margin: 5px; cursor: pointer; 
-            border: 1px solid #0066cc; border-radius: 8px; 
-            background-color: white; color: #0066cc; font-size: 16px; font-weight: 600; 
-        }
-        .tab-button.active { background-color: #0066cc; color: white; }
-        .tab-button:hover { background-color: #e6f0ff; }
-
-        /* Contenuto */
-        .content { padding: 30px; }
-        .tab-pane { display: none; }
-        .tab-pane.active { display: block; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="header">
+<header>
     <h1>Dashboard Piscina 2026</h1>
-    <p>Analisi automatica dei registri</p>
+</header>
+
+<div class="top-buttons">
+    <button class="tab-button active" onclick="openTab('chimico')">Chimico</button>
+    <button class="tab-button" onclick="openTab('contatori')">Contatori</button>
+    <button class="tab-button" onclick="openTab('pulizie')">Pulizie</button>
+    <button class="tab-button" onclick="openTab('manutenzioni')">Manutenzioni</button>
 </div>
 
-<div class="nav-bar">
-    <button class="tab-button active" onclick="showTab('chimico', this)">Chimico</button>
-    <button class="tab-button" onclick="showTab('contatori', this)">Contatori</button>
-    <button class="tab-button" onclick="showTab('pulizie', this)">Pulizie</button>
-    <button class="tab-button" onclick="showTab('manutenzioni', this)">Manutenzioni</button>
+<div class="container">
+    <div id="chimico" class="tab-content">
+        <h2>Registro Chimico</h2>
+        </div>
+
+    <div id="contatori" class="tab-content" style="display:none;">
+        <h2>Registro Contatori</h2>
+        </div>
+
+    <div id="pulizie" class="tab-content" style="display:none;">
+        <h2>Registro Pulizie</h2>
+        </div>
+
+    <div id="manutenzioni" class="tab-content" style="display:none;">
+        <h2>Registro Manutenzioni</h2>
+        <table>
+            <thead>
+                <tr><th>Data</th><th>Impianto/Area</th><th>Intervento</th><th>Tecnico</th><th>Note</th></tr>
+            </thead>
+            <tbody id="manutenzioni-body"></tbody>
+        </table>
+    </div>
 </div>
 
-<div class="content">
-    <div id="chimico" class="tab-pane active"><h2>Registro Chimico</h2></div>
-    <div id="contatori" class="tab-pane"><h2>Registro Contatori</h2></div>
-    <div id="pulizie" class="tab-pane"><h2>Registro Pulizie</h2></div>
-    <div id="manutenzioni" class="tab-pane"><h2>Registro Manutenzioni</h2></div>
-</div>
-
+<script src="script.js"></script>
 <script>
-    function showTab(tabId, btn) {
-        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-        
-        document.getElementById(tabId).classList.add('active');
-        btn.classList.add('active');
+    function openTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(div => div.style.display = 'none');
+        document.getElementById(tabId).style.display = 'block';
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        event.currentTarget.classList.add('active');
     }
 </script>
-
 </body>
 </html>
