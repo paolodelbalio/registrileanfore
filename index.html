@@ -2,144 +2,75 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Piscina 2026</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <title>Dashboard Registri Piscina</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f9; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+        .tabs button { padding: 10px 15px; cursor: pointer; border: none; background: #eee; font-weight: bold; }
+        .tabs button.active { background: #007bff; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    </style>
 </head>
 <body>
 
-    <header>
-        <h1>Dashboard Piscina 2026</h1>
-        <p>Seleziona un registro per visualizzare i dati</p>
-    </header>
-
-    <div class="top-buttons">
-        <button id="btn-chimico" onclick="apriRegistro('chimicoSection', this)">🧪 Chimico</button>
-        <button id="btn-contatori" onclick="apriRegistro('contatoriSection', this)">💧 Contatori</button>
-        <button id="btn-pulizie" onclick="apriRegistro('pulizieSection', this)">🧹 Pulizie</button>
-       <button id="btn-manutenzioni" onclick="apriRegistro('manutenzioniSection', this); setTimeout(() => { if(window.aggiornaPulsanteStatoDinamico) window.aggiornaPulsanteStatoDinamico(); }, 100);">🛠️ Manutenzioni</button>
+<div class="container">
+    <h1>Gestione Registri</h1>
+    
+    <div class="tabs">
+        <button class="tab-button active" onclick="openTab(event, 'chimico')">Chimico</button>
+        <button class="tab-button" onclick="openTab(event, 'contatori')">Contatori</button>
+        <button class="tab-button" onclick="openTab(event, 'manutenzione')">Manutenzione</button>
+        <button class="tab-button" onclick="openTab(event, 'impianti')">Impianti</button>
     </div>
 
-    <section id="chimicoSection" class="register-section hidden">
+    <div id="chimico" class="tab-content active">
         <h2>Registro Chimico</h2>
-        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
-            <table id="chimicoTable" style="width: 100%; min-width: 800px;"></table>
         </div>
-    </section>
 
-    <section id="contatoriSection" class="register-section hidden">
+    <div id="contatori" class="tab-content">
         <h2>Registro Contatori</h2>
-        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
-            <table id="contatoriTable" style="width: 100%; min-width: 800px;"></table>
         </div>
-    </section>
 
-    <section id="pulizieSection" class="register-section hidden">
-        <h2>Registro Pulizie</h2>
-        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
-            <table id="pulizieTable" style="width: 100%; min-width: 800px;"></table>
-        </div>
-    </section>
-
-    <section id="manutenzioniSection" class="register-section hidden">
-        <h2>Registro Manutenzioni</h2>
-        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
-            <table id="tabellaManutenzioniIsolata" style="width: 100%; min-width: 800px;"></table>
-        </div>
-    </section>
-
-    <div id="chartOverlay" class="overlay hidden">
-        <div class="overlay-content">
-            <span class="overlay-close" onclick="closeOverlay()">✖</span>
-            <h3 id="overlayTitle">Andamento Storico</h3>
-     <section id="manutenzioniSection" class="register-section hidden">
-     <section id="manutenzioniSection" class="register-section hidden">
-        <h2>Registro Manutenzioni</h2>
-        <div class="table-wrapper">
-            <table id="tabellaManutenzioniIsolata"></table>
-        </div>
-    </section>
-    <div id="dosageModal" class="overlay hidden">
-        <div class="dosage-card">
-            <span class="overlay-close" onclick="chiudiDosaggio()">✖</span>
-            <div id="dosageContent"></div>
-            <button class="dosage-close-btn" onclick="chiudiDosaggio()">Chiudi Finestra</button>
-        </div>
+    <div id="manutenzione" class="tab-content">
+        <h2>Registro Manutenzione</h2>
+        <table>
+            <thead>
+                <tr><th>Data</th><th>Area</th><th>Intervento</th><th>Tecnico</th><th>Note</th></tr>
+            </thead>
+            <tbody id="manutenzioneBody"></tbody>
+        </table>
     </div>
 
-    <script>
-        function apriRegistro(idSezione, bottoneCliccato) {
-            document.querySelectorAll('.register-section').forEach(sec => sec.classList.add('hidden'));
-            document.querySelectorAll('.top-buttons button').forEach(btn => btn.classList.remove('active'));
-            
-            const sezioneAttiva = document.getElementById(idSezione);
-            if (!sezioneAttiva) return;
-            
-            sezioneAttiva.classList.remove('hidden');
-            bottoneCliccato.classList.add('active');
-            window.dispatchEvent(new Event('resize'));
+    <div id="impianti" class="tab-content">
+        <h2>Registro Impianti</h2>
+        </div>
+</div>
 
-            setTimeout(() => {
-                const wrapper = sezioneAttiva.querySelector('.table-wrapper');
-                const righe = sezioneAttiva.querySelectorAll('tbody tr');
-                if (!wrapper || righe.length === 0) return;
+<script>
+    // Funzione per cambiare scheda
+    function openTab(evt, tabName) {
+        let contents = document.getElementsByClassName("tab-content");
+        for (let i = 0; i < contents.length; i++) contents[i].style.display = "none";
+        
+        let buttons = document.getElementsByClassName("tab-button");
+        for (let i = 0; i < buttons.length; i++) buttons[i].className = buttons[i].className.replace(" active", "");
+        
+        document.getElementById(tabName).style.display = "block";
+        evt.currentTarget.className += " active";
+    }
 
-                let indiceUltimaRigaPiena = -1;
-
-                // Controlliamo dal basso verso l'alto
-                for (let i = righe.length - 1; i >= 0; i--) {
-                    let celle = righe[i].querySelectorAll('td');
-                    if (celle.length < 3) continue;
-
-                    let rigaValida = false;
-
-                    if (idSezione === 'chimicoSection') {
-                        // Nel registro chimico, cerchiamo l'ultimo valore NUMERICO reale del pH 
-                        // Ispezioniamo tutte le celle della riga per trovare il pH (es. 7.2 o 7,4)
-                        for (let j = 2; j < celle.length; j++) {
-                            let valTesto = celle[j].textContent.trim().replace(',', '.');
-                            let valNum = parseFloat(valTesto);
-                            // Se è un numero valido ed è un valore coerente di pH
-                            if (!isNaN(valNum) && valNum >= 6.5 && valNum <= 8.5) {
-                                rigaValida = true;
-                                break;
-                            }
-                        }
-                    } else {
-                        // Per gli altri registri, basta che ci sia scritto qualcosa oltre a data/ora nelle colonne centrali
-                        for (let j = 2; j < celle.length; j++) {
-                            let testo = celle[j].textContent.trim();
-                            if (testo !== "" && testo !== "0" && testo !== "0,0" && testo !== "0.0") {
-                                rigaValida = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (rigaValida) {
-                        indiceUltimaRigaPiena = i;
-                        break;
-                    }
-                }
-
-                // Applica lo scroll portandosi dietro le 2 righe vuote successive
-                if (indiceUltimaRigaPiena !== -1) {
-                    let indiceTarget = Math.min(indiceUltimaRigaPiena + 6, righe.length - 1);
-                    let rigaTarget = righe[indiceTarget];
-                    
-                    wrapper.scrollTop = rigaTarget.offsetTop - wrapper.clientHeight + rigaTarget.clientHeight + 10;
-                } else {
-                    wrapper.scrollTop = 0;
-                }
-            }, 350);
-        }
-    </script>
-
-    <script src="script.js"></script>
-    <script src="contatori.js"></script>
-    <script src="manutenzioni.js"></script>
-
+    // Esempio logica per caricare i dati (da adattare con i tuoi dati reali)
+    function loadManutenzione() {
+        const dati = JSON.parse(localStorage.getItem('manutenzioni')) || [];
+        const body = document.getElementById('manutenzioneBody');
+        body.innerHTML = dati.map(item => `<tr><td>${item.date}</td><td>${item.area}</td><td>${item.type}</td><td>${item.technician}</td><td>${item.notes}</td></tr>`).join('');
+    }
+    
+    window.onload = loadManutenzione;
+</script>
 </body>
 </html>
