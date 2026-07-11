@@ -1,7 +1,6 @@
-// Gestore Isolato per il Registro Manutenzioni con Scadenziario in riga
+// Gestore Isolato e Protetto per il Registro Manutenzioni
 (function() {
-    // Nome file normalizzato senza spazi critici per i server Git
-    const FILE_MANUTENZIONI = "registro_manutenzioni_interventi.csv";
+    const FILE_MANUTENZIONI = "REGISTRO MANUTENZIONE INTERVENTI .csv";
 
     // Mappatura delle scadenze in giorni
     const SCADENZE = {
@@ -13,12 +12,13 @@
     let statoScadenzeGlobali = [];
 
     document.addEventListener("DOMContentLoaded", () => {
+        // Avvio ritardato per non sovrapporsi al chimico
         setTimeout(caricaRegistroManutenzioniIsolato, 1000);
     });
 
     function caricaRegistroManutenzioniIsolato() {
         if (typeof Papa === 'undefined') {
-            console.error("PapaParse non trovato sul server.");
+            console.error("PapaParse non caricato.");
             return;
         }
         
@@ -27,10 +27,12 @@
             header: false,
             skipEmptyLines: true,
             complete: function(risultati) {
-                elaboraManutenzioniProtetto(risultati.data);
+                if (risultati && risultati.data) {
+                    elaboraManutenzioniProtetto(risultati.data);
+                }
             },
             error: function(errore) {
-                console.error("Errore nel download del file da Git:", errore);
+                console.error("File manutenzioni non trovato o errore Git 404. Verificare nome file.");
             }
         });
     }
@@ -58,31 +60,26 @@
 
         let rigaIntestazione = null;
         let indiceData = -1;
-        let indiceIntervento = -1;
-        let indiceImpianto = -1;
         let righeDatiGrezze = [];
 
+        // Trova la riga delle intestazioni stabili
         for (let i = 0; i < righe.length; i++) {
             let r = righe[i];
             if (!r || r.length === 0) continue;
             let testoUnito = r.join("").toUpperCase();
             
             if (testoUnito.includes("DATA") && (testoUnito.includes("INTERVENTO") || testoUnito.includes("OPERAZIONE"))) {
-                rigaIntestazione = r.map(c => c.trim().toUpperCase());
-                indiceData = rigaIntestazione.findIndex(c => c.includes("DATA"));
-                indiceIntervento = rigaIntestazione.findIndex(c => c.includes("INTERVENTO") || c.includes("OPERAZIONE") || c.includes("DESCRIZIONE"));
-                indiceImpianto = rigaIntestazione.findIndex(c => c.includes("IMPIANTO") || c.includes("AREA") || c.includes("COMPONENTE"));
-                
+                rigaIntestazione = r.map(c => c ? c.trim() : "");
+                indiceData = r.findIndex(c => c && c.toUpperCase().includes("DATA"));
                 righeDatiGrezze = righe.slice(i + 1);
                 break;
             }
         }
 
+        // Se non trova intestazioni standard nel CSV, ne usa una di sicurezza
         if (!rigaIntestazione) {
             rigaIntestazione = ["Data", "Impianto/Componente", "Intervento/Operazione", "Note", "Firma"];
             indiceData = 0;
-            indiceImpianto = 1;
-            indiceIntervento = 2;
             righeDatiGrezze = righe.filter(r => r && r.length > 0 && r.join("").trim() !== "");
             if (righeDatiGrezze.length > 0 && righeDatiGrezze[0].join("").toUpperCase().includes("REGISTRO")) {
                 righeDatiGrezze.shift();
@@ -91,16 +88,15 @@
 
         let ultimiInterventi = {};
         Object.keys(SCADENZE).forEach(k => { ultimiInterventi[k] = null; });
-
         let righeValideElaborate = [];
 
         righeDatiGrezze.forEach(r => {
-            if (!r || r.length === 0 || !r[indiceData]) return;
+            if (!r || r.length === 0 || indiceData === -1 || !r[indiceData]) return;
             let stringaData = r[indiceData].trim();
             if (stringaData === "" || stringaData.toUpperCase().includes("DATA")) return;
 
             let oggettoData = analizzaData(stringaData);
-            righeValideElaborate.push({ rigaGrezza: r, dataObj: oggettoData });
+            righeValideElaborate.push({ rigaGrezza: r, dataObj: objetoData });
 
             if (oggettoData) {
                 let testoCampi = r.join(" ").toUpperCase();
@@ -137,12 +133,14 @@
         const tabella = document.getElementById("tabellaManutenzioniIsolata");
         if (!tabella) return;
 
+        // COSTRUZIONE SICURA DELLA TESTATA HTML
         let html = "<thead><tr>";
         rigaIntestazione.forEach(h => {
             html += `<th>${h || ""}</th>`;
         });
         html += "</tr></thead><tbody>";
 
+        // COSTRUZIONE DEL CORPO DELLA TABELLA
         righeValideElaborate.forEach(item => {
             let r = item.rigaGrezza;
             let stileRiga = "";
@@ -175,6 +173,7 @@
         html += "</tbody>";
         tabella.innerHTML = html;
 
+        // Mostra il popup allarmi solo se ci sono reali elementi fuori scadenza
         if (statoScadenzeGlobali.some(s => s.stato === "rosso" || s.stato === "giallo")) {
             mostraPopupAllarmiManutenzioni();
         }
