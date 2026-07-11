@@ -39,12 +39,9 @@ function elaboraDatiTabella(chiave, righeGrezze) {
     
     if (chiave === 'chimico') {
         creaTabellaChimica(intestazioni, datiFormattati);
-    } else {
-        creaTabellaStandard(chiave, intestazioni, datiFormattati);
     }
 }
 
-// === FUNZIONI PER IL CHIMICO ===
 function creaTabellaChimica(intestazioni, dati) {
     const tabella = document.getElementById("chimicoTable");
     if (!tabella) return;
@@ -60,9 +57,4 @@ function creaTabellaChimica(intestazioni, dati) {
     });
     html += "</tbody>";
     tabella.innerHTML = html;
-}
-
-function creaTabellaStandard(chiave, intestazioni, dati) {
-    const tabella = document.getElementById(`${chiave}Table`);
-    if (tabella) tabella.innerHTML = "Tabella caricata";
 }
