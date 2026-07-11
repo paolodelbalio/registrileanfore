@@ -44,65 +44,77 @@ header {
 }
 
 .top-buttons button:hover {
-    background: #d0e4f7;
-}
-
-/* Regola specifica per fare diventare il tasto attivo Blu con il testo Bianco */
-.top-buttons button.active {
-    background-color: #0066cc !important;
-    color: white !important;
+    background: #0066cc;
+    color: #fff;
 }
 
 .register-section {
     background: white;
-    padding: 15px;
+    padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     margin-bottom: 20px;
 }
 
 .register-section h2 {
-    margin-bottom: 15px;
     color: #0066cc;
+    margin-bottom: 15px;
+    font-size: 1.25rem;
+    border-bottom: 2px solid #0066cc;
+    padding-bottom: 5px;
 }
 
 .table-wrapper {
-    overflow-x: auto;
+    max-height: 65vh;
+    overflow-y: auto;
+    border: 1px solid #dddddd;
+    border-radius: 4px;
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
-}
-
-th, td {
-    border: 1px solid #dddddd;
-    padding: 8px;
+    font-size: 0.85rem;
     text-align: left;
 }
 
-th {
-    background-color: #f2f2f2;
+thead th {
+    background-color: #334155;
+    color: white;
+    padding: 8px 10px;
     position: sticky;
     top: 0;
     z-index: 10;
+    font-weight: bold;
+    white-space: nowrap;
 }
 
-.high-value {
-    background-color: #ffcccc;
+tbody td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #dddddd;
+    white-space: nowrap;
 }
 
-.low-value {
-    background-color: #ffffcc;
+tr:nth-child(even) td {
+    background-color: #f8fafc;
 }
 
-.btn-diagnostica {
-    background-color: #0066cc;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 4px;
-    cursor: pointer;
+/* COLORI COMPATTI IN TRASPARENZA (STILE ORIGINALE MA SOFT) */
+.evidenzia-verde {
+    background-color: rgba(187, 247, 208, 0.5) !important; /* Verde leggero */
+    color: #166534 !important;
+    font-weight: bold;
+}
+
+.evidenzia-giallo {
+    background-color: rgba(254, 240, 138, 0.5) !important; /* Giallo leggero */
+    color: #854d0e !important;
+    font-weight: bold;
+}
+
+.evidenzia-rosso {
+    background-color: rgba(252, 165, 165, 0.6) !important; /* Rosso trasparente ma distinto dal giallo */
+    color: #991b1b !important;
     font-weight: bold;
 }
 
@@ -147,15 +159,38 @@ th {
     transition: all 0.2s ease-in-out;
 }
 
+/* STILE ENFASI SEGNALAZIONE ROSSA/CRITICA */
+.dosage-card.modal-critica {
+    border: 3px solid #dc2626 !important;
+    background-color: #fffdfd;
+    box-shadow: 0 10px 25px rgba(220, 38, 38, 0.25);
+}
+
 .overlay-close {
     position: absolute;
     top: 10px;
     right: 15px;
-    font-size: 20px;
+    font-size: 1.5rem;
     cursor: pointer;
     color: #666;
 }
 
 .overlay-close:hover {
     color: #000;
+}
+
+.dosage-close-btn {
+    margin-top: 20px;
+    width: 100%;
+    padding: 10px;
+    background: #0066cc;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.dosage-close-btn:hover {
+    background: #0052a3;
 }
