@@ -24,29 +24,29 @@
 
     <section id="chimicoSection" class="register-section hidden">
         <h2>Registro Chimico</h2>
-        <div class="table-wrapper" style="overflow-x: auto; width: 100%;">
-            <table id="chimicoTable"></table>
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; display: block;">
+            <table id="chimicoTable" style="width: 100%; min-width: 800px;"></table>
         </div>
     </section>
 
     <section id="contatoriSection" class="register-section hidden">
         <h2>Registro Contatori</h2>
-        <div class="table-wrapper" style="overflow-x: auto; width: 100%;">
-            <table id="contatoriTable"></table>
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; display: block;">
+            <table id="contatoriTable" style="width: 100%; min-width: 800px;"></table>
         </div>
     </section>
 
     <section id="pulizieSection" class="register-section hidden">
         <h2>Registro Pulizie</h2>
-        <div class="table-wrapper" style="overflow-x: auto; width: 100%;">
-            <table id="pulizieTable"></table>
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; display: block;">
+            <table id="pulizieTable" style="width: 100%; min-width: 800px;"></table>
         </div>
     </section>
 
     <section id="manutenzioniSection" class="register-section hidden">
         <h2>Registro Manutenzioni</h2>
-        <div class="table-wrapper" style="overflow-x: auto; width: 100%;">
-            <table id="tabellaManutenzioniIsolata"></table>
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; display: block;">
+            <table id="tabellaManutenzioniIsolata" style="width: 100%; min-width: 800px;"></table>
         </div>
     </section>
 
@@ -70,19 +70,33 @@
 
     <script>
         function apriRegistro(idSezione, bottoneCliccato) {
-            // Nasconde tutte le sezioni dei registri
+            // 1. Nasconde tutte le sezioni dei registri
             document.querySelectorAll('.register-section').forEach(sec => {
                 sec.classList.add('hidden');
             });
-            // Disattiva lo stato visivo di tutti i bottoni
+            
+            // 2. Disattiva lo stato visivo di tutti i bottoni
             document.querySelectorAll('.top-buttons button').forEach(btn => {
                 btn.classList.remove('active');
             });
-            // Mostra la sezione desiderata e attiva il bottone corrispondente
-            document.getElementById(idSezione).classList.remove('hidden');
+            
+            // 3. Mostra la sezione desiderata e attiva il bottone corrispondente
+            const sezioneAttiva = document.getElementById(idSezione);
+            if (sezioneAttiva) {
+                sezioneAttiva.classList.remove('hidden');
+                
+                // Forza il layout engine del browser a svegliarsi e calcolare lo scrollbar orizzontale
+                const wrapper = sezioneAttiva.querySelector('.table-wrapper');
+                if (wrapper) {
+                    wrapper.style.display = 'none';
+                    wrapper.offsetHeight; // Forza il reflow genetico della pagina
+                    wrapper.style.display = 'block';
+                }
+            }
+            
             bottoneCliccato.classList.add('active');
 
-            // Forza il riallineamento dei grafici se presenti
+            // Sveglia Chart.js e ridimensiona le finestre dinamiche
             window.dispatchEvent(new Event('resize'));
         }
     </script>
