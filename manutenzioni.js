@@ -12,7 +12,6 @@
     window.statoScadenzeGlobali = [];
 
     document.addEventListener("DOMContentLoaded", () => {
-        // Carica subito i dati senza ritardi pesanti
         caricaRegistroManutenzioniIsolato();
     });
 
@@ -26,8 +25,6 @@
             complete: function(risultati) {
                 if (risultati && risultati.data) {
                     disegnaTabellaManutenzioniFissa(risultati.data);
-                    // Disegna subito il pulsante non appena i dati sono pronti!
-                    window.aggiornaPulsanteStatoDinamico();
                 }
             }
         });
@@ -95,6 +92,7 @@
             }
         });
 
+        // Disegna le righe dei dati reali presenti nel CSV
         righe.forEach(riga => {
             if (!riga || riga.length === 0) return;
             
@@ -128,36 +126,50 @@
             html += "</tr>";
         });
 
+        // CONFIGURAZIONE BOTTONE NELLA SECONDA RIGA VUOTA
+        let infoControlavaggio = window.statoScadenzeGlobali.find(s => s.chiave === "CONTROLAVAGGIO");
+        let coloreBottone = "#28a745"; 
+        let coloreTesto = "#fff";
+        
+        if (infoControlavaggio && infoControlavaggio.stato === "rosso") {
+            coloreBottone = "#dc3545";
+        } else if (infoControlavaggio && infoControlavaggio.stato === "giallo") {
+            coloreBottone = "#ffc107";
+            coloreTesto = "#212529";
+        }
+
+        let testoGiorni = infoControlavaggio ? (infoControlavaggio.giorni === 'MAI ESEGUITO' ? 'MAI ESEGUITO' : infoControlavaggio.giorni + ' giorni fa') : '-';
+
+        // 1a Riga vuota di stacco
+        html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
+
+        // 2a Riga vuota: qui creiamo il pulsante dentro la tabella (unendo le celle con colspan)
+        html += `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 15px; background: #ffffff; border: none;">
+                    <button onclick="window.apriDettaglioControlavaggio()" style="
+                        background: ${coloreBottone}; color: ${coloreTesto};
+                        padding: 12px 25px; font-size: 1.05rem; border: none;
+                        border-radius: 6px; font-weight: bold; cursor: pointer;
+                        box-shadow: 0 4px 8px rgba(0,0,0,0.15); font-family: Arial, sans-serif; min-width: 280px;">
+                        🔄 Stato Controlavaggio: ${testoGiorni}
+                    </button>
+                </td>
+            </tr>
+        `;
+
+        // Altre 4 righe vuote sotto per dare margine allo scroll
+        for (let k = 0; k < 4; k++) {
+            html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
+        }
+
         html += "</tbody>";
         tabular.innerHTML = html;
     }
 
+    // Forza il rinfresco se richiamato dal tasto principale di navigazione
     window.aggiornaPulsanteStatoDinamico = function() {
-        const container = document.getElementById("container-bottone-stato");
-        if (!container) return;
-
-        let infoControlavaggio = window.statoScadenzeGlobali.find(s => s.chiave === "CONTROLAVAGGIO");
-        if (!infoControlavaggio) return;
-
-        let coloreBottone = "#28a745"; // Verde standard
-        let coloreTesto = "#fff";
-        
-        if (infoControlavaggio.stato === "rosso") {
-            coloreBottone = "#dc3545"; // Rosso allarme
-        } else if (infoControlavaggio.stato === "giallo") {
-            coloreBottone = "#ffc107"; // Giallo/Arancio
-            coloreTesto = "#212529";
-        }
-
-        container.innerHTML = `
-            <button onclick="window.apriDettaglioControlavaggio()" style="
-                background: ${coloreBottone}; color: ${coloreTesto};
-                padding: 12px 20px; font-size: 1rem; border: none;
-                border-radius: 6px; font-weight: bold; cursor: pointer;
-                box-shadow: 0 3px 6px rgba(0,0,0,0.15); margin-bottom: 15px; font-family: Arial, sans-serif;">
-                🔄 Stato Controlavaggio: ${infoControlavaggio.giorni === 'MAI ESEGUITO' ? 'MAI ESEGUITO' : infoControlavaggio.giorni + ' giorni fa'}
-            </button>
-        `;
+        caricaRegistroManutenzioniIsolato();
     }
 
     window.apriDettaglioControlavaggio = function() {
