@@ -19,7 +19,7 @@ header {
     margin-bottom: 20px;
 }
 
-/* Contenitore della barra pulsanti */
+/* Contenitore della barra dei pulsanti (Tab) */
 .top-buttons {
     display: flex;
     justify-content: center;
@@ -33,7 +33,7 @@ header {
     margin-bottom: 20px;
 }
 
-/* Stile di base di tutti i pulsanti della barra */
+/* Stile base dei pulsanti della barra */
 .top-buttons .tab-btn {
     padding: 6px 12px;
     font-size: 0.85rem;
@@ -50,13 +50,13 @@ header {
     background: #d0e4f7;
 }
 
-/* Stato del pulsante Attivo (Selezionato, diventa Blu) */
+/* Stato attivo del pulsante selezionato (Diventa Blu con testo Bianco) */
 .top-buttons .tab-btn.active {
     background: #0066cc !important;
     color: white !important;
 }
 
-/* Regole per le sezioni e tabelle */
+/* Contenitori dei registri */
 .register-section {
     background: white;
     padding: 15px;
@@ -110,12 +110,12 @@ th {
     font-weight: bold;
 }
 
-/* Classe fondamentale per nascondere le schede non attive */
+/* Regola fondamentale per nascondere i contenuti non attivi */
 .hidden {
     display: none !important;
 }
 
-/* OVERLAY E FINESTRE DI DIAGNOSTICA */
+/* OVERLAY E FINESTRE DI DIAGNOSTICA (CONSIGLI PRODOTTI E POPUP) */
 .overlay {
     position: fixed;
     top: 0;
