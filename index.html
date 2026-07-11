@@ -24,28 +24,28 @@
 
     <section id="chimicoSection" class="register-section hidden">
         <h2>Registro Chimico</h2>
-        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; display: block;">
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
             <table id="chimicoTable" style="width: 100%; min-width: 800px;"></table>
         </div>
     </section>
 
     <section id="contatoriSection" class="register-section hidden">
         <h2>Registro Contatori</h2>
-        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; display: block;">
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
             <table id="contatoriTable" style="width: 100%; min-width: 800px;"></table>
         </div>
     </section>
 
     <section id="pulizieSection" class="register-section hidden">
         <h2>Registro Pulizie</h2>
-        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; display: block;">
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
             <table id="pulizieTable" style="width: 100%; min-width: 800px;"></table>
         </div>
     </section>
 
     <section id="manutenzioniSection" class="register-section hidden">
         <h2>Registro Manutenzioni</h2>
-        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; display: block;">
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
             <table id="tabellaManutenzioniIsolata" style="width: 100%; min-width: 800px;"></table>
         </div>
     </section>
@@ -84,20 +84,24 @@
             const sezioneAttiva = document.getElementById(idSezione);
             if (sezioneAttiva) {
                 sezioneAttiva.classList.remove('hidden');
+                bottoneCliccato.classList.add('active');
                 
-                // Forza il layout engine del browser a svegliarsi e calcolare lo scrollbar orizzontale
-                const wrapper = sezioneAttiva.querySelector('.table-wrapper');
-                if (wrapper) {
-                    wrapper.style.display = 'none';
-                    wrapper.offsetHeight; // Forza il reflow genetico della pagina
-                    wrapper.style.display = 'block';
-                }
-            }
-            
-            bottoneCliccato.classList.add('active');
+                // Forza il riallineamento visivo prima del calcolo dell'altezza
+                window.dispatchEvent(new Event('resize'));
 
-            // Sveglia Chart.js e ridimensiona le finestre dinamiche
-            window.dispatchEvent(new Event('resize'));
+                // 4. ESEGUE L'AUTOSCROLL FINO ALLE RIGHE DEL PRESENTE (IN FONDO)
+                // Usiamo un brevissimo ritardo (150ms) per dare il tempo alla tabella di caricare i dati reali
+                setTimeout(() => {
+                    const wrapper = sezioneAttiva.querySelector('.table-wrapper');
+                    if (wrapper) {
+                        // Fa scorrere il contenitore interno della tabella fino alla sua massima altezza
+                        wrapper.scrollTo({
+                            top: wrapper.scrollHeight,
+                            behavior: 'smooth' // Effetto scorrimento fluido elegante
+                        });
+                    }
+                }, 150);
+            }
         }
     </script>
 
