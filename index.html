@@ -21,46 +21,29 @@
 <div id="chimicoSection" class="register-section">
     <h2>Registro Chimico</h2>
     <div class="table-wrapper">
-        <table id="chimicoTable">
-            </table>
+        <table id="chimicoTable"></table>
     </div>
 </div>
 
 <div id="contatoriSection" class="register-section hidden">
     <h2>Registro Contatori</h2>
-    <div class="table-wrapper">
-        <table id="contatoriTable"></table>
-    </div>
+    <div class="table-wrapper"><table id="contatoriTable"></table></div>
 </div>
 
 <div id="pulizieSection" class="register-section hidden">
     <h2>Registro Pulizie</h2>
-    <div class="table-wrapper">
-        <table id="pulizieTable"></table>
-    </div>
+    <div class="table-wrapper"><table id="pulizieTable"></table></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
 <script src="script.js"></script>
-
 <script>
-    // Funzione di navigazione pulita
     function mostraSezione(idSezione, btn) {
-        // Nasconde tutte le sezioni
         document.querySelectorAll(".register-section").forEach(s => s.classList.add("hidden"));
-        // Rimuove classe active dai bottoni
         document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
-        
-        // Mostra la sezione scelta
         document.getElementById(idSezione).classList.remove("hidden");
         btn.classList.add("active");
-
-        // Se è chimico, forza il refresh dello scroll
-        if (idSezione === 'chimicoSection' && typeof scrollAllUltimaRiga === 'function') {
-            setTimeout(scrollAllUltimaRiga, 150);
-        }
     }
 </script>
-
 </body>
 </html>
