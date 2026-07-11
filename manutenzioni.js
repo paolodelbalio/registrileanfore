@@ -4,9 +4,9 @@
 
     // Scadenze per gli allarmi visivi (Giallo a 4 giorni, Rosso a 7 giorni)
     const SCADENZE = {
-        "CONTROLAVAGGIO": { giallo: 4, rosso: 7, msg: "Controlavaggio filtri" },
-        "PULIZIA CESTELLI": { giallo: 5, rosso: 7, msg: "Pulizia cestelli skimmer" },
-        "PULIZIA PREFILTRO": { giallo: 10, rosso: 15, msg: "Pulizia prefiltro pompa" }
+        "CONTROLAVAGGIO": { giallo: 4, rosso: 7, msg: "Controlavaggio filtri", paroleChiave: ["CONTROLAVAGGIO", "LAVAGGIO FILTRI", "LAVAGGIO"] },
+        "PULIZIA CESTELLI": { giallo: 5, rosso: 7, msg: "Pulizia cestelli skimmer", paroleChiave: ["CESTELLI", "SKIMMER"] },
+        "PULIZIA PREFILTRO": { giallo: 10, rosso: 15, msg: "Pulizia prefiltro pompa", paroleChiave: ["PREFILTRO", "PRE-FILTRO"] }
     };
 
     window.statoScadenzeGlobali = [];
@@ -65,8 +65,13 @@
             let oggettoData = analizzaData(dataGrezza);
             if (oggettoData) {
                 let testoUnito = riga.join(" ").toUpperCase();
+                
                 Object.keys(SCADENZE).forEach(chiave => {
-                    if (testoUnito.includes(chiave)) {
+                    let config = SCADENZE[chiave];
+                    // Controlla se il testo della riga contiene una delle parole chiave flessibili
+                    let corrisponde = config.paroleChiave.some(p => testoUnito.includes(p));
+                    
+                    if (corrisponde) {
                         if (!ultimiInterventi[chiave] || oggettoData > ultimiInterventi[chiave]) {
                             ultimiInterventi[chiave] = oggettoData;
                         }
@@ -92,7 +97,7 @@
             }
         });
 
-        // Disegna le righe dei dati reali presenti nel CSV
+        // Disegna le righe del file CSV
         righe.forEach(riga => {
             if (!riga || riga.length === 0) return;
             
@@ -105,8 +110,12 @@
             if (oggettoData) {
                 let testoUnito = riga.join(" ").toUpperCase();
                 let peggiorStato = "";
+                
                 Object.keys(SCADENZE).forEach(chiave => {
-                    if (testoUnito.includes(chiave)) {
+                    let config = SCADENZE[chiave];
+                    let corrisponde = config.paroleChiave.some(p => testoUnito.includes(p));
+                    
+                    if (corrisponde) {
                         let info = window.statoScadenzeGlobali.find(s => s.chiave === chiave);
                         if (info) {
                             if (info.stato === "rosso") peggiorStato = "rosso";
@@ -126,40 +135,45 @@
             html += "</tr>";
         });
 
-        // CONFIGURAZIONE BOTTONE NELLA SECONDA RIGA VUOTA
+        // STILE PULSANTE: ADATTATO PIATTO, LARGO E IN TRASPARENZA RGBA
         let infoControlavaggio = window.statoScadenzeGlobali.find(s => s.chiave === "CONTROLAVAGGIO");
-        let coloreBottone = "#28a745"; 
-        let coloreTesto = "#fff";
+        let coloreSfondo = "rgba(40, 167, 69, 0.15)"; // Verde trasparente
+        let coloreBordo = "rgba(40, 167, 69, 0.6)";
+        let coloreTesto = "#1e7e34";
         
         if (infoControlavaggio && infoControlavaggio.stato === "rosso") {
-            coloreBottone = "#dc3545";
+            coloreSfondo = "rgba(220, 53, 69, 0.15)"; // Rosso trasparente
+            coloreBordo = "rgba(220, 53, 69, 0.6)";
+            coloreTesto = "#bd2130";
         } else if (infoControlavaggio && infoControlavaggio.stato === "giallo") {
-            coloreBottone = "#ffc107";
-            coloreTesto = "#212529";
+            coloreSfondo = "rgba(255, 193, 7, 0.2)"; // Giallo trasparente
+            coloreBordo = "rgba(211, 158, 0, 0.6)";
+            coloreTesto = "#d39e00";
         }
 
         let testoGiorni = infoControlavaggio ? (infoControlavaggio.giorni === 'MAI ESEGUITO' ? 'MAI ESEGUITO' : infoControlavaggio.giorni + ' giorni fa') : '-';
 
-        // 1a Riga vuota di stacco
+        // 1a Riga vuota di stacco normale
         html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
 
-        // 2a Riga vuota: qui creiamo il pulsante dentro la tabella (unendo le celle con colspan)
+        // 2a Riga: Il pulsante occupa l'intera larghezza delle righe ed è piatto ed elegante
         html += `
             <tr>
-                <td colspan="5" style="text-align: center; padding: 15px; background: #ffffff; border: none;">
+                <td colspan="5" style="padding: 0; background: transparent; border: none;">
                     <button onclick="window.apriDettaglioControlavaggio()" style="
-                        background: ${coloreBottone}; color: ${coloreTesto};
-                        padding: 12px 25px; font-size: 1.05rem; border: none;
-                        border-radius: 6px; font-weight: bold; cursor: pointer;
-                        box-shadow: 0 4px 8px rgba(0,0,0,0.15); font-family: Arial, sans-serif; min-width: 280px;">
-                        🔄 Stato Controlavaggio: ${testoGiorni}
+                        width: 100%; box-sizing: border-box; background: ${coloreSfondo}; 
+                        color: ${coloreTesto}; border: 1px solid ${coloreBordo};
+                        padding: 8px 15px; font-size: 0.95rem; font-weight: bold; 
+                        cursor: pointer; text-align: center; font-family: Arial, sans-serif;
+                        transition: background 0.2s;">
+                        🔄 Stato Controlavaggio: ${testoGiorni} (Clicca qui per la Guida Tecnica)
                     </button>
                 </td>
             </tr>
         `;
 
-        // Altre 4 righe vuote sotto per dare margine allo scroll
-        for (let k = 0; k < 4; k++) {
+        // Ulteriori 5 righe vuote sotto per consentire lo scroll ottimale
+        for (let k = 0; k < 5; k++) {
             html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
         }
 
@@ -167,7 +181,6 @@
         tabular.innerHTML = html;
     }
 
-    // Forza il rinfresco se richiamato dal tasto principale di navigazione
     window.aggiornaPulsanteStatoDinamico = function() {
         caricaRegistroManutenzioniIsolato();
     }
