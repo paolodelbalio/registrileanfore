@@ -48,6 +48,12 @@ header {
     color: #fff;
 }
 
+/* Regola per evidenziare il pulsante attivo */
+.top-buttons button.active {
+    background-color: #0066cc !important;
+    color: white !important;
+}
+
 .register-section {
     background: white;
     padding: 20px;
