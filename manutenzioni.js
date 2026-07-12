@@ -128,7 +128,11 @@
                 Object.keys(SCADENZE).forEach(chiave => {
                     let config = SCADENZE[chiave];
                     let corrisponde = config.paroleChiave.some(p => testoIntero.includes(p));
-                    if (corrisponde) {
+                    // Coloriamo la riga solo se corrisponde ED è la riga più recente per questa categoria
+                    let ultimaDataCategoria = ultimiInterventi[chiave];
+                    let eUltimaOccorrenza = ultimaDataCategoria && oggettoData.getTime() === ultimaDataCategoria.getTime();
+
+                    if (corrisponde && eUltimaOccorrenza) {
                         let info = window.statoScadenzeGlobali.find(s => s.chiave === chiave);
                         if (info) {
                             if (info.stato === "rosso") peggiorStato = "rosso";
