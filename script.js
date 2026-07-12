@@ -143,7 +143,6 @@ function creaTabellaChimica(intestazioni, dati) {
 
             let attributoClick = "";
             if (classeColore === "evidenzia-giallo" || classeColore === "evidenzia-rosso") {
-                // Passiamo l'intero oggetto riga convertito in stringa per estrarre ospiti e temperatura correnti
                 let rigaEscaped = btoa(unescape(encodeURIComponent(JSON.stringify(riga))));
                 attributoClick = `onclick="apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeColore}', '${rigaEscaped}')"`;
             }
@@ -153,7 +152,7 @@ function creaTabellaChimica(intestazioni, dati) {
         html += "</tr>";
     });
 
-    html += "</tbody>";
+    html += "</tr></tbody>";
     tabella.innerHTML = html;
 }
 
@@ -228,14 +227,18 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore, riga
     let isRosso = (classeColore === "evidenzia-rosso");
     let intestazioneAllarme = "";
     
-    // Recupero dati di contesto della riga (Ospiti e Temperatura reali registrati)
     let ospitiCorrenti = 0;
     let tempCorrente = 26.5; 
+    let phCorrente = 7.3;
+    let cyaCorrente = 0;
+
     if (rigaCriptata !== "") {
         try {
             let rigaDecodificata = JSON.parse(decodeURIComponent(escape(atob(rigaCriptata))));
             if (rigaDecodificata["N.Ospiti"]) ospitiCorrenti = parseInt(rigaDecodificata["N.Ospiti"]) || 0;
             if (rigaDecodificata["Temp"]) tempCorrente = parseFloat(rigaDecodificata["Temp"].replace(",", ".")) || 26.5;
+            if (rigaDecodificata["pH"]) phCorrente = parseFloat(rigaDecodificata["pH"].replace(",", ".")) || 7.3;
+            if (rigaDecodificata["CYA"]) cyaCorrente = parseFloat(rigaDecodificata["CYA"].replace(",", ".")) || 0;
         } catch(e) { console.log("Errore parsing parametri riga", e); }
     }
     
@@ -275,20 +278,35 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore, riga
     }
     else if (p === 'cl. lib' || p === 'cl. tot') {
         if (valore < 1.1) {
-            // Calcolo base basato sui carichi attuali di ospiti e temperatura inseriti in quel momento
-            let fattoreCaricoOspiti = ospitiCorrenti * 12; // 12g ad ospite registrato
+            let fattoreCaricoOspiti = ospitiCorrenti * 12; 
             let fattoreTemperatura = tempCorrente > 28 ? 1.4 : (tempCorrente > 26 ? 1.15 : 1.0);
             
             let dIdeale = 1.1 - valore;
             let baseGrammi = (dIdeale / 0.1) * 1.5 * VOL_PISCINA;
-            let gIdeale = Math.round((baseGrammi + fattoreCaricoOspiti) * fattoreTemperatura);
+            let gIdeale = (baseGrammi + fattoreCaricoOspiti) * fattoreTemperatura;
+
+            let notaIntegrazione = "";
+            if (phCorrente > 7.5) {
+                gIdeale = gIdeale * 1.35;
+                notaIntegrazione += `<p style="color:#b45309; font-size:0.85rem; margin-top:4px;">ℹ️ <strong>Nota pH Alto (${phCorrente}):</strong> Il cloro è meno attivo. La dose è stata maggiorata del 35% per compensazione.</p>`;
+            }
+
+            if (cyaCorrente > 50) {
+                let cloroMinimoRichiesto = cyaCorrente * 0.075;
+                if (valore < cloroMinimoRichiesto) {
+                    gIdeale = gIdeale * 1.5;
+                    notaIntegrazione += `<p style="color:#b91c1c; font-size:0.85rem; margin-top:4px;">⚠️ <strong>Blocco da Stabilizzante (CYA ${cyaCorrente} ppm):</strong> Rilevato rischio blocco del cloro. Aggiunto il 50% di dosaggio per shock chimico.</p>`;
+                }
+            }
+
+            gIdeale = Math.round(gIdeale);
 
             corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Cloro Insufficiente (${valore} ppm)</span></h3><br>
-            <p style="font-size:0.85rem; color:#475569; margin-bottom:8px;"><i>Analisi del contesto: Registrati ${ospitiCorrenti} ospiti con temp. acqua a ${tempCorrente}°C.</i></p>
-            <p><strong>Dose ottimale di reintegro calcolata (Ideale 1.1 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Ipoclorito di Calcio granulare.</p>`;
+            <p style="font-size:0.85rem; color:#475569; margin-bottom:8px;"><i>Analisi del contesto: Registrati ${ospitiCorrenti} ospiti con temp. acqua a ${tempCorrente}°C e pH a ${phCorrente}.</i></p>
+            ${notaIntegrazione}
+            <p style="margin-top:8px;"><strong>Dose ottimale di reintegro integrata (Ideale 1.1 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Ipoclorito di Calcio granulare.</p>`;
         } else if (valore > 1.2) {
             if (isRosso) {
-                // DECLORATORE: Circa 7g/m³ per eliminare 1 ppm in eccesso (Scheda tecnica Sodio Tiosolfato)
                 let eccessoCloro = valore - 1.1;
                 let grammiDecloratore = Math.round(eccessoCloro * 7 * VOL_PISCINA);
 
@@ -304,13 +322,9 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore, riga
     }
     else if (p === 'cl. com') {
         if (isRosso) {
-            // TRATTAMENTO SHOCK REALISTICO (Abbattimento clorammine): 
-            // Formula corretta da scheda tecnica: ~200g di ipoclorito di calcio commerciale ogni 10 m³, 
-            // indicizzato sulla gravità dell'eccesso registrato (valore attuale) e sulle condizioni della vasca.
             let moltiplicatoreShock = valore > 0.6 ? 250 : 200; 
             let grammiIpocloritoShock = Math.round((moltiplicatoreShock * VOL_PISCINA) / 10);
             
-            // Maggiorazione cautelativa legata a temperature estive elevate della rilevazione
             if (tempCorrente > 28) grammiIpocloritoShock = Math.round(grammiIpocloritoShock * 1.15);
 
             corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">🚨 CRITICITÀ: Cloro Combinato Fuori Limite (${valore} ppm)</span></h3><br>
@@ -360,6 +374,22 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore, riga
             <p>Effetto tampone rigido. Frazionare piccole dosi di riduttore acido.</p>`;
         }
     }
+
+    corpoHTML += `
+    <button onclick="copiaTestoDosaggio()" style="margin-top:20px; width:100%; background:#0f172a; border:none; padding:10px; font-size:0.85rem; border-radius:6px; cursor:pointer; font-weight:bold; color:#ffffff; transition: background 0.2s;">
+        📋 Copia istruzioni di dosaggio
+    </button>
+    <script>
+    function copiaTestoDosaggio() {
+        let contenitore = document.getElementById('dosageContent');
+        if(contenitore) {
+            let testo = contenitore.innerText.replace('📋 Copia istruzioni di dosaggio', '');
+            navigator.clipboard.writeText(testo.trim());
+            alert('Istruzioni caricate negli appunti del telefono/PC!');
+        }
+    }
+    </script>
+    `;
 
     const modal = document.getElementById("dosageModal");
     const contenitore = document.getElementById("dosageContent");
