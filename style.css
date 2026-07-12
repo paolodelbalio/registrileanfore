@@ -207,3 +207,11 @@ tr:nth-child(even) td {
 .dosage-close-btn:hover {
     background: #0052a3;
 }
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.dosage-close-btn:hover {
+    background: #0052a3;
+}
