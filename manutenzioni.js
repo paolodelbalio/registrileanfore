@@ -5,7 +5,7 @@
     // Scadenze per gli allarmi visivi
     const SCADENZE = {
         "CONTROLAVAGGIO": { giallo: 4, rosso: 7, msg: "Controlavaggio filtri", paroleChiave: ["CONTROLAVAGGIO", "LAVAGGIO FILTRI", "LAVAGGIO"] },
-        "PULIZIA CESTELLI": { giallo: 5, rosso: 7, msg: "Pulizia cestelli skimmer", paroleChiave: ["CESTELLI", "SKIMMER", "PULITO CESTELLI"] },
+        "PULIZIA CESTELLI": { giallo: 5, rosso: 7, msg: "Pulizia cestelli skimmer", paroleChiave: ["PULIZIA CESTELLI", "PULITO CESTELLI", "CESTELLI"] },
         "PULIZIA PREFILTRO": { giallo: 10, rosso: 15, msg: "Pulizia prefiltro pompa", paroleChiave: ["PREFILTRO", "PRE-FILTRO"] }
     };
 
@@ -49,7 +49,7 @@
         const tabular = document.getElementById("tabellaManutenzioniIsolata");
         if (!tabular) return;
 
-        let html = "<thead><tr><th>Data</th><th>Impianto/Componente</th><th>Intervento/Operazione</th><th>Note</th><th>Firma</th></tr></thead><tbody>";
+        let html = "<thead><tr><th>Data</th><th>Impianto/Area</th><th>Intervento</th><th>Tecnico</th><th>Note</th><th>Firma</th></tr></thead><tbody>";
 
         let ultimiInterventi = {};
         Object.keys(SCADENZE).forEach(k => { ultimiInterventi[k] = null; });
@@ -131,7 +131,7 @@
                 celleDivise = riga.map(c => c ? c.toString().trim() : "");
             }
 
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 6; i++) {
                 let valoreGrafico = celleDivise[i] ? celleDivise[i].replace(/"/g, "").trim() : "";
                 html += `<td>${valoreGrafico}</td>`;
             }
@@ -139,42 +139,47 @@
         });
 
         // Fase 3: Disegno del Pulsante Centrato e Ridotto (max-width: 240px)
-        let infoControlavaggio = window.statoScadenzeGlobali.find(s => s.chiave === "CONTROLAVAGGIO");
+        // Il colore del pulsante riflette lo stato PEGGIORE tra le tre scadenze monitorate
+        let peggioreGlobale = "verde";
+        window.statoScadenzeGlobali.forEach(s => {
+            if (s.stato === "rosso") peggioreGlobale = "rosso";
+            else if (s.stato === "giallo" && peggioreGlobale !== "rosso") peggioreGlobale = "giallo";
+        });
+
         let coloreSfondo = "rgba(40, 167, 69, 0.12)";
         let coloreBordo = "rgba(40, 167, 69, 0.5)";
         let coloreTesto = "#1e7e34";
-        
-        if (infoControlavaggio && infoControlavaggio.stato === "rosso") {
+
+        if (peggioreGlobale === "rosso") {
             coloreSfondo = "rgba(220, 53, 69, 0.12)";
             coloreBordo = "rgba(220, 53, 69, 0.5)";
             coloreTesto = "#bd2130";
-        } else if (infoControlavaggio && infoControlavaggio.stato === "giallo") {
+        } else if (peggioreGlobale === "giallo") {
             coloreSfondo = "rgba(255, 193, 7, 0.15)";
             coloreBordo = "rgba(211, 158, 0, 0.5)";
             coloreTesto = "#d39e00";
         }
 
-        let testoGiorni = infoControlavaggio ? (infoControlavaggio.giorni === 'MAI ESEGUITO' ? 'MAI ESEGUITO' : infoControlavaggio.giorni + ' giorni fa') : '-';
-
-        html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
+        html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
 
         html += `
             <tr>
-                <td colspan="5" style="padding: 12px; background: transparent; border: none; text-align: center;">
+                <td colspan="6" style="padding: 12px; background: transparent; border: none; text-align: center;">
                     <button onclick="window.apriDettaglioControlavaggio()" style="
                         width: 240px; box-sizing: border-box; background: ${coloreSfondo}; 
                         color: ${coloreTesto}; border: 1px solid ${coloreBordo};
                         padding: 7px 12px; font-size: 0.88rem; font-weight: bold; 
                         cursor: pointer; text-align: center; font-family: Arial, sans-serif;
                         border-radius: 4px; display: inline-block;">
-                        🔄 Controlavaggio: ${testoGiorni}
+                        🛠️ Stato Scadenze Manutenzione
                     </button>
                 </td>
             </tr>
         `;
 
+
         for (let k = 0; k < 5; k++) {
-            html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
+            html += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
         }
 
         html += "</tbody>";
@@ -185,11 +190,32 @@
         caricaRegistroManutenzioniIsolato();
     }
 
+    // Genera il blocco colorato di riepilogo per una singola scadenza
+    function generaRigaScadenza(info) {
+        let giorniTesto = typeof info.giorni === 'number' ? `${info.giorni} giorni fa` : info.giorni;
+        let colore = { sfondo: "#f0faf2", bordo: "#28a745", testo: "#1e7e34", icona: "✅" };
+        if (info.stato === "rosso") colore = { sfondo: "#fdf1f2", bordo: "#dc3545", testo: "#bd2130", icona: "🚨" };
+        else if (info.stato === "giallo") colore = { sfondo: "#fffaf0", bordo: "#ffc107", testo: "#d39e00", icona: "⚠️" };
+
+        let sogliaTesto = SCADENZE[info.chiave] ? `Giallo a ${SCADENZE[info.chiave].giallo}gg / Rosso a ${SCADENZE[info.chiave].rosso}gg` : "";
+
+        return `
+            <div style="margin-bottom: 10px; padding: 12px; background: ${colore.sfondo}; border-left: 4px solid ${colore.bordo}; border-radius: 4px;">
+                <p style="margin: 0 0 4px 0; font-size: 1rem; color: ${colore.testo};">${colore.icona} <strong>${info.msg}:</strong> eseguito <strong>${giorniTesto}</strong></p>
+                <p style="margin: 0; font-size: 0.85rem; color: #777;">${sogliaTesto}</p>
+            </div>
+        `;
+    }
+
     window.apriDettaglioControlavaggio = function() {
         if (document.getElementById("popup-scadenze")) return;
 
-        let infoControlavaggio = window.statoScadenzeGlobali.find(s => s.chiave === "CONTROLAVAGGIO");
-        let giorniTesto = typeof infoControlavaggio.giorni === 'number' ? `${infoControlavaggio.giorni} giorni fa` : infoControlavaggio.giorni;
+        // Ordine fisso di visualizzazione: Controlavaggio, Cestelli, Prefiltro
+        let ordine = ["CONTROLAVAGGIO", "PULIZIA CESTELLI", "PULIZIA PREFILTRO"];
+        let righeHtml = ordine.map(chiave => {
+            let info = window.statoScadenzeGlobali.find(s => s.chiave === chiave);
+            return info ? generaRigaScadenza(info) : "";
+        }).join("");
 
         const popup = document.createElement("div");
         popup.id = "popup-scadenze";
@@ -201,14 +227,11 @@
 
         popup.innerHTML = `
             <div style="background: #fff; padding: 25px; border-radius: 8px; width: 95%; max-width: 550px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-family: sans-serif; max-height: 90vh; overflow-y: auto;">
-                <h3 style="margin-top: 0; border-bottom: 2px solid #0066cc; padding-bottom: 10px; color: #333;">🔄 Dettaglio Intervento Controlavaggio</h3>
-                
-                <div style="margin: 15px 0; padding: 12px; background: #f8f9fa; border-left: 4px solid #0066cc;">
-                    <p style="margin: 0 0 5px 0; font-size: 1.05rem;"><strong>Stato:</strong> Intervento eseguito <strong>${giorniTesto}</strong>.</p>
-                    <p style="margin: 0; font-size: 0.95rem; color: #666;">Frequenza richiesta: Giallo a 4gg / Rosso a 7gg.</p>
-                </div>
+                <h3 style="margin-top: 0; border-bottom: 2px solid #0066cc; padding-bottom: 10px; color: #333;">🛠️ Stato Scadenze Manutenzione</h3>
 
-                <h4 style="margin: 15px 0 8px 0; color: #0066cc;">📖 Guida Tecnica alla Procedura:</h4>
+                ${righeHtml}
+
+                <h4 style="margin: 15px 0 8px 0; color: #0066cc;">📖 Guida Tecnica al Controlavaggio:</h4>
                 <ol style="padding-left: 20px; line-height: 1.5; color: #444; font-size: 0.92rem;">
                     <li style="margin-bottom: 6px;"><strong>Spegnere la pompa</strong> di filtrazione della piscina.</li>
                     <li style="margin-bottom: 6px;">Ruotare la valvola selettrice del filtro sulla posizione <strong>"CONTROLAVAGGIO" (Backwash)</strong>.</li>
@@ -223,7 +246,7 @@
                 <button id="chiudi-popup-scadenze" style="
                     width: 100%; padding: 12px; background: #0066cc; color: #fff;
                     border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 15px; font-size: 0.95rem;">
-                    Ho preso visione della procedura
+                    Ho preso visione
                 </button>
             </div>
         `;
