@@ -1,68 +1,27 @@
-Registro Impianti e Manutenzioni,,,,,
-Data,Impianto/Area, Intervento,Tecnico,Note,Firma
-,,,,,
-04/05/2026,Vasca,Scoperto Vasca,Paolo,Acqua torbida,
-05/05/2026,Vasca,Riparato Skimmer,Paolo,Riparato skimmer nord. Tamponato perdita ,
-06/05/2026,Filtro,Rabboccato Vetro,Paolo,Pulito letto filtrante, effettuato rabbocco vetro AMF, 25 Kg,
-07/05/2026,Vasca,Aspirato Fondo,Paolo,Acqua torbida,Messo flocculante ,
-08/05/2026,Vasca,Aspirato Fondo,Paolo,Acqua torbida,Aspirato fondo in posizione scarico ,
-11/05/2026,Vasca,Aspirato Fondo,Paolo,Acqua torbida,Aspirato fondo in posizione scarico ,
-12/05/2026,Vasca,Aspirato Fondo,Paolo,Acqua torbida,Aspirato fondo in posizione scarico ,
-14/05/2026,
-Filtro,
-Controlavaggio,Paolo,Ristabilito Pressione,
-20/05/2026,Robot,Riparato Cavo Robot Aspiratore,Paolo,Sostituito Cavo ,
-25/05/2026,
-Filtro,
-Controlavaggio,Paolo,Finito livello, Cianurico 59,
-27/05/2026,Vasca
-Filtro,Reintegro
-Controlavaggio,Paolo,Riportato a livello
-Ristabilito Pressione,
-28/05/2026,Locale Tecnico,Aspirato Foglie,Paolo,,
-31/05/2026,Filtro
-Skimmer,Controlavaggio
-Pulitzia cestelli,Paolo,Ristabilito Pressione
-Pulito cestelli,
-04/06/2026,
-Filtro,
-Controlavaggio,Paolo,cya da 74 a 69 ppm,
-08/06/2026,Filtro
-Skimmer,Controlavaggio
-Pulitzia cestelli,Paolo,Ristabilito Pressione
-Pulito cestelli,
-11/06/2026,Filtro
-Pompa, Controlavaggio
-Pulizia prefiltro,Paolo,Portato Livello,
-15/06/2026,Filtro
-Skimmer,
-Controspionaggio
-Rabbocco Sabbia
-Riparato Ombrellone ,Paolo,Ristabilito Pressione
-Pulito cestelli
-Aggiunto 25 Kg,
-16/06/2026,
-Locale tecnico,
-Riparato Presa  Pompa,Paolo,,
-19/06/2026,
-Filtro,
-Controlavaggio,Paolo,Ristabilito Pressione,
-23/06/2026,
-Filtro
-Impianto,
-Controlavaggio
-Valvola Multivie,Paolo,Ristabilito PressioneSostituito Oring ,
-26/06/2026,Filtro
-Skimmer,Controlavaggio
-Pulitzia cestelli,Paolo,Ristabilito Pressione
-Pulito cestelli,
-30/06/2026,Filtro
-,Controlavaggio,Paolo,Ristabilito Pressione,
-03/07/2026,Filtro
-Skimmer,Controlavaggio
-Pulizia cestelli,Paolo,Ristabilito Pressione
-Pulito cestelli,
-08/07/2026,Filtro
-Pompa, Controlavaggio
-Pulizia prefiltro,Paolo,Ristabilito Pressione,
-10/07/2026,Skimmer,Pulizia cestelli,Paolo,Pulito cestelli skimmer,
+Registro Impianti e Manutenzioni;;;;;
+Data;Impianto/Area;Intervento;Tecnico;Note;Firma
+04/05/2026;Vasca;Scoperto Vasca;Paolo;Acqua torbida;
+05/05/2026;Vasca;Riparato Skimmer;Paolo;Riparato skimmer nord. Tamponato perdita;
+06/05/2026;Filtro;Rabboccato Vetro;Paolo;Pulito letto filtrante, effettuato rabbocco vetro AMF, 25 Kg;
+07/05/2026;Vasca;Aspirato Fondo;Paolo;Acqua torbida,Messo flocculante;
+08/05/2026;Vasca;Aspirato Fondo;Paolo;Acqua torbida,Aspirato fondo in posizione scarico;
+11/05/2026;Vasca;Aspirato Fondo;Paolo;Acqua torbida,Aspirato fondo in posizione scarico;
+12/05/2026;Vasca;Aspirato Fondo;Paolo;Acqua torbida,Aspirato fondo in posizione scarico;
+14/05/2026;Filtro;Controlavaggio;Paolo;Ristabilito Pressione;
+20/05/2026;Robot;Riparato Cavo Robot Aspiratore;Paolo;Sostituito Cavo;
+25/05/2026;Filtro;Controlavaggio;Paolo;Finito livello, Cianurico 59;
+27/05/2026;Vasca Filtro;Reintegro Controlavaggio;Paolo;Riportato a livello Ristabilito Pressione;
+28/05/2026;Locale Tecnico;Aspirato Foglie;Paolo;;
+31/05/2026;Filtro Skimmer;Controlavaggio Pulitzia cestelli;Paolo;Ristabilito Pressione Pulito cestelli;
+04/06/2026;Filtro;Controlavaggio;Paolo;cya da 74 a 69 ppm;
+08/06/2026;Filtro Skimmer;Controlavaggio Pulitzia cestelli;Paolo;Ristabilito Pressione Pulito cestelli;
+11/06/2026;Filtro Pompa;Controlavaggio Pulizia prefiltro;Paolo;Portato Livello;
+15/06/2026;Filtro Skimmer;Controspionaggio Rabbocco Sabbia Riparato Ombrellone;Paolo;Ristabilito Pressione Pulito cestelli Aggiunto 25 Kg;
+16/06/2026;Locale tecnico;Riparato Presa  Pompa;Paolo;;
+19/06/2026;Filtro;Controlavaggio;Paolo;Ristabilito Pressione;
+23/06/2026;Filtro Impianto;Controlavaggio Valvola Multivie;Paolo;Ristabilito PressioneSostituito Oring;
+26/06/2026;Filtro Skimmer;Controlavaggio Pulitzia cestelli;Paolo;Ristabilito Pressione Pulito cestelli;
+30/06/2026;Filtro;Controlavaggio;Paolo;Ristabilito Pressione;
+03/07/2026;Filtro Skimmer;Controlavaggio Pulizia cestelli;Paolo;Ristabilito Pressione Pulito cestelli;
+08/07/2026;Filtro Pompa;Controlavaggio Pulizia prefiltro;Paolo;Ristabilito Pressione;
+10/07/2026;Skimmer;Pulizia cestelli;Paolo;Pulito cestelli skimmer;
