@@ -9,6 +9,9 @@
         "PULIZIA PREFILTRO": { giallo: 10, rosso: 15, msg: "Pulizia prefiltro pompa", paroleChiave: ["PREFILTRO", "PRE-FILTRO"] }
     };
 
+    // Mesi abbreviati italiani, per riconoscere date scritte come testo (es. "19 giu 2026")
+    const MESI_IT = { "GEN": 0, "FEB": 1, "MAR": 2, "APR": 3, "MAG": 4, "GIU": 5, "LUG": 6, "AGO": 7, "SET": 8, "OTT": 9, "NOV": 10, "DIC": 11 };
+
     window.statoScadenzeGlobali = [];
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -30,19 +33,35 @@
         });
     }
 
-    // Identifica e valida il pattern della data GG/MM/AAAA all'interno della stringa
+    // Identifica e valida la data all'interno della stringa, sia in formato numerico GG/MM/AAAA
+    // sia in formato testuale italiano (es. "ven 19 giu 2026")
     function analizzaData(testo) {
         if (!testo) return null;
+
+        // Formato numerico: GG/MM/AAAA
         let match = testo.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-        if (!match) return null;
-        
-        let giorno = parseInt(match[1], 10);
-        let mese = parseInt(match[2], 10) - 1;
-        let anno = parseInt(match[3], 10);
-        if (anno < 100) anno += 2000;
-        
-        let d = new Date(anno, mese, giorno);
-        return isNaN(d.getTime()) ? null : d;
+        if (match) {
+            let giorno = parseInt(match[1], 10);
+            let mese = parseInt(match[2], 10) - 1;
+            let anno = parseInt(match[3], 10);
+            if (anno < 100) anno += 2000;
+
+            let d = new Date(anno, mese, giorno);
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        // Formato testuale italiano: GG + mese abbreviato + AAAA (es. "19 GIU 2026")
+        let matchTesto = testo.match(/(\d{1,2})\s+(GEN|FEB|MAR|APR|MAG|GIU|LUG|AGO|SET|OTT|NOV|DIC)\.?\s+(\d{4})/);
+        if (matchTesto) {
+            let giorno = parseInt(matchTesto[1], 10);
+            let mese = MESI_IT[matchTesto[2]];
+            let anno = parseInt(matchTesto[3], 10);
+
+            let d = new Date(anno, mese, giorno);
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        return null;
     }
 
     function disegnaTabellaManutenzioniFissa(righe) {
