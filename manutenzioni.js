@@ -121,14 +121,14 @@
             if (testoIntero.trim() === "" || testoIntero.includes("DATA") || testoIntero.includes("REGISTRO")) return;
 
             let oggettoData = analizzaData(testoIntero);
-            let classeCellaIntervento = "";
+            let stileRiga = "";
 
             if (oggettoData) {
                 let peggiorStato = "";
                 Object.keys(SCADENZE).forEach(chiave => {
                     let config = SCADENZE[chiave];
                     let corrisponde = config.paroleChiave.some(p => testoIntero.includes(p));
-                    // Coloriamo la cella solo se corrisponde ED è la riga più recente per questa categoria
+                    // Coloriamo la riga solo se corrisponde ED è la riga più recente per questa categoria
                     let ultimaDataCategoria = ultimiInterventi[chiave];
                     let eUltimaOccorrenza = ultimaDataCategoria && oggettoData.getTime() === ultimaDataCategoria.getTime();
 
@@ -140,11 +140,11 @@
                         }
                     }
                 });
-                if (peggiorStato === "rosso") classeCellaIntervento = ' class="evidenzia-rosso"';
-                else if (peggiorStato === "giallo") classeCellaIntervento = ' class="evidenzia-giallo"';
+                if (peggiorStato === "rosso") stileRiga = ' class="evidenzia-rosso"';
+                else if (peggiorStato === "giallo") stileRiga = ' class="evidenzia-giallo"';
             }
 
-            html += `<tr>`;
+            html += `<tr${stileRiga}>`;
             
             // Gestione mista: supporta sia celle già divise da PapaParse, sia righe unite da dividere tramite ';'
             let celleDivise = [];
@@ -156,9 +156,7 @@
 
             for (let i = 0; i < 6; i++) {
                 let valoreGrafico = celleDivise[i] ? celleDivise[i].replace(/"/g, "").trim() : "";
-                // La colonna indice 2 è "Intervento": è l'unica cella che riceve l'evidenziazione giallo/rosso
-                let classeCella = (i === 2) ? classeCellaIntervento : "";
-                html += `<td${classeCella}>${valoreGrafico}</td>`;
+                html += `<td>${valoreGrafico}</td>`;
             }
             html += "</tr>";
         });
