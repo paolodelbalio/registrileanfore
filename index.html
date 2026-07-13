@@ -15,12 +15,13 @@
         <p>Seleziona un registro per visualizzare i dati</p>
     </header>
 
-    <div class="top-buttons">
-        <button id="btn-chimico" onclick="apriRegistro('chimicoSection', this)">🧪 Chimico</button>
-        <button id="btn-contatori" onclick="apriRegistro('contatoriSection', this)">💧 Contatori</button>
-        <button id="btn-pulizie" onclick="apriRegistro('pulizieSection', this)">🧹 Pulizie</button>
-       <button id="btn-manutenzioni" onclick="apriRegistro('manutenzioniSection', this); setTimeout(() => { if(window.aggiornaPulsanteStatoDinamico) window.aggiornaPulsanteStatoDinamico(); }, 100);">🛠️ Manutenzioni</button>
-    </div>
+   <div class="top-buttons">
+    <button id="btn-chimico" onclick="apriRegistro('chimicoSection', this)">🧪 Chimico</button>
+    <button id="btn-contatori" onclick="apriRegistro('contatoriSection', this)">💧 Contatori</button>
+    <button id="btn-pulizie" onclick="apriRegistro('pulizieSection', this)">🧹 Pulizie</button>
+    <button id="btn-manutenzioni" onclick="apriRegistro('manutenzioniSection', this); setTimeout(() => { if(window.aggiornaPulsanteStatoDinamico) window.aggiornaPulsanteStatoDinamico(); }, 100);">🛠️ Manutenzioni</button>
+    <button id="btn-consumi" onclick="apriRegistro('consumiSection', this)">📦 Consumi</button>
+</div>
 
     <section id="chimicoSection" class="register-section hidden">
         <h2>Registro Chimico</h2>
