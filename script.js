@@ -39,14 +39,15 @@ function caricaTuttiIRegistri() {
 function elaboraDatiTabella(chiave, righeGrezze) {
     if (!righeGrezze || righeGrezze.length < 2) return;
 
-    // Se è il registro consumi, usiamo la nostra funzione specifica e saltiamo il resto
     if (chiave === 'consumi') {
-        datiRegistriGlobali[chiave] = righeGrezze;
-        mostraTabellaConsumi(righeGrezze);
-        return;
+        try {
+            mostraTabellaConsumi(righeGrezze);
+        } catch (e) {
+            console.error("Errore nel caricamento dei consumi:", e);
+        }
+        return; 
     }
 
-    // --- DA QUI IN POI RIPRISTINO DEL TUO CODICE ORIGINALE PER GLI ALTRI REGISTRI ---
     let intestazioni = righeGrezze[0].map(h => h ? h.trim() : "");
     let datiFormattati = [];
 
@@ -77,7 +78,6 @@ function elaboraDatiTabella(chiave, righeGrezze) {
     } else {
         creaTabellaStandard(chiave, intestazioni, datiFormattati);
     }
-}
 }
 
 function ottieniClasseColore(parametro, v) {
