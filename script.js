@@ -1,5 +1,5 @@
 let graficoCorrente = null;
-let datiRegistriGlobali = { chimico: [], contatori: [], pulizie: [], manutenzioni: [] };
+let datiRegistriGlobali = { chimico: [], contatori: [], pulizie: [], manutenzioni: [], consumi: []};
 
 const VOL_PISCINA = 92; // 92 m³ costanti
 const TEMP_REINTEGRO = 22.0;
@@ -8,6 +8,7 @@ const FILE_REGISTRI = {
     chimico: "REGISTRO CHIMICO 2026.csv",
     contatori: "REGISTRO CONTATORI.csv",
     pulizie: "REGISTRO PULIZIE PISCINA 2026.csv",
+    consumi: "REGISTRO CONSUMI.csv"
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -63,10 +64,12 @@ function elaboraDatiTabella(chiave, righeGrezze) {
 
     datiRegistriGlobali[chiave] = datiFormattati;
 
-    if (chiave === 'chimico') {
+   if (chiave === 'chimico') {
         creaTabellaChimica(intestazioni, datiFormattati);
+    } else if (chiave === 'consumi') {
+        mostraTabellaConsumi(righeGrezze);
     } else {
-        creaTabellaStandard(chiave, intestazioni, datiFormattati);
+        CreaTabellaStandard(chiave, intestazioni, datiFormattati);
     }
 }
 
@@ -520,4 +523,54 @@ function chiudiDosaggio() { document.getElementById("dosageModal")?.classList.ad
 function closeOverlay() {
     document.getElementById("chartOverlay")?.classList.add("hidden");
     if (graficoCorrente) { graficoCorrente.destroy(); graficoCorrente = null; }
+}
+
+// Funzione specifica per calcolare e visualizzare il registro consumi prodotti
+function mostraTabellaConsumi(dati) {
+    const tbody = document.querySelector("#tabella-consumi tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    let totaleCloro = 0;
+    let totalePhMeno = 0;
+
+    // Saltiamo la riga delle intestazioni (i = 0) e leggiamo i dati reali
+    for (let i = 1; i < dati.length; i++) {
+        let riga = dati[i];
+        if (!riga || riga.length < 2) continue;
+
+        let data = riga[0] ? riga[0].trim() : "";
+        let phTesto = riga[1] ? riga[1].trim() : "";
+        let cloroTesto = riga[2] ? riga[2].trim() : "";
+        let note = riga[6] ? riga[6].trim() : ""; // La colonna Note su Calc è la G (indice 6)
+
+        if (!data && !cloroTesto && !phTesto && !note) continue;
+
+        // Pulizia e conversione matematica dei grammi
+        let phMeno = parseInt(phTesto.replace(/\./g, '').replace(/,/g, ''), 10) || 0;
+        let cloro = parseInt(cloroTesto.replace(/\./g, '').replace(/,/g, ''), 10) || 0;
+
+        totaleCloro += cloro;
+        totalePhMeno += phMeno;
+
+        // Se un giorno è completamente vuoto, non mostriamo la riga per risparmiare spazio
+        if (cloro === 0 && phMeno === 0 && !note) continue;
+
+        let tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>${data}</strong></td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; color: #0066cc;">${cloro > 0 ? cloro.toLocaleString('it-IT') + ' g' : '-'}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; color: #cc0000;">${phMeno > 0 ? phMeno.toLocaleString('it-IT') + ' g' : '-'}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; font-style: italic; color: #555; padding-left: 20px;">${note}</td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    // Inserisce i totali generali nei box in alto
+    if (document.getElementById("tot-cloro")) {
+        document.getElementById("tot-cloro").innerText = `${totaleCloro.toLocaleString('it-IT')} g`;
+    }
+    if (document.getElementById("tot-phmeno")) {
+        document.getElementById("tot-phmeno").innerText = `${totalePhMeno.toLocaleString('it-IT')} g`;
+    }
 }
