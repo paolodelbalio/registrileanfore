@@ -75,8 +75,9 @@ function elaboraDatiTabella(chiave, righeGrezze) {
     if (chiave === 'chimico') {
         creaTabellaChimica(intestazioni, datiFormattati);
     } else {
-        CreaTabellaStandard(chiave, intestazioni, datiFormattati);
+        creaTabellaStandard(chiave, intestazioni, datiFormattati);
     }
+}
 }
 
 function ottieniClasseColore(parametro, v) {
