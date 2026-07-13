@@ -526,13 +526,6 @@ function apriGraficoChimico(chiaveFiltro, nomeParametro, coloreLinea, tipoGrafic
     });
 }
 
-function chiudiDosaggio() { document.getElementById("dosageModal")?.classList.add("hidden"); }
-function closeOverlay() {
-    document.getElementById("chartOverlay")?.classList.add("hidden");
-    if (graficoCorrente) { graficoCorrente.destroy(); graficoCorrente = null; }
-}
-
-// Funzione specifica per calcolare e visualizzare il registro consumi prodotti
 function mostraTabellaConsumi(dati) {
     const tbody = document.querySelector("#tabella-consumi tbody");
     if (!tbody) return;
@@ -541,27 +534,33 @@ function mostraTabellaConsumi(dati) {
     let totaleCloro = 0;
     let totalePhMeno = 0;
 
-    // Saltiamo la riga delle intestazioni (i = 0) e leggiamo i dati reali
+    // Partiamo da 1 per saltare l'intestazione del CSV
     for (let i = 1; i < dati.length; i++) {
         let riga = dati[i];
+        // Se la riga è vuota o ha pochissimi elementi, la saltiamo
         if (!riga || riga.length < 2) continue;
 
         let data = riga[0] ? riga[0].trim() : "";
         let phTesto = riga[1] ? riga[1].trim() : "";
         let cloroTesto = riga[2] ? riga[2].trim() : "";
-        let note = riga[6] ? riga[6].trim() : ""; // La colonna Note su Calc è la G (indice 6)
+        
+        // Cerchiamo la colonna Note: proviamo l'indice 6 (colonna G), altrimenti l'ultimo disponibile
+        let note = "";
+        if (riga[6]) {
+            note = riga[6].trim();
+        } else if (riga.length > 3) {
+            note = riga[riga.length - 1].trim();
+        }
 
+        // Se l'intera riga non contiene informazioni utili, la saltiamo
         if (!data && !cloroTesto && !phTesto && !note) continue;
 
-        // Pulizia e conversione matematica dei grammi
-        let phMeno = parseInt(phTesto.replace(/\./g, '').replace(/,/g, ''), 10) || 0;
-        let cloro = parseInt(cloroTesto.replace(/\./g, '').replace(/,/g, ''), 10) || 0;
+        // Pulizia dei caratteri di testo per la conversione numerica dei grammi
+        let phMeno = parseInt(phTesto.replace(/\./g, '').replace(/,/g, '').replace(/[^0-9]/g, ''), 10) || 0;
+        let cloro = parseInt(cloroTesto.replace(/\./g, '').replace(/,/g, '').replace(/[^0-9]/g, ''), 10) || 0;
 
         totaleCloro += cloro;
         totalePhMeno += phMeno;
-
-        // Se un giorno è completamente vuoto, non mostriamo la riga per risparmiare spazio
-        if (cloro === 0 && phMeno === 0 && !note) continue;
 
         let tr = document.createElement("tr");
         tr.innerHTML = `
@@ -573,7 +572,7 @@ function mostraTabellaConsumi(dati) {
         tbody.appendChild(tr);
     }
 
-    // Inserisce i totali generali nei box in alto
+    // Aggiorna i riquadri dei totali generali in alto nella scheda
     if (document.getElementById("tot-cloro")) {
         document.getElementById("tot-cloro").innerText = `${totaleCloro.toLocaleString('it-IT')} g`;
     }
