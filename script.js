@@ -39,6 +39,14 @@ function caricaTuttiIRegistri() {
 function elaboraDatiTabella(chiave, righeGrezze) {
     if (!righeGrezze || righeGrezze.length < 2) return;
 
+    // Se è il registro consumi, usiamo la nostra funzione specifica e saltiamo il resto
+    if (chiave === 'consumi') {
+        datiRegistriGlobali[chiave] = righeGrezze;
+        mostraTabellaConsumi(righeGrezze);
+        return;
+    }
+
+    // --- DA QUI IN POI RIPRISTINO DEL TUO CODICE ORIGINALE PER GLI ALTRI REGISTRI ---
     let intestazioni = righeGrezze[0].map(h => h ? h.trim() : "");
     let datiFormattati = [];
 
@@ -49,14 +57,14 @@ function elaboraDatiTabella(chiave, righeGrezze) {
         let oggettoRiga = {};
         intestazioni.forEach((intestazione, indice) => {
             let valoreCella = rigaCorrente[indice] ? rigaCorrente[indice].trim() : "";
-            
-            if (intestazione.toLowerCase() === 'cya' && valoreCella !== "") {
+
+            if (intestazione.toLowerCase() === 'ph' && valoreCella !== "") {
                 let match = valoreCella.match(/^([0-9.,]+)/);
                 if (match) {
                     valoreCella = match[1];
                 }
             }
-            
+
             oggettoRiga[intestazione] = valoreCella;
         });
         datiFormattati.push(oggettoRiga);
@@ -64,10 +72,8 @@ function elaboraDatiTabella(chiave, righeGrezze) {
 
     datiRegistriGlobali[chiave] = datiFormattati;
 
-   if (chiave === 'chimico') {
+    if (chiave === 'chimico') {
         creaTabellaChimica(intestazioni, datiFormattati);
-    } else if (chiave === 'consumi') {
-        mostraTabellaConsumi(righeGrezze);
     } else {
         CreaTabellaStandard(chiave, intestazioni, datiFormattati);
     }
