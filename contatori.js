@@ -1,53 +1,56 @@
-document.addEventListener("DOMContentLoaded", function () {
-    // Legge il file CSV specifico dei contatori
-    fetch("REGISTRO CONTATORI.csv")
-        .then(response => response.text())
-        .then(csvText => {
-            // Analizza il CSV riga per riga tramite PapaParse
-            Papa.parse(csvText, {
-                header: false, // Disattivato per gestire manualmente il salto della prima riga
-                skipEmptyLines: true,
-                complete: function (results) {
-                    const data = results.data;
-                    
-                    // Se il file ha meno di 2 righe (titolo iniziale + colonne reali), si ferma
-                    if (data.length < 2) return; 
+// ============================================================
+// Gestore Isolato Separato per il Registro Contatori
+// ============================================================
+(function () {
+    const FILE_CONTATORI = "REGISTRO CONTATORI.csv";
 
-                    // Riga 0: "Registro Lettura Contatori,,,,,," -> La saltiamo di proposito
-                    // Riga 1: I titoli delle colonne reali ("Data", "Contatore Reintegro (L)", ecc.)
-                    const intestazioniReali = data[1]; 
-                    
-                    // Dalla riga 2 in poi ci sono i dati storici delle letture
-                    const righeDati = data.slice(2); 
+    document.addEventListener("DOMContentLoaded", () => {
+        caricaRegistroContatori();
+    });
 
-                    const tabella = document.getElementById("contatoriTable");
-                    if (!tabella) return;
+    function caricaRegistroContatori() {
+        fetch(FILE_CONTATORI)
+            .then(response => response.text())
+            .then(csvText => {
+                Papa.parse(csvText, {
+                    header: false, // gestiamo a mano il salto della riga di titolo
+                    skipEmptyLines: true,
+                    complete: function (risultati) {
+                        const data = risultati.data;
+                        if (data.length < 2) return;
 
-                    // 1. Genera l'intestazione HTML (<thead>)
-                    let tabellaHtml = "<thead><tr>";
-                    intestazioniReali.forEach(titolo => {
-                        tabellaHtml += `<th>${titolo || ""}</th>`;
-                    });
-                    tabellaHtml += "</tr></thead>";
+                        // Riga 0: "Registro Lettura Contatori,,,,,," -> titolo, la saltiamo
+                        // Riga 1: intestazioni reali delle colonne
+                        const intestazioniReali = data[1];
+                        const righeDati = data.slice(2);
 
-                    // 2. Genera il corpo HTML (<tbody>) con le letture giornaliere
-                    tabellaHtml += "<tbody>";
-                    righeDati.forEach(riga => {
-                        // Salta le righe totalmente vuote per sicurezza
-                        if (riga.length === 0 || !riga[0]) return;
+                        disegnaTabellaContatori(intestazioniReali, righeDati);
+                    }
+                });
+            })
+            .catch(error => console.error("Errore nel caricamento del file dei contatori:", error));
+    }
 
-                        tabellaHtml += "<tr>";
-                        riga.forEach(cella => {
-                            tabellaHtml += `<td>${cella || ""}</td>`;
-                        });
-                        tabellaHtml += "</tr>";
-                    });
-                    tabellaHtml += "</tbody>";
+    function disegnaTabellaContatori(intestazioni, righeDati) {
+        const tabella = document.getElementById("contatoriTable");
+        if (!tabella) return;
 
-                    // Inserisce l'intera struttura dentro la tabella dei contatori
-                    tabella.innerHTML = tabellaHtml;
-                }
+        let html = "<thead><tr>";
+        intestazioni.forEach(titolo => {
+            html += `<th>${titolo || ""}</th>`;
+        });
+        html += "</tr></thead><tbody>";
+
+        righeDati.forEach(riga => {
+            if (riga.length === 0 || !riga[0]) return;
+            html += "<tr>";
+            riga.forEach(cella => {
+                html += `<td>${cella || ""}</td>`;
             });
-        })
-        .catch(error => console.error("Errore nel caricamento del file dei contatori:", error));
-});
+            html += "</tr>";
+        });
+
+        html += "</tbody>";
+        tabella.innerHTML = html;
+    }
+})();
