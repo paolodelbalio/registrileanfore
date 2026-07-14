@@ -20,7 +20,7 @@
         <button id="btn-contatori" onclick="apriRegistro('contatoriSection', this)">💧 Contatori</button>
         <button id="btn-pulizie" onclick="apriRegistro('pulizieSection', this)">🧹 Pulizie</button>
         <button id="btn-manutenzioni" onclick="apriRegistro('manutenzioniSection', this); setTimeout(() => { if(window.aggiornaPulsanteStatoDinamico) window.aggiornaPulsanteStatoDinamico(); }, 100);">🛠️ Manutenzioni</button>
-        <button id="btn-consumi" onclick="apriRegistro('consumiSection', this)">📦 Consumi</button>
+        <button id="btn-consumi" onclick="apriRegistro('consumiSection', this)">🧴 Consumi</button>
     </div>
 
     <section id="chimicoSection" class="register-section hidden">
@@ -52,31 +52,9 @@
     </section>
 
     <section id="consumiSection" class="register-section hidden">
-        <h2>Registro Consumi Prodotti Chimici 2026</h2>
-
-        <div class="cards-container" style="display:flex; gap:15px; flex-wrap:wrap; margin-bottom:15px;">
-            <div class="card" style="border-left: 5px solid #0066cc; background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); flex:1; min-width:200px;">
-                <h3 style="font-size: 1rem; color: #555;">Cloro Totale Versato</h3>
-                <p id="tot-cloro" style="font-size: 1.8rem; font-weight: bold; color: #0066cc; margin-top: 5px;">0 g</p>
-            </div>
-            <div class="card" style="border-left: 5px solid #cc0000; background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); flex:1; min-width:200px;">
-                <h3 style="font-size: 1rem; color: #555;">pH- Totale Versato</h3>
-                <p id="tot-phmeno" style="font-size: 1.8rem; font-weight: bold; color: #cc0000; margin-top: 5px;">0 g</p>
-            </div>
-        </div>
-
-        <div class="table-wrapper" id="wrapper-consumi" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
-            <table id="tabella-consumi" style="width: 100%; min-width: 700px; border-collapse: collapse;">
-                <thead>
-                    <tr style="background-color: #e9f2fb;">
-                        <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ccc;">Data</th>
-                        <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ccc;">Cloro (g)</th>
-                        <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ccc;">pH- (g)</th>
-                        <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ccc; padding-left: 20px;">Note / Specifiche</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+        <h2>Registro Consumi</h2>
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
+            <table id="consumiTable" style="width: 100%; min-width: 800px;"></table>
         </div>
     </section>
 
@@ -97,6 +75,9 @@
     </div>
 
     <script>
+        // Logica comune: apertura sezione + scroll automatico all'ultima riga compilata.
+        // Vale per tutti i registri, in modo identico, indipendentemente da quale
+        // modulo .js abbia popolato la tabella.
         function apriRegistro(idSezione, bottoneCliccato) {
             document.querySelectorAll('.register-section').forEach(sec => sec.classList.add('hidden'));
             document.querySelectorAll('.top-buttons button').forEach(btn => btn.classList.remove('active'));
@@ -123,22 +104,22 @@
                     let rigaValida = false;
 
                     if (idSezione === 'chimicoSection') {
-                        // Nel registro chimico, cerchiamo l'ultimo valore NUMERICO reale del pH 
-                        // Ispezioniamo tutte le celle della riga per trovare il pH (es. 7.2 o 7,4)
+                        // Nel registro chimico, cerchiamo l'ultimo valore NUMERICO reale del pH
                         for (let j = 2; j < celle.length; j++) {
                             let valTesto = celle[j].textContent.trim().replace(',', '.');
                             let valNum = parseFloat(valTesto);
-                            // Se è un numero valido ed è un valore coerente di pH
                             if (!isNaN(valNum) && valNum >= 6.5 && valNum <= 8.5) {
                                 rigaValida = true;
                                 break;
                             }
                         }
                     } else {
-                        // Per gli altri registri, basta che ci sia scritto qualcosa oltre a data/ora nelle colonne centrali
+                        // Per gli altri registri: basta che ci sia scritto qualcosa di reale
+                        // nelle colonne centrali. I trattini "-" contano come "non dato",
+                        // esattamente come le celle vuote o gli zeri.
                         for (let j = 2; j < celle.length; j++) {
                             let testo = celle[j].textContent.trim();
-                            if (testo !== "" && testo !== "0" && testo !== "0,0" && testo !== "0.0") {
+                            if (testo !== "" && testo !== "-" && testo !== "0" && testo !== "0,0" && testo !== "0.0") {
                                 rigaValida = true;
                                 break;
                             }
@@ -151,7 +132,7 @@
                     }
                 }
 
-                // Applica lo scroll portandosi dietro le 2 righe vuote successive
+                // Applica lo scroll portandosi dietro le righe vuote successive
                 if (indiceUltimaRigaPiena !== -1) {
                     let indiceTarget = Math.min(indiceUltimaRigaPiena + 6, righe.length - 1);
                     let rigaTarget = righe[indiceTarget];
@@ -164,9 +145,11 @@
         }
     </script>
 
-    <script src="script.js"></script>
+    <script src="chimico.js"></script>
     <script src="contatori.js"></script>
+    <script src="pulizie.js"></script>
     <script src="manutenzioni.js"></script>
+    <script src="consumi.js"></script>
 
 </body>
 </html>
