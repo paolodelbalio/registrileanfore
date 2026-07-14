@@ -128,6 +128,13 @@ tr:nth-child(even) td {
     display: none !important;
 }
 
+/* Registro Consumi: evidenzia le celle con un consumo effettivamente registrato */
+.consumo-valorizzato {
+    background-color: rgba(203, 213, 225, 0.35);
+    font-weight: 600;
+    color: #334155;
+}
+
 /* OVERLAY E FINESTRE DI DIAGNOSTICA */
 .overlay {
     position: fixed;
