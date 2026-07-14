@@ -1,5 +1,5 @@
 let graficoCorrente = null;
-let datiRegistriGlobali = { chimico: [], contatori: [], pulizie: [], manutenzioni: [], consumi: []};
+let datiRegistriGlobali = { chimico: [], contatori: [], pulizie: [], manutenzioni: [], consumi: [] };
 
 const VOL_PISCINA = 92; // 92 m³ costanti
 const TEMP_REINTEGRO = 22.0;
@@ -27,10 +27,14 @@ function caricaTuttiIRegistri() {
             complete: function(risultati) {
                 elaboraDatiTabella(chiave, risultati.data);
                 conteggioCaricamenti++;
-                
+
                 if (conteggioCaricamenti === chiavi.length) {
                     setTimeout(scrollAllUltimaRiga, 300);
                 }
+            },
+            error: function(errore) {
+                console.error(`Errore nel caricamento di "${FILE_REGISTRI[chiave]}":`, errore);
+                conteggioCaricamenti++;
             }
         });
     });
@@ -45,7 +49,7 @@ function elaboraDatiTabella(chiave, righeGrezze) {
         } catch (e) {
             console.error("Errore nel caricamento dei consumi:", e);
         }
-        return; 
+        return;
     }
 
     let intestazioni = righeGrezze[0].map(h => h ? h.trim() : "");
@@ -59,7 +63,7 @@ function elaboraDatiTabella(chiave, righeGrezze) {
         intestazioni.forEach((intestazione, indice) => {
             let valoreCella = rigaCorrente[indice] ? rigaCorrente[indice].trim() : "";
 
-            if (intestazione.toLowerCase() === 'ph' && valoreCella !== "") {
+            if (intestazione.toLowerCase() === 'cya' && valoreCella !== "") {
                 let match = valoreCella.match(/^([0-9.,]+)/);
                 if (match) {
                     valoreCella = match[1];
@@ -162,7 +166,7 @@ function creaTabellaChimica(intestazioni, dati) {
         html += "</tr>";
     });
 
-    html += "</tr></tbody>";
+    html += "</tbody>";
     tabella.innerHTML = html;
 }
 
@@ -186,12 +190,12 @@ function creaTabellaStandard(chiaveTabella, intestazioni, dati) {
 
 function scrollAllUltimaRiga() {
     const tabellaCorpo = document.querySelector("#chimicoTable tbody");
-    
+
     if (tabellaCorpo && tabellaCorpo.rows.length > 0) {
         let indiceUltimaCompilata = -1;
         const righe = tabellaCorpo.rows;
 
-        let indiceColonnaPH = 2; 
+        let indiceColonnaPH = 2;
         const ths = document.querySelectorAll("#chimicoTable thead th");
         ths.forEach((th, idx) => {
             if (th.textContent.trim().toLowerCase() === 'ph') {
@@ -212,14 +216,14 @@ function scrollAllUltimaRiga() {
         }
 
         let indiceTarget = indiceUltimaCompilata + 2;
-        
+
         if (indiceTarget >= righe.length) {
             indiceTarget = righe.length - 1;
         }
 
         let rigaTarget = righe[indiceTarget];
         rigaTarget.scrollIntoView({ behavior: "smooth", block: "center" });
-        
+
         let rigaCompilata = righe[indiceUltimaCompilata];
         rigaCompilata.style.transition = "background-color 0.5s";
         let colorePrecedente = rigaCompilata.style.backgroundColor;
@@ -233,12 +237,13 @@ function scrollAllUltimaRiga() {
 function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore, rigaCriptata = "") {
     let p = parametro.toLowerCase().trim();
     const modalCard = document.querySelector(".dosage-card");
-    
+
     let isRosso = (classeColore === "evidenzia-rosso");
     let intestazioneAllarme = "";
-    
+
+    // Recupero dati di contesto della riga (Ospiti, Temperatura, pH e CYA correnti registrati)
     let ospitiCorrenti = 0;
-    let tempCorrente = 26.5; 
+    let tempCorrente = 26.5;
     let phCorrente = 7.3;
     let cyaCorrente = 0;
 
@@ -248,10 +253,10 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore, riga
             if (rigaDecodificata["N.Ospiti"]) ospitiCorrenti = parseInt(rigaDecodificata["N.Ospiti"]) || 0;
             if (rigaDecodificata["Temp"]) tempCorrente = parseFloat(rigaDecodificata["Temp"].replace(",", ".")) || 26.5;
             if (rigaDecodificata["pH"]) phCorrente = parseFloat(rigaDecodificata["pH"].replace(",", ".")) || 7.3;
-            if (rigaDecodificata["CYA"]) cyaCorrente = parseFloat(rigaDecodificata["CYA"].replace(",", ".")) || 0;
+            if (rigaDecodificata["Cya"]) cyaCorrente = parseFloat(rigaDecodificata["Cya"].replace(",", ".")) || 0;
         } catch(e) { console.log("Errore parsing parametri riga", e); }
     }
-    
+
     if (modalCard) {
         if (isRosso) {
             modalCard.classList.add("modal-critica");
@@ -271,7 +276,7 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore, riga
             let dIdeale = valore - 7.3;
             let gLimite = Math.round((dLimite / 0.1) * 10 * VOL_PISCINA);
             let gIdeale = Math.round((dIdeale / 0.1) * 10 * VOL_PISCINA);
-            
+
             corpoHTML += `<h3>Stato: <span style="color:#991b1b;">pH Alto (${valore})</span></h3><br>
             <p style="margin-bottom:8px;"><strong>1. Dose correttiva di rientro (Limite 7.5):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Riduttore Acido.</p>
             <p><strong>2. Dose ottimale di stabilizzazione (Ideale 7.3):</strong> aggiungere <strong>${gIdeale}g</strong> di Riduttore Acido.</p>`;
@@ -288,9 +293,9 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore, riga
     }
     else if (p === 'cl. lib' || p === 'cl. tot') {
         if (valore < 1.1) {
-            let fattoreCaricoOspiti = ospitiCorrenti * 12; 
+            let fattoreCaricoOspiti = ospitiCorrenti * 12; // 12g ad ospite registrato
             let fattoreTemperatura = tempCorrente > 28 ? 1.4 : (tempCorrente > 26 ? 1.15 : 1.0);
-            
+
             let dIdeale = 1.1 - valore;
             let baseGrammi = (dIdeale / 0.1) * 1.5 * VOL_PISCINA;
             let gIdeale = (baseGrammi + fattoreCaricoOspiti) * fattoreTemperatura;
@@ -332,9 +337,9 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore, riga
     }
     else if (p === 'cl. com') {
         if (isRosso) {
-            let moltiplicatoreShock = valore > 0.6 ? 250 : 200; 
+            let moltiplicatoreShock = valore > 0.6 ? 250 : 200;
             let grammiIpocloritoShock = Math.round((moltiplicatoreShock * VOL_PISCINA) / 10);
-            
+
             if (tempCorrente > 28) grammiIpocloritoShock = Math.round(grammiIpocloritoShock * 1.15);
 
             corpoHTML += `<h3>Stato: <span style="color:#b91c1c;">🚨 CRITICITÀ: Cloro Combinato Fuori Limite (${valore} ppm)</span></h3><br>
@@ -386,20 +391,9 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore, riga
     }
 
     corpoHTML += `
-    <button onclick="copiaTestoDosaggio()" style="margin-top:20px; width:100%; background:#0f172a; border:none; padding:10px; font-size:0.85rem; border-radius:6px; cursor:pointer; font-weight:bold; color:#ffffff; transition: background 0.2s;">
+    <button onclick="copiaTestoDosaggio()" style="margin-top:20px; width:100%; background:#0f172a; border:none; padding:10px; font-size:0.85rem; border-radius:6px; cursor:pointer; font-weight:bold; color:#ffffff;">
         📋 Copia istruzioni di dosaggio
-    </button>
-    <script>
-    function copiaTestoDosaggio() {
-        let contenitore = document.getElementById('dosageContent');
-        if(contenitore) {
-            let testo = contenitore.innerText.replace('📋 Copia istruzioni di dosaggio', '');
-            navigator.clipboard.writeText(testo.trim());
-            alert('Istruzioni caricate negli appunti del telefono/PC!');
-        }
-    }
-    </script>
-    `;
+    </button>`;
 
     const modal = document.getElementById("dosageModal");
     const contenitore = document.getElementById("dosageContent");
@@ -409,10 +403,22 @@ function apriConsiglioDettagliato(parametro, valore, dataOra, classeColore, riga
     }
 }
 
+// Funzione globale richiamata dal bottone "Copia istruzioni di dosaggio" dentro al modal.
+// NB: deve stare qui come funzione normale, NON come <script> dentro innerHTML,
+// perché gli script inseriti via innerHTML non vengono mai eseguiti dal browser.
+function copiaTestoDosaggio() {
+    let contenitore = document.getElementById('dosageContent');
+    if (contenitore) {
+        let testo = contenitore.innerText.replace('📋 Copia istruzioni di dosaggio', '');
+        navigator.clipboard.writeText(testo.trim());
+        alert('Istruzioni caricate negli appunti del telefono/PC!');
+    }
+}
+
 function mostraSezione(idSezione) {
     document.querySelectorAll(".register-section").forEach(s => s.classList.add("hidden"));
     document.getElementById(idSezione)?.classList.remove("hidden");
-    
+
     if (idSezione === 'chimicoSection') {
         setTimeout(scrollAllUltimaRiga, 150);
     }
@@ -543,7 +549,7 @@ function mostraTabellaConsumi(dati) {
         let data = riga[0] ? riga[0].trim() : "";
         let phTesto = riga[1] ? riga[1].trim() : "";
         let cloroTesto = riga[2] ? riga[2].trim() : "";
-        
+
         // Cerchiamo la colonna Note: proviamo l'indice 6 (colonna G), altrimenti l'ultimo disponibile
         let note = "";
         if (riga[6]) {
@@ -579,4 +585,10 @@ function mostraTabellaConsumi(dati) {
     if (document.getElementById("tot-phmeno")) {
         document.getElementById("tot-phmeno").innerText = `${totalePhMeno.toLocaleString('it-IT')} g`;
     }
+}
+
+function chiudiDosaggio() { document.getElementById("dosageModal")?.classList.add("hidden"); }
+function closeOverlay() {
+    document.getElementById("chartOverlay")?.classList.add("hidden");
+    if (graficoCorrente) { graficoCorrente.destroy(); graficoCorrente = null; }
 }
