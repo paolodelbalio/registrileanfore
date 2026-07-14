@@ -124,6 +124,29 @@ tr:nth-child(even) td {
     font-weight: bold;
 }
 
+/* Quando il colore viene applicato all'intera riga (tr.evidenzia-...), come nel
+   Registro Manutenzioni, dobbiamo forzarlo anche sulle singole celle (td):
+   altrimenti lo sfondo alternato delle righe pari (tr:nth-child(even) td)
+   lo coprirebbe silenziosamente, rendendolo invisibile a seconda della
+   posizione della riga nella tabella. */
+tr.evidenzia-verde td {
+    background-color: rgba(187, 247, 208, 0.5) !important;
+    color: #166534 !important;
+    font-weight: bold;
+}
+
+tr.evidenzia-giallo td {
+    background-color: rgba(254, 240, 138, 0.5) !important;
+    color: #854d0e !important;
+    font-weight: bold;
+}
+
+tr.evidenzia-rosso td {
+    background-color: rgba(252, 165, 165, 0.6) !important;
+    color: #991b1b !important;
+    font-weight: bold;
+}
+
 .hidden {
     display: none !important;
 }
