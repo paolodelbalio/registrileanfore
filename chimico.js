@@ -10,6 +10,35 @@
     let datiChimicoGlobali = [];
     let graficoCorrente = null;
 
+    const GIORNI_IT = ["dom", "lun", "mar", "mer", "gio", "ven", "sab"];
+    const MESI_IT = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"];
+
+    // Normalizza la colonna Data nel formato "ddd gg mmm aaaa" (es. "mar 14 lug 2026"),
+    // indipendentemente da come LibreOffice ha esportato la data nel CSV
+    // (numerica gg/mm/aaaa, oppure gia' testuale). Se il testo non e' riconoscibile
+    // come data, viene lasciato invariato.
+    function formatDataItaliana(testo) {
+        if (!testo) return testo;
+        let t = testo.trim();
+        if (t === "") return t;
+
+        // Se contiene gia' lettere, e' presumibilmente gia' nel formato testuale esteso
+        if (/[a-zA-Z]/.test(t)) return t;
+
+        let m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+        if (!m) return t;
+
+        let giorno = parseInt(m[1], 10);
+        let mese = parseInt(m[2], 10) - 1;
+        let anno = parseInt(m[3], 10);
+        if (anno < 100) anno += 2000;
+
+        let d = new Date(anno, mese, giorno);
+        if (isNaN(d.getTime())) return t;
+
+        return `${GIORNI_IT[d.getDay()]} ${giorno} ${MESI_IT[mese]} ${anno}`;
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         caricaRegistroChimico();
     });
@@ -117,6 +146,10 @@
             intestazioni.forEach(chiave => {
                 let valoreTesto = riga[chiave] ? riga[chiave].trim() : "";
                 let n = chiave.trim().toLowerCase();
+
+                if (n === "data") {
+                    valoreTesto = formatDataItaliana(valoreTesto);
+                }
 
                 if (n === "cl. com" && valoreTesto !== "") {
                     let vCom = parseFloat(valoreTesto.replace(",", "."));
