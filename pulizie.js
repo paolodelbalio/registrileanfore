@@ -9,14 +9,21 @@
     });
 
     function caricaRegistroPulizie() {
-        if (typeof Papa === 'undefined') return;
+        if (typeof Papa === 'undefined') {
+            console.error("[Pulizie] PapaParse non è disponibile: controlla che papaparse.min.js sia caricato prima di pulizie.js");
+            return;
+        }
 
         Papa.parse(FILE_PULIZIE, {
             download: true,
             header: false,
             skipEmptyLines: true,
             complete: function (risultati) {
+                console.log("[Pulizie] CSV caricato:", risultati.data.length, "righe");
                 elaboraDatiPulizie(risultati.data);
+            },
+            error: function (errore) {
+                console.error("[Pulizie] Errore nel caricamento del CSV:", errore, "- controlla che il file '" + FILE_PULIZIE + "' esista con questo nome esatto nel repository");
             }
         });
     }

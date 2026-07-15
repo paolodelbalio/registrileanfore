@@ -14,15 +14,22 @@
     });
 
     function caricaRegistroChimico() {
-        if (typeof Papa === 'undefined') return;
+        if (typeof Papa === 'undefined') {
+            console.error("[Chimico] PapaParse non è disponibile: controlla che papaparse.min.js sia caricato prima di chimico.js");
+            return;
+        }
 
         Papa.parse(FILE_CHIMICO, {
             download: true,
             header: false,
             skipEmptyLines: true,
             complete: function (risultati) {
+                console.log("[Chimico] CSV caricato:", risultati.data.length, "righe");
                 elaboraDatiChimico(risultati.data);
                 setTimeout(scrollAllUltimaRiga, 300);
+            },
+            error: function (errore) {
+                console.error("[Chimico] Errore nel caricamento del CSV:", errore, "- controlla che il file '" + FILE_CHIMICO + "' esista con questo nome esatto nel repository");
             }
         });
     }
