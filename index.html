@@ -136,12 +136,14 @@
                     }
                 }
 
-                // Applica lo scroll portandosi dietro le 2 righe vuote successive
+                // Posizioniamo la vista in modo che le ultime 5 righe compilate stiano
+                // in cima all'area visibile: così restano sempre visibili anche almeno
+                // 3 righe vuote successive, senza dover scrollare oltre.
                 if (indiceUltimaRigaPiena !== -1) {
-                    let indiceTarget = Math.min(indiceUltimaRigaPiena + 6, righe.length - 1);
-                    let rigaTarget = righe[indiceTarget];
-                    
-                    wrapper.scrollTop = rigaTarget.offsetTop - wrapper.clientHeight + rigaTarget.clientHeight + 10;
+                    let indiceInizio = Math.max(0, indiceUltimaRigaPiena - 4);
+                    let rigaInizio = righe[indiceInizio];
+
+                    wrapper.scrollTop = rigaInizio.offsetTop - 10;
                 } else {
                     wrapper.scrollTop = 0;
                 }
