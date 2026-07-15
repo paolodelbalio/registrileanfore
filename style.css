@@ -98,7 +98,9 @@ thead th {
 tbody td {
     padding: 6px 10px;
     border-bottom: 1px solid #dddddd;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
+    max-width: 260px;
 }
 
 tr:nth-child(even) td {

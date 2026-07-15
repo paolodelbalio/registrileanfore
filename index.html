@@ -123,7 +123,7 @@
                         // Per gli altri registri, basta che ci sia scritto qualcosa oltre a data/ora nelle colonne centrali
                         for (let j = 2; j < celle.length; j++) {
                             let testo = celle[j].textContent.trim();
-                            if (testo !== "" && testo !== "0" && testo !== "0,0" && testo !== "0.0") {
+                            if (testo !== "" && testo !== "-" && testo !== "0" && testo !== "0,0" && testo !== "0.0") {
                                 rigaValida = true;
                                 break;
                             }
