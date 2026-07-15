@@ -135,7 +135,7 @@
                 // Cl. Tot è solo un riferimento di calcolo: nessuna evidenziazione a colori,
                 // nessun popup di dettaglio, sempre lo stesso colore neutro.
                 if (n === 'cl. tot') {
-                    html += `<td class="testo-muto">${valoreTesto}</td>`;
+                    html += `<td class="testo-muto" title="${valoreTesto.replace(/"/g, '&quot;')}">${valoreTesto}</td>`;
                     return;
                 }
 
@@ -148,7 +148,7 @@
                     attributoClick = `onclick="window.apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeColore}', '${rigaEscaped}')"`;
                 }
 
-                html += `<td class="${classeColore}" ${attributoClick} style="${attributoClick !== '' ? 'cursor:pointer;' : ''}">${valoreTesto}</td>`;
+                html += `<td class="${classeColore}" ${attributoClick} title="${valoreTesto.replace(/"/g, '&quot;')}" style="${attributoClick !== '' ? 'cursor:pointer;' : ''}">${valoreTesto}</td>`;
             });
             html += "</tr>";
         });

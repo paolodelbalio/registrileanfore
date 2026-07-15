@@ -159,7 +159,7 @@
                 // Colonna 2 = Intervento: è la cella che indica quale manutenzione è stata fatta,
                 // quindi è lì che ha senso segnalare che quel tipo di intervento è in ritardo.
                 let attributoCella = (i === 2) ? classeCellaIntervento : "";
-                html += `<td${attributoCella}>${valoreGrafico}</td>`;
+                html += `<td${attributoCella} title="${valoreGrafico.replace(/"/g, '&quot;')}">${valoreGrafico}</td>`;
             }
             html += "</tr>";
         });

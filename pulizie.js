@@ -73,7 +73,7 @@
 
         dati.forEach(riga => {
             html += "<tr>";
-            intestazioni.forEach(h => { html += `<td>${riga[h] || ""}</td>`; });
+            intestazioni.forEach(h => { let v = riga[h] || ""; html += `<td title="${v.replace(/"/g, '&quot;')}">${v}</td>`; });
             html += "</tr>";
         });
 

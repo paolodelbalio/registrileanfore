@@ -83,7 +83,7 @@
                     classe = ' class="consumo-valorizzato"';
                 }
 
-                html += `<td${classe}>${valore !== "" ? valore : "-"}</td>`;
+                html += `<td${classe} title="${valore.replace(/"/g, '&quot;')}">${valore !== "" ? valore : "-"}</td>`;
             });
             html += "</tr>";
         });
