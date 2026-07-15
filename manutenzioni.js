@@ -121,28 +121,6 @@
             if (testoIntero.trim() === "" || testoIntero.includes("DATA") || testoIntero.includes("REGISTRO")) return;
 
             let oggettoData = analizzaData(testoIntero);
-            let classeCellaIntervento = "";
-
-            if (oggettoData) {
-                let peggiorStato = "";
-                Object.keys(SCADENZE).forEach(chiave => {
-                    let config = SCADENZE[chiave];
-                    let corrisponde = config.paroleChiave.some(p => testoIntero.includes(p));
-                    // Coloriamo la cella solo se corrisponde ED è la riga più recente per questa categoria
-                    let ultimaDataCategoria = ultimiInterventi[chiave];
-                    let eUltimaOccorrenza = ultimaDataCategoria && oggettoData.getTime() === ultimaDataCategoria.getTime();
-
-                    if (corrisponde && eUltimaOccorrenza) {
-                        let info = window.statoScadenzeGlobali.find(s => s.chiave === chiave);
-                        if (info) {
-                            if (info.stato === "rosso") peggiorStato = "rosso";
-                            else if (info.stato === "giallo" && peggiorStato !== "rosso") peggiorStato = "giallo";
-                        }
-                    }
-                });
-                if (peggiorStato === "rosso") classeCellaIntervento = ' class="evidenzia-rosso"';
-                else if (peggiorStato === "giallo") classeCellaIntervento = ' class="evidenzia-giallo"';
-            }
 
             html += "<tr>";
             
@@ -156,10 +134,38 @@
 
             for (let i = 0; i < 6; i++) {
                 let valoreGrafico = celleDivise[i] ? celleDivise[i].replace(/"/g, "").trim() : "";
-                // Colonna 2 = Intervento: è la cella che indica quale manutenzione è stata fatta,
-                // quindi è lì che ha senso segnalare che quel tipo di intervento è in ritardo.
-                let attributoCella = (i === 2) ? classeCellaIntervento : "";
-                html += `<td${attributoCella} title="${valoreGrafico.replace(/"/g, '&quot;')}">${valoreGrafico}</td>`;
+
+                if (i === 2) {
+                    // Colonna Intervento: se la cella contiene più interventi (separati da un
+                    // a-capo, come "Controlavaggio" + "Pulizia prefiltro"), coloriamo ogni riga
+                    // singolarmente in base al proprio stato di scadenza, invece di applicare
+                    // un unico colore (il peggiore) a tutta la cella.
+                    let righeIntervento = valoreGrafico.split("\n").map(r => r.trim()).filter(r => r !== "");
+                    html += `<td title="${valoreGrafico.replace(/"/g, '&quot;')}">`;
+                    righeIntervento.forEach(rigaTesto => {
+                        let rigaUpper = rigaTesto.toUpperCase();
+                        let classeSegmento = "";
+                        if (oggettoData) {
+                            Object.keys(SCADENZE).forEach(chiave => {
+                                let config = SCADENZE[chiave];
+                                let corrisponde = config.paroleChiave.some(p => rigaUpper.includes(p));
+                                let ultimaDataCategoria = ultimiInterventi[chiave];
+                                let eUltimaOccorrenza = ultimaDataCategoria && oggettoData.getTime() === ultimaDataCategoria.getTime();
+                                if (corrisponde && eUltimaOccorrenza) {
+                                    let info = window.statoScadenzeGlobali.find(s => s.chiave === chiave);
+                                    if (info) {
+                                        if (info.stato === "rosso") classeSegmento = "evidenzia-rosso";
+                                        else if (info.stato === "giallo" && classeSegmento !== "evidenzia-rosso") classeSegmento = "evidenzia-giallo";
+                                    }
+                                }
+                            });
+                        }
+                        html += `<div class="${classeSegmento}" style="padding:2px 5px; border-radius:3px; margin-bottom:2px;">${rigaTesto}</div>`;
+                    });
+                    html += `</td>`;
+                } else {
+                    html += `<td title="${valoreGrafico.replace(/"/g, '&quot;')}">${valoreGrafico}</td>`;
+                }
             }
             html += "</tr>";
         });
