@@ -114,13 +114,14 @@ function creaTabellaChimica(intestazioni, dati) {
     let html = "<thead><tr>";
     intestazioni.forEach(chiave => {
         let n = chiave.trim().toLowerCase();
-        // Cl. Tot non ha una colonna propria: è solo un dato di calcolo, consultabile
-        // dal triangolino sulla cella Cl. Com (la legge richiede solo Cl. Lib e Cl. Com).
-        if (n === 'cl. tot') return;
         let label = chiave.trim();
         if (n === 'ph') html += `<th onclick="apriGraficoChimico('${chiave}', 'pH', '#ff6384', 'line')" style="cursor:pointer; text-decoration:underline;">pH</th>`;
         else if (n === 'cl. lib') html += `<th onclick="apriGraficoChimico('${chiave}', 'Cloro Libero', '#36a2eb', 'line')" style="cursor:pointer; text-decoration:underline;">Cl. Lib</th>`;
-        else if (n === 'cl. com') html += `<th onclick="apriGraficoChimico('${chiave}', 'Cloro Combinato', '#ff9f40', 'line')" style="cursor:pointer; text-decoration:underline;">Cl. Com</th>`;
+        // Cl. Tot è solo un dato di calcolo (non richiesto dalla legge): colonna nascosta di default,
+        // apribile con il triangolino sull'header di Cl. Com. Essendo nell'intestazione fissa (sticky),
+        // resta sempre raggiungibile indipendentemente da quante righe si scorrono.
+        else if (n === 'cl. tot') html += `<th class="col-tot">Cl. Tot</th>`;
+        else if (n === 'cl. com') html += `<th onclick="apriGraficoChimico('${chiave}', 'Cloro Combinato', '#ff9f40', 'line')" style="cursor:pointer; text-decoration:underline; position:relative; padding-right:22px;">Cl. Com<span class="tot-triangolo-header" onclick="event.stopPropagation(); toggleColonnaTot()" title="Mostra/nascondi Cl. Tot"></span></th>`;
         else if (n === 'temp') html += `<th onclick="apriGraficoChimico('${chiave}', 'Temperatura', '#ffcd56', 'line')" style="cursor:pointer; text-decoration:underline;">Temp</th>`;
         else if (n === 'n.ospiti') html += `<th onclick="apriGraficoChimico('${chiave}', 'Numero Ospiti', '#9966ff', 'bar')" style="cursor:pointer; text-decoration:underline;">N.Ospiti</th>`;
         else if (n === 'cya') html += `<th onclick="apriGraficoChimico('${chiave}', 'Acido Cianurico', '#c9cbcf', 'line')" style="cursor:pointer; text-decoration:underline;">Cya</th>`;
@@ -133,13 +134,18 @@ function creaTabellaChimica(intestazioni, dati) {
         html += "<tr>";
         intestazioni.forEach(chiave => {
             let n = chiave.trim().toLowerCase();
-            if (n === 'cl. tot') return;
-
             let valoreTesto = riga[chiave] ? riga[chiave].trim() : "";
 
             if (n === 'cl. com' && valoreTesto !== "") {
                 let vCom = parseFloat(valoreTesto.replace(",", "."));
                 if (!isNaN(vCom)) valoreTesto = vCom.toFixed(2).replace(".", ",");
+            }
+
+            // Cl. Tot è solo un riferimento di calcolo: nessuna evidenziazione a colori,
+            // nessun popup di dettaglio, resta neutro anche quando la colonna è visibile.
+            if (n === 'cl. tot') {
+                html += `<td class="col-tot testo-muto">${valoreTesto}</td>`;
+                return;
             }
 
             let vNum = parseFloat(valoreTesto.replace(",", "."));
@@ -152,17 +158,7 @@ function creaTabellaChimica(intestazioni, dati) {
                 attributoClick = `onclick="apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeColore}', '${rigaEscaped}')"`;
             }
 
-            let contenutoCella = valoreTesto;
-            let classeExtra = "";
-            if (n === 'cl. com' && valoreTesto !== "") {
-                let totTesto = riga["Cl. Tot"] ? riga["Cl. Tot"].trim() : "";
-                if (totTesto !== "") {
-                    classeExtra = " cella-com";
-                    contenutoCella = `${valoreTesto}<span class="tot-triangolo" onclick="event.stopPropagation(); toggleTotTooltip(this)"></span><span class="tot-tooltip">Cl. Tot ${totTesto}</span>`;
-                }
-            }
-
-            html += `<td class="${classeColore}${classeExtra}" ${attributoClick} style="${attributoClick !== '' ? 'cursor:pointer;' : ''}">${contenutoCella}</td>`;
+            html += `<td class="${classeColore}" ${attributoClick} style="${attributoClick !== '' ? 'cursor:pointer;' : ''}">${valoreTesto}</td>`;
         });
         html += "</tr>";
     });
@@ -171,19 +167,10 @@ function creaTabellaChimica(intestazioni, dati) {
     tabella.innerHTML = html;
 }
 
-function toggleTotTooltip(triangolo) {
-    let tooltip = triangolo.nextElementSibling;
-    if (!tooltip) return;
-    let giaAperto = tooltip.classList.contains("visibile");
-    document.querySelectorAll(".tot-tooltip.visibile").forEach(t => t.classList.remove("visibile"));
-    if (!giaAperto) tooltip.classList.add("visibile");
+function toggleColonnaTot() {
+    const tabella = document.getElementById("chimicoTable");
+    if (tabella) tabella.classList.toggle("mostra-tot");
 }
-
-document.addEventListener("click", (e) => {
-    if (!e.target.classList.contains("tot-triangolo")) {
-        document.querySelectorAll(".tot-tooltip.visibile").forEach(t => t.classList.remove("visibile"));
-    }
-});
 
 function creaTabellaStandard(chiaveTabella, intestazioni, dati) {
     const tabella = document.getElementById(`${chiaveTabella}Table`);
