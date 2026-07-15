@@ -141,7 +141,7 @@
                     // singolarmente in base al proprio stato di scadenza, invece di applicare
                     // un unico colore (il peggiore) a tutta la cella.
                     let righeIntervento = valoreGrafico.split("\n").map(r => r.trim()).filter(r => r !== "");
-                    html += `<td title="${valoreGrafico.replace(/"/g, '&quot;')}">`;
+                    html += `<td style="padding:0;" title="${valoreGrafico.replace(/"/g, '&quot;')}">`;
                     righeIntervento.forEach(rigaTesto => {
                         let rigaUpper = rigaTesto.toUpperCase();
                         let classeSegmento = "";
@@ -160,7 +160,7 @@
                                 }
                             });
                         }
-                        html += `<div class="${classeSegmento}" style="padding:2px 5px; border-radius:3px; margin-bottom:2px;">${rigaTesto}</div>`;
+                        html += `<div class="${classeSegmento}" style="padding:3px 5px; margin:0;">${rigaTesto}</div>`;
                     });
                     html += `</td>`;
                 } else {
