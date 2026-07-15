@@ -81,9 +81,10 @@ header p {
 
 .table-wrapper {
     max-height: 65vh;
-    overflow-y: auto;
+    overflow-y: scroll;
     border: 1px solid #dddddd;
     border-radius: 4px;
+    padding-right: 18px;
 }
 
 table {
