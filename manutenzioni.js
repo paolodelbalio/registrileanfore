@@ -156,6 +156,7 @@
                                     if (info) {
                                         if (info.stato === "rosso") classeSegmento = "evidenzia-rosso";
                                         else if (info.stato === "giallo" && classeSegmento !== "evidenzia-rosso") classeSegmento = "evidenzia-giallo";
+                                        else if (info.stato === "verde" && classeSegmento === "") classeSegmento = "evidenzia-verde";
                                     }
                                 }
                             });
