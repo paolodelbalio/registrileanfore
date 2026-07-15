@@ -19,8 +19,7 @@
         <button id="btn-chimico" onclick="apriRegistro('chimicoSection', this)">🧪 Chimico</button>
         <button id="btn-contatori" onclick="apriRegistro('contatoriSection', this)">💧 Contatori</button>
         <button id="btn-pulizie" onclick="apriRegistro('pulizieSection', this)">🧹 Pulizie</button>
-        <button id="btn-manutenzioni" onclick="apriRegistro('manutenzioniSection', this); setTimeout(() => { if(window.aggiornaPulsanteStatoDinamico) window.aggiornaPulsanteStatoDinamico(); }, 100);">🛠️ Manutenzioni</button>
-        <button id="btn-consumi" onclick="apriRegistro('consumiSection', this)">🧴 Consumi</button>
+       <button id="btn-manutenzioni" onclick="apriRegistro('manutenzioniSection', this); setTimeout(() => { if(window.aggiornaPulsanteStatoDinamico) window.aggiornaPulsanteStatoDinamico(); }, 100);">🛠️ Manutenzioni</button>
     </div>
 
     <section id="chimicoSection" class="register-section hidden">
@@ -38,9 +37,16 @@
     </section>
 
     <section id="pulizieSection" class="register-section hidden">
-        <h2>Registro Pulizie</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:15px;">
+            <h2 style="margin:0; border:none; padding:0;">Registro Pulizie</h2>
+            <button type="button" onclick="mostraLegendaPulizie()" style="padding:6px 12px; font-size:0.85rem; border:1px solid #0066cc; background:#fff; color:#0066cc; border-radius:4px; cursor:pointer; font-weight:bold;">📋 Legenda</button>
+        </div>
         <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
             <table id="pulizieTable" style="width: 100%; min-width: 800px;"></table>
+        </div>
+        <div id="legendaPulizie" class="legenda-pulizie hidden">
+            <h3>Legenda aree di pulizia</h3>
+            <div id="legendaPulizieContenuto" class="legenda-colonne"></div>
         </div>
     </section>
 
@@ -48,13 +54,6 @@
         <h2>Registro Manutenzioni</h2>
         <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
             <table id="tabellaManutenzioniIsolata" style="width: 100%; min-width: 800px;"></table>
-        </div>
-    </section>
-
-    <section id="consumiSection" class="register-section hidden">
-        <h2>Registro Consumi</h2>
-        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
-            <table id="consumiTable" style="width: 100%; min-width: 800px;"></table>
         </div>
     </section>
 
@@ -75,16 +74,13 @@
     </div>
 
     <script>
-        // Logica comune: apertura sezione + scroll automatico all'ultima riga compilata.
-        // Vale per tutti i registri, in modo identico, indipendentemente da quale
-        // modulo .js abbia popolato la tabella.
         function apriRegistro(idSezione, bottoneCliccato) {
             document.querySelectorAll('.register-section').forEach(sec => sec.classList.add('hidden'));
             document.querySelectorAll('.top-buttons button').forEach(btn => btn.classList.remove('active'));
-
+            
             const sezioneAttiva = document.getElementById(idSezione);
             if (!sezioneAttiva) return;
-
+            
             sezioneAttiva.classList.remove('hidden');
             bottoneCliccato.classList.add('active');
             window.dispatchEvent(new Event('resize'));
@@ -104,22 +100,22 @@
                     let rigaValida = false;
 
                     if (idSezione === 'chimicoSection') {
-                        // Nel registro chimico, cerchiamo l'ultimo valore NUMERICO reale del pH
+                        // Nel registro chimico, cerchiamo l'ultimo valore NUMERICO reale del pH 
+                        // Ispezioniamo tutte le celle della riga per trovare il pH (es. 7.2 o 7,4)
                         for (let j = 2; j < celle.length; j++) {
                             let valTesto = celle[j].textContent.trim().replace(',', '.');
                             let valNum = parseFloat(valTesto);
+                            // Se è un numero valido ed è un valore coerente di pH
                             if (!isNaN(valNum) && valNum >= 6.5 && valNum <= 8.5) {
                                 rigaValida = true;
                                 break;
                             }
                         }
                     } else {
-                        // Per gli altri registri: basta che ci sia scritto qualcosa di reale
-                        // nelle colonne centrali. I trattini "-" contano come "non dato",
-                        // esattamente come le celle vuote o gli zeri.
+                        // Per gli altri registri, basta che ci sia scritto qualcosa oltre a data/ora nelle colonne centrali
                         for (let j = 2; j < celle.length; j++) {
                             let testo = celle[j].textContent.trim();
-                            if (testo !== "" && testo !== "-" && testo !== "0" && testo !== "0,0" && testo !== "0.0") {
+                            if (testo !== "" && testo !== "0" && testo !== "0,0" && testo !== "0.0") {
                                 rigaValida = true;
                                 break;
                             }
@@ -132,11 +128,11 @@
                     }
                 }
 
-                // Applica lo scroll portandosi dietro le righe vuote successive
+                // Applica lo scroll portandosi dietro le 2 righe vuote successive
                 if (indiceUltimaRigaPiena !== -1) {
                     let indiceTarget = Math.min(indiceUltimaRigaPiena + 6, righe.length - 1);
                     let rigaTarget = righe[indiceTarget];
-
+                    
                     wrapper.scrollTop = rigaTarget.offsetTop - wrapper.clientHeight + rigaTarget.clientHeight + 10;
                 } else {
                     wrapper.scrollTop = 0;
@@ -145,11 +141,9 @@
         }
     </script>
 
-    <script src="chimico.js"></script>
+    <script src="script.js"></script>
     <script src="contatori.js"></script>
-    <script src="pulizie.js"></script>
     <script src="manutenzioni.js"></script>
-    <script src="consumi.js"></script>
 
 </body>
 </html>

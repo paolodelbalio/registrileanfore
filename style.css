@@ -200,7 +200,262 @@ tr:nth-child(even) td {
 .dosage-close-btn {
     margin-top: 20px;
     width: 100%;
+    padding* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    color: #333333;
+    padding: 20px;
+}
+
+header {
+    background-color: #0066cc;
+    color: white;
+    padding: 15px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.top-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
     padding: 10px;
+    background: #e9f2fb;
+    border: 1px solid #cccccc;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    margin-bottom: 20px;
+}
+
+.top-buttons button {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    border: 1px solid #0066cc;
+    background: #fff;
+    color: #0066cc;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.top-buttons button:hover {
+    background: #0066cc;
+    color: #fff;
+}
+
+/* Regola per evidenziare il pulsante attivo */
+.top-buttons button.active {
+    background-color: #0066cc !important;
+    color: white !important;
+}
+
+.register-section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.register-section h2 {
+    color: #0066cc;
+    margin-bottom: 15px;
+    font-size: 1.25rem;
+    border-bottom: 2px solid #0066cc;
+    padding-bottom: 5px;
+}
+
+.table-wrapper {
+    max-height: 65vh;
+    overflow-y: auto;
+    border: 1px solid #dddddd;
+    border-radius: 4px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    text-align: left;
+}
+
+thead th {
+    background-color: #334155;
+    color: white;
+    padding: 8px 10px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+tbody td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #dddddd;
+    white-space: nowrap;
+}
+
+tr:nth-child(even) td {
+    background-color: #f8fafc;
+}
+
+/* COLORI COMPATTI IN TRASPARENZA (STILE ORIGINALE MA SOFT) */
+.evidenzia-verde {
+    background-color: rgba(187, 247, 208, 0.5) !important; /* Verde leggero */
+    color: #166534 !important;
+    font-weight: bold;
+}
+
+.evidenzia-giallo {
+    background-color: rgba(254, 240, 138, 0.5) !important; /* Giallo leggero */
+    color: #854d0e !important;
+    font-weight: bold;
+}
+
+.evidenzia-rosso {
+    background-color: rgba(252, 165, 165, 0.6) !important; /* Rosso trasparente ma distinto dal giallo */
+    color: #991b1b !important;
+    font-weight: bold;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* LEGENDA PULIZIE: blocco a fine sezione, richiamabile dal pulsante nell'header */
+.legenda-pulizie {
+    background: white;
+    border: 1px solid #dddddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.legenda-pulizie h3 {
+    color: #0066cc;
+    margin-bottom: 15px;
+    font-size: 1.05rem;
+    border-bottom: 2px solid #0066cc;
+    padding-bottom: 5px;
+}
+
+.legenda-colonne {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+}
+
+.legenda-colonna h4 {
+    color: #334155;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+}
+
+.legenda-iniziale {
+    font-weight: bold;
+    color: #0066cc;
+    text-decoration: underline;
+}
+
+.legenda-colonna ul {
+    list-style: none;
+    font-size: 0.85rem;
+    color: #475569;
+    line-height: 1.6;
+}
+
+/* CL. TOT: dato di solo calcolo, sempre visibile ma neutro, senza colori di allarme */
+.testo-muto {
+    color: #94a3b8;
+}
+
+/* OVERLAY E FINESTRE DI DIAGNOSTICA */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.overlay-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 80%;
+    height: 70%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.overlay-content canvas {
+    flex: 1 1 auto;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0;
+}
+
+.dosage-card {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    max-width: 520px;
+    width: 90%;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    position: relative;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease-in-out;
+}
+
+/* STILE ENFASI SEGNALAZIONE ROSSA/CRITICA */
+.dosage-card.modal-critica {
+    border: 3px solid #dc2626 !important;
+    background-color: #fffdfd;
+    box-shadow: 0 10px 25px rgba(220, 38, 38, 0.25);
+}
+
+.overlay-close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+}
+
+.overlay-close:hover {
+    color: #000;
+}
+
+.dosage-close-btn {
+    margin-top: 20px;
+    width: 100%;
+    padding: 10px;
+    background: #0066cc;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.dosage-close-btn:hover {
+    background: #0052a3;
+}: 10px;
     background: #0066cc;
     color: white;
     border: none;
