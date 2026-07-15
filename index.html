@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Piscina 2026</title>
-    <link rel="stylesheet" href="style.css?v=20260715">
+    <link rel="stylesheet" href="style.css?v=20260715c">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
@@ -20,6 +20,7 @@
         <button id="btn-contatori" onclick="apriRegistro('contatoriSection', this)">💧 Contatori</button>
         <button id="btn-pulizie" onclick="apriRegistro('pulizieSection', this)">🧹 Pulizie</button>
        <button id="btn-manutenzioni" onclick="apriRegistro('manutenzioniSection', this); setTimeout(() => { if(window.aggiornaPulsanteStatoDinamico) window.aggiornaPulsanteStatoDinamico(); }, 100);">🛠️ Manutenzioni</button>
+       <button id="btn-consumi" onclick="apriRegistro('consumiSection', this)">🧴 Consumi</button>
     </div>
 
     <section id="chimicoSection" class="register-section hidden">
@@ -54,6 +55,13 @@
         <h2>Registro Manutenzioni</h2>
         <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
             <table id="tabellaManutenzioniIsolata" style="width: 100%; min-width: 800px;"></table>
+        </div>
+    </section>
+
+    <section id="consumiSection" class="register-section hidden">
+        <h2>Registro Consumi</h2>
+        <div class="table-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-height: 70vh; overflow-y: auto;">
+            <table id="consumiTable" style="width: 100%; min-width: 800px;"></table>
         </div>
     </section>
 
@@ -141,9 +149,11 @@
         }
     </script>
 
-    <script src="script.js?v=20260715"></script>
-    <script src="contatori.js?v=20260715"></script>
-    <script src="manutenzioni.js?v=20260715"></script>
+    <script src="chimico.js?v=20260715c"></script>
+    <script src="pulizie.js?v=20260715c"></script>
+    <script src="contatori.js?v=20260715c"></script>
+    <script src="manutenzioni.js?v=20260715c"></script>
+    <script src="consumi.js?v=20260715c"></script>
 
 </body>
 </html>
