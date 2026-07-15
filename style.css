@@ -128,73 +128,48 @@ tr:nth-child(even) td {
     display: none !important;
 }
 
-/* TRIANGOLINO CL. TOT SU CELLA CL. COM */
-.cella-com {
-    position: relative;
-    padding-right: 18px !important;
+/* COLONNA CL. TOT NASCOSTA DI DEFAULT, APRIBILE DAL TRIANGOLINO NELL'HEADER CL. COM */
+#chimicoTable .col-tot {
+    display: none;
 }
 
-.tot-triangolo {
+#chimicoTable.mostra-tot .col-tot {
+    display: table-cell;
+}
+
+.testo-muto {
+    color: #94a3b8;
+    font-size: 0.8rem;
+}
+
+.tot-triangolo-header {
     position: absolute;
     top: 0;
     right: 0;
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     cursor: pointer;
 }
 
-.tot-triangolo::after {
+.tot-triangolo-header::after {
     content: "";
     position: absolute;
-    top: 2px;
-    right: 2px;
+    top: 3px;
+    right: 3px;
     width: 0;
     height: 0;
     border-style: solid;
-    border-width: 0 8px 8px 0;
-    border-color: transparent #64748b transparent transparent;
+    border-width: 0 9px 9px 0;
+    border-color: transparent #cbd5e1 transparent transparent;
 }
 
-.tot-triangolo:hover::after,
-.tot-triangolo:active::after {
-    border-color: transparent #1e293b transparent transparent;
+.tot-triangolo-header:hover::after,
+.tot-triangolo-header:active::after {
+    border-color: transparent #ffffff transparent transparent;
 }
 
-.tot-tooltip {
-    display: none;
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 4px;
-    background: #334155;
-    color: #ffffff;
-    font-size: 11px;
-    font-weight: normal;
-    padding: 4px 8px;
-    border-radius: 4px;
-    white-space: nowrap;
-    z-index: 50;
-}
-
-.tot-tooltip::before {
-    content: "";
-    position: absolute;
-    bottom: 100%;
-    right: 10px;
-    border-width: 4px;
-    border-style: solid;
-    border-color: transparent transparent #334155 transparent;
-}
-
-.tot-tooltip.visibile {
-    display: block;
-}
-
-/* Su desktop, basta il passaggio del mouse: niente tocco necessario */
-@media (hover: hover) and (pointer: fine) {
-    .cella-com:hover .tot-tooltip {
-        display: block;
-    }
+#chimicoTable.mostra-tot .tot-triangolo-header::after {
+    border-color: transparent #ffffff transparent transparent;
 }
 
 /* OVERLAY E FINESTRE DI DIAGNOSTICA */
