@@ -114,35 +114,6 @@ tr:nth-child(even) td {
     background-color: #f8fafc;
 }
 
-/* Su finestre più strette, testo e colonne si restringono automaticamente
-   invece di restare a dimensione fissa e non entrare più nella pagina. */
-@media (max-width: 1100px) {
-    table {
-        font-size: 0.75rem;
-    }
-    thead th, tbody td {
-        padding: 5px 6px;
-    }
-}
-
-@media (max-width: 850px) {
-    table {
-        font-size: 0.68rem;
-    }
-    thead th, tbody td {
-        padding: 4px 5px;
-    }
-}
-
-@media (max-width: 650px) {
-    table {
-        font-size: 0.6rem;
-    }
-    thead th, tbody td {
-        padding: 3px 4px;
-    }
-}
-
 /* COLORI COMPATTI IN TRASPARENZA (STILE ORIGINALE MA SOFT) */
 .evidenzia-verde {
     background-color: rgba(187, 247, 208, 0.5) !important; /* Verde leggero */
