@@ -91,7 +91,6 @@ table {
     border-collapse: collapse;
     font-size: 0.85rem;
     text-align: left;
-    table-layout: fixed;
 }
 
 thead th {
@@ -103,63 +102,13 @@ thead th {
     z-index: 10;
     font-weight: bold;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 tbody td {
     padding: 6px 10px;
     border-bottom: 1px solid #dddddd;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
-
-/* LARGHEZZE PROPORZIONALI PER COLONNA (evita di sprecare spazio su colonne brevi
-   come Data/Ora/pH a scapito di quelle con testo lungo come Note/Intervento) */
-#chimicoTable th:nth-child(1)  { width: 9%; }   /* Data */
-#chimicoTable th:nth-child(2)  { width: 6%; }   /* Ora */
-#chimicoTable th:nth-child(3)  { width: 6%; }   /* pH */
-#chimicoTable th:nth-child(4)  { width: 7%; }   /* Cl. Lib */
-#chimicoTable th:nth-child(5)  { width: 7%; }   /* Cl. Tot */
-#chimicoTable th:nth-child(6)  { width: 7%; }   /* Cl. Com */
-#chimicoTable th:nth-child(7)  { width: 6%; }   /* Temp */
-#chimicoTable th:nth-child(8)  { width: 7%; }   /* N.Ospiti */
-#chimicoTable th:nth-child(9)  { width: 5%; }   /* Cya */
-#chimicoTable th:nth-child(10) { width: 6%; }   /* Alka */
-#chimicoTable th:nth-child(11) { width: 29%; }  /* Note */
-#chimicoTable th:nth-child(12) { width: 5%; }   /* Firma */
-
-#pulizieTable th:nth-child(1) { width: 14%; }  /* Data */
-#pulizieTable th:nth-child(2) { width: 8%; }   /* Ora */
-#pulizieTable th:nth-child(3) { width: 10%; }  /* Area Pulita */
-#pulizieTable th:nth-child(4) { width: 34%; }  /* Intervento */
-#pulizieTable th:nth-child(5) { width: 14%; }  /* Prodotto Usato */
-#pulizieTable th:nth-child(6) { width: 12%; }  /* Incaricato */
-#pulizieTable th:nth-child(7) { width: 8%; }   /* Firma */
-
-#tabellaManutenzioniIsolata th:nth-child(1) { width: 14%; }  /* Data */
-#tabellaManutenzioniIsolata th:nth-child(2) { width: 16%; }  /* Impianto/Area */
-#tabellaManutenzioniIsolata th:nth-child(3) { width: 20%; }  /* Intervento */
-#tabellaManutenzioniIsolata th:nth-child(4) { width: 12%; }  /* Tecnico */
-#tabellaManutenzioniIsolata th:nth-child(5) { width: 30%; }  /* Note */
-#tabellaManutenzioniIsolata th:nth-child(6) { width: 8%; }   /* Firma */
-
-#contatoriTable th:nth-child(1) { width: 12%; }  /* Data */
-#contatoriTable th:nth-child(2) { width: 14%; }  /* Contatore Reintegro */
-#contatoriTable th:nth-child(3) { width: 12%; }  /* Reintegro */
-#contatoriTable th:nth-child(4) { width: 14%; }  /* Contatore Ricircolo */
-#contatoriTable th:nth-child(5) { width: 14%; }  /* Ricircolo 24h */
-#contatoriTable th:nth-child(6) { width: 26%; }  /* Note */
-#contatoriTable th:nth-child(7) { width: 8%; }   /* Firma */
-
-#consumiTable th:nth-child(1) { width: 14%; }  /* Data */
-#consumiTable th:nth-child(2) { width: 11%; }  /* pH- */
-#consumiTable th:nth-child(3) { width: 11%; }  /* Cloro */
-#consumiTable th:nth-child(4) { width: 13%; }  /* Antialghe */
-#consumiTable th:nth-child(5) { width: 13%; }  /* Decloratore */
-#consumiTable th:nth-child(6) { width: 13%; }  /* Flocculante */
-#consumiTable th:nth-child(7) { width: 25%; }  /* Note */
 
 tr:nth-child(even) td {
     background-color: #f8fafc;
