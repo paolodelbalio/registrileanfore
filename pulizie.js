@@ -38,7 +38,13 @@ function caricaTuttiIRegistri() {
 function elaboraDatiTabella(chiave, righeGrezze) {
     if (!righeGrezze || righeGrezze.length < 2) return;
 
-    let intestazioniOriginali = righeGrezze[0].map(h => h ? h.trim() : "");
+    // Alcuni fogli (es. Pulizie) hanno una riga di titolo ("Registro Pulizie Piscina...")
+    // prima della vera intestazione delle colonne. Cerchiamo esplicitamente la riga che
+    // inizia con "Data", invece di assumere sempre che sia la prima riga del foglio.
+    let indiceHeader = righeGrezze.findIndex(r => r && r[0] && r[0].toString().trim().toLowerCase() === 'data');
+    if (indiceHeader === -1) indiceHeader = 0;
+
+    let intestazioniOriginali = righeGrezze[indiceHeader].map(h => h ? h.trim() : "");
     let intestazioni = intestazioniOriginali;
 
     // Il foglio Pulizie ha, nelle stesse righe dei dati, la legenda (Giornaliero/Settimanale/
@@ -51,7 +57,7 @@ function elaboraDatiTabella(chiave, righeGrezze) {
 
     let datiFormattati = [];
 
-    for (let i = 1; i < righeGrezze.length; i++) {
+    for (let i = indiceHeader + 1; i < righeGrezze.length; i++) {
         let rigaCorrente = righeGrezze[i];
         if (rigaCorrente.length === 0 || (rigaCorrente[0] === "" && rigaCorrente[1] === "")) continue;
 
