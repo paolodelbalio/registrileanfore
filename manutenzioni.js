@@ -11,29 +11,6 @@
 
     // Mesi abbreviati italiani, per riconoscere date scritte come testo (es. "19 giu 2026")
     const MESI_IT = { "GEN": 0, "FEB": 1, "MAR": 2, "APR": 3, "MAG": 4, "GIU": 5, "LUG": 6, "AGO": 7, "SET": 8, "OTT": 9, "NOV": 10, "DIC": 11 };
-    const GIORNI_IT_DISPLAY = ["dom", "lun", "mar", "mer", "gio", "ven", "sab"];
-    const MESI_IT_DISPLAY = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"];
-
-    // Normalizza SOLO la stringa mostrata nella cella Data (non tocca la logica
-    // di calcolo scadenze, che continua a leggere il testo grezzo tramite analizzaData)
-    function formatDataItalianaDisplay(testo) {
-        if (!testo) return testo;
-        let t = testo.trim();
-        if (t === "" || /[a-zA-Z]/.test(t)) return t;
-
-        let m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-        if (!m) return t;
-
-        let giorno = parseInt(m[1], 10);
-        let mese = parseInt(m[2], 10) - 1;
-        let anno = parseInt(m[3], 10);
-        if (anno < 100) anno += 2000;
-
-        let d = new Date(anno, mese, giorno);
-        if (isNaN(d.getTime())) return t;
-
-        return `${GIORNI_IT_DISPLAY[d.getDay()]} ${giorno} ${MESI_IT_DISPLAY[mese]} ${anno}`;
-    }
 
     window.statoScadenzeGlobali = [];
 
@@ -144,14 +121,14 @@
             if (testoIntero.trim() === "" || testoIntero.includes("DATA") || testoIntero.includes("REGISTRO")) return;
 
             let oggettoData = analizzaData(testoIntero);
-            let stileRiga = "";
+            let classeCellaIntervento = "";
 
             if (oggettoData) {
                 let peggiorStato = "";
                 Object.keys(SCADENZE).forEach(chiave => {
                     let config = SCADENZE[chiave];
                     let corrisponde = config.paroleChiave.some(p => testoIntero.includes(p));
-                    // Coloriamo la riga solo se corrisponde ED è la riga più recente per questa categoria
+                    // Coloriamo la cella solo se corrisponde ED è la riga più recente per questa categoria
                     let ultimaDataCategoria = ultimiInterventi[chiave];
                     let eUltimaOccorrenza = ultimaDataCategoria && oggettoData.getTime() === ultimaDataCategoria.getTime();
 
@@ -163,11 +140,11 @@
                         }
                     }
                 });
-                if (peggiorStato === "rosso") stileRiga = ' class="evidenzia-rosso"';
-                else if (peggiorStato === "giallo") stileRiga = ' class="evidenzia-giallo"';
+                if (peggiorStato === "rosso") classeCellaIntervento = ' class="evidenzia-rosso"';
+                else if (peggiorStato === "giallo") classeCellaIntervento = ' class="evidenzia-giallo"';
             }
 
-            html += `<tr${stileRiga}>`;
+            html += "<tr>";
             
             // Gestione mista: supporta sia celle già divise da PapaParse, sia righe unite da dividere tramite ';'
             let celleDivise = [];
@@ -179,8 +156,10 @@
 
             for (let i = 0; i < 6; i++) {
                 let valoreGrafico = celleDivise[i] ? celleDivise[i].replace(/"/g, "").trim() : "";
-                if (i === 0) valoreGrafico = formatDataItalianaDisplay(valoreGrafico);
-                html += `<td>${valoreGrafico}</td>`;
+                // Colonna 2 = Intervento: è la cella che indica quale manutenzione è stata fatta,
+                // quindi è lì che ha senso segnalare che quel tipo di intervento è in ritardo.
+                let attributoCella = (i === 2) ? classeCellaIntervento : "";
+                html += `<td${attributoCella}>${valoreGrafico}</td>`;
             }
             html += "</tr>";
         });
