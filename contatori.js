@@ -71,7 +71,7 @@
                 let valore = cella || "";
                 let intestazione = (intestazioni[indice] || "").trim().toLowerCase();
                 if (intestazione === "data") valore = formatDataItaliana(valore);
-                html += `<td title="${valore.toString().replace(/"/g, '&quot;')}">${valore}</td>`;
+                html += `<td>${valore}</td>`;
             });
             html += "</tr>";
         });
