@@ -91,7 +91,6 @@ table {
     border-collapse: collapse;
     font-size: 0.85rem;
     text-align: left;
-    table-layout: fixed;
 }
 
 thead th {
@@ -103,20 +102,12 @@ thead th {
     z-index: 10;
     font-weight: bold;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-tbody tr {
-    height: 34px;
 }
 
 tbody td {
     padding: 6px 10px;
     border-bottom: 1px solid #dddddd;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 tr:nth-child(even) td {
