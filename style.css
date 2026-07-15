@@ -124,38 +124,77 @@ tr:nth-child(even) td {
     font-weight: bold;
 }
 
-/* Quando il colore viene applicato all'intera riga (tr.evidenzia-...), come nel
-   Registro Manutenzioni, dobbiamo forzarlo anche sulle singole celle (td):
-   altrimenti lo sfondo alternato delle righe pari (tr:nth-child(even) td)
-   lo coprirebbe silenziosamente, rendendolo invisibile a seconda della
-   posizione della riga nella tabella. */
-tr.evidenzia-verde td {
-    background-color: rgba(187, 247, 208, 0.5) !important;
-    color: #166534 !important;
-    font-weight: bold;
-}
-
-tr.evidenzia-giallo td {
-    background-color: rgba(254, 240, 138, 0.5) !important;
-    color: #854d0e !important;
-    font-weight: bold;
-}
-
-tr.evidenzia-rosso td {
-    background-color: rgba(252, 165, 165, 0.6) !important;
-    color: #991b1b !important;
-    font-weight: bold;
-}
-
 .hidden {
     display: none !important;
 }
 
-/* Registro Consumi: evidenzia le celle con un consumo effettivamente registrato */
-.consumo-valorizzato {
-    background-color: rgba(203, 213, 225, 0.35);
-    font-weight: 600;
-    color: #334155;
+/* TRIANGOLINO CL. TOT SU CELLA CL. COM */
+.cella-com {
+    position: relative;
+    padding-right: 18px !important;
+}
+
+.tot-triangolo {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.tot-triangolo::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 8px 8px 0;
+    border-color: transparent #64748b transparent transparent;
+}
+
+.tot-triangolo:hover::after,
+.tot-triangolo:active::after {
+    border-color: transparent #1e293b transparent transparent;
+}
+
+.tot-tooltip {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: #334155;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: normal;
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 50;
+}
+
+.tot-tooltip::before {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    right: 10px;
+    border-width: 4px;
+    border-style: solid;
+    border-color: transparent transparent #334155 transparent;
+}
+
+.tot-tooltip.visibile {
+    display: block;
+}
+
+/* Su desktop, basta il passaggio del mouse: niente tocco necessario */
+@media (hover: hover) and (pointer: fine) {
+    .cella-com:hover .tot-tooltip {
+        display: block;
+    }
 }
 
 /* OVERLAY E FINESTRE DI DIAGNOSTICA */
