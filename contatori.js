@@ -47,6 +47,8 @@
                         const intestazioniReali = data[1];
                         const righeDati = data.slice(2);
 
+                        console.log("[Contatori] CSV caricato:", righeDati.length, "righe");
+
                         disegnaTabellaContatori(intestazioniReali, righeDati);
 
                         // Espone i dati letti ad altri script (es. consumi.js) per incroci tra registri
