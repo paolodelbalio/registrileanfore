@@ -27,7 +27,9 @@
         "decloratore": { parametro: "cl", label: "Cl. Lib", direzioneAttesa: -1 }
     };
 
-    let mappaChimicoPerData = null; // "AAAA-MM-GG" -> { mattina:{ph,cl}, sera:{ph,cl} }
+    let mappaChimicoPerData = null; // "AAAA-MM-GG" -> { mattina:{ph,cl,temp}, sera:{ph,cl,temp} }
+    let mappaOspitiPerGiorno = {};  // "AAAA-MM-GG" -> Number (N.Ospiti, di solito compilato solo sulla riga 07:00)
+    let mappaReintegroPerData = {}; // "AAAA-MM-GG" -> litri di reintegro (dal Registro Contatori)
     let elencoCyaOrdinato = [];     // [{chiave:"AAAA-MM-GG", valore:Number}, ...] ordinato per data, una voce per giorno con CYA misurato
     let righeConsumiGrezze = null;
     let intestazioniConsumi = null;
@@ -40,6 +42,7 @@
     // TCCA diventa CYA residuo. Volume vasca Le Anfore: 92 m³ = 92.000 litri.
     const FRAZIONE_CYA_DA_TCCA = 0.555;
     const VOLUME_VASCA_LITRI = 92000;
+    const PESO_PASTIGLIA_TRICLORO_G = 200; // pastiglie BIG-BLU TCCA 90/200, 200g cad.
 
     function formatDataItaliana(testo) {
         if (!testo) return testo;
@@ -132,15 +135,47 @@
 
             let ph = parseFloat((riga["pH"] || "").replace(",", "."));
             let cl = parseFloat((riga["Cl. Lib"] || "").replace(",", "."));
+            let temp = parseFloat((riga["Temp"] || "").replace(",", "."));
+            let ospiti = parseInt(riga["N.Ospiti"], 10);
+            if (!isNaN(ospiti)) mappaOspitiPerGiorno[chiaveCorrente] = ospiti;
 
             if (!mappa[chiaveCorrente]) mappa[chiaveCorrente] = {};
             mappa[chiaveCorrente][fase] = {
                 ph: isNaN(ph) ? null : ph,
-                cl: isNaN(cl) ? null : cl
+                cl: isNaN(cl) ? null : cl,
+                temp: isNaN(temp) ? null : temp
             };
         });
 
         elencoCyaOrdinato = Object.keys(cyaPerGiorno).sort().map(chiave => ({ chiave, valore: cyaPerGiorno[chiave] }));
+        return mappa;
+    }
+
+    // Costruisce, a partire dai dati esposti da contatori.js, una mappa data -> litri di
+    // reintegro. Scarta valori negativi o assurdamente grandi (>20.000 l/giorno): sono quasi
+    // sempre un errore di formula nel foglio (contatore non letto quel giorno) piuttosto che
+    // un reintegro reale, e mostrarli confonderebbe più che aiutare.
+    function costruisciMappaContatori(datiContatori) {
+        let mappa = {};
+        datiContatori.forEach(riga => {
+            let dataGrezza = (riga["Data"] || "").trim();
+            let m = dataGrezza.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+            if (!m) return;
+
+            let giorno = parseInt(m[1], 10);
+            let mese = parseInt(m[2], 10) - 1;
+            let anno = parseInt(m[3], 10);
+            if (anno < 100) anno += 2000;
+            let chiave = `${anno}-${String(mese + 1).padStart(2, "0")}-${String(giorno).padStart(2, "0")}`;
+
+            let chiaveReintegro = Object.keys(riga).find(k => k.trim().toLowerCase().startsWith("reintegro"));
+            if (!chiaveReintegro) return;
+
+            let litri = parseFloat((riga[chiaveReintegro] || "").replace(",", "."));
+            if (isNaN(litri) || litri < 0 || litri > 20000) return;
+
+            mappa[chiave] = litri;
+        });
         return mappa;
     }
 
@@ -177,9 +212,10 @@
     // giorni dopo il dosaggio. Se non è ancora passato abbastanza tempo, o non c'è ancora una
     // lettura successiva, la verifica resta "posticipata" mostrando comunque la previsione.
     function calcolaVerificaTricloro(chiaveGiorno, valoreTesto) {
-        let grammi = parseFloat(valoreTesto.replace(",", "."));
-        if (isNaN(grammi) || grammi <= 0) return null;
+        let pastiglie = parseFloat(valoreTesto.replace(",", "."));
+        if (isNaN(pastiglie) || pastiglie <= 0) return null;
 
+        let grammi = pastiglie * PESO_PASTIGLIA_TRICLORO_G;
         let cyaAtteso = (grammi * FRAZIONE_CYA_DA_TCCA * 1000) / VOLUME_VASCA_LITRI;
         let { prima, dopo, giorniDopo } = trovaCyaIntornoA(chiaveGiorno);
 
@@ -187,7 +223,10 @@
             return {
                 posticipato: true,
                 cyaAtteso: cyaAtteso,
-                grammi: grammi
+                pastiglie: pastiglie,
+                grammi: grammi,
+                cyaUltimoNoto: prima ? prima.valore : null,
+                dataUltimoNoto: prima ? prima.chiave : null
             };
         }
 
@@ -200,6 +239,7 @@
                 cyaAtteso: cyaAtteso,
                 cyaDopo: dopo.valore,
                 dataDopo: dopo.chiave,
+                pastiglie: pastiglie,
                 grammi: grammi
             };
         }
@@ -222,6 +262,7 @@
             cyaPrima: prima.valore,
             cyaDopo: dopo.valore,
             dataDopo: dopo.chiave,
+            pastiglie: pastiglie,
             grammi: grammi
         };
     }
@@ -273,13 +314,21 @@
         return { esito, delta, label: def.label, prima: vPrima, dopo: vDopo };
     }
 
-    // Calcola gli esiti di verifica per tutti i prodotti dosati in una riga di Consumi.
+    // Calcola gli esiti di verifica per tutti i prodotti dosati in una riga di Consumi,
+    // insieme al contesto del giorno (temperatura, ospiti, reintegro) utile per interpretarli.
     function calcolaVerificaRiga(intestazioni, riga) {
         let dObj = parseDataAbbreviata(riga[0]);
-        if (!dObj) return [];
+        if (!dObj) return { risultati: [], contesto: null };
         let chiaveGiorno = chiaveData(dObj);
 
         let { prima, dopo } = ottieniLettureAttorno(chiaveGiorno);
+
+        let contesto = {
+            tempMattina: prima ? prima.temp : null,
+            tempSera: dopo ? dopo.temp : null,
+            ospiti: mappaOspitiPerGiorno[chiaveGiorno] != null ? mappaOspitiPerGiorno[chiaveGiorno] : null,
+            reintegro: mappaReintegroPerData[chiaveGiorno] != null ? mappaReintegroPerData[chiaveGiorno] : null
+        };
 
         let risultati = [];
         intestazioni.forEach((intestazione, indice) => {
@@ -318,7 +367,7 @@
             });
         });
 
-        return risultati;
+        return { risultati, contesto };
     }
 
     function iconaEClasseEsitoComplessivo(risultati) {
@@ -341,17 +390,25 @@
     document.addEventListener("DOMContentLoaded", () => {
         caricaRegistroConsumi();
 
-        // Se chimico.js ha già finito di caricare (ordine di script + tempi di rete non
-        // sono garantiti), i dati sono già disponibili in window.__registroChimicoDati.
+        // Se chimico.js/contatori.js hanno già finito di caricare (ordine di script + tempi
+        // di rete non sono garantiti), i dati sono già disponibili in window.__registroXDati.
         if (window.__registroChimicoDati) {
             mappaChimicoPerData = costruisciMappaChimico(window.__registroChimicoDati);
             ridisegnaSeDatiPronti();
         }
+        if (window.__registroContatoriDati) {
+            mappaReintegroPerData = costruisciMappaContatori(window.__registroContatoriDati);
+            ridisegnaSeDatiPronti();
+        }
 
-        // In ogni caso resta in ascolto dell'evento, per il caso in cui consumi.js finisca
-        // di caricare il proprio CSV prima che chimico.js abbia completato il suo.
+        // In ogni caso resta in ascolto degli eventi, per il caso in cui consumi.js finisca
+        // di caricare il proprio CSV prima che chimico.js/contatori.js completino il loro.
         document.addEventListener("chimico:datiPronti", (e) => {
             mappaChimicoPerData = costruisciMappaChimico(e.detail);
+            ridisegnaSeDatiPronti();
+        });
+        document.addEventListener("contatori:datiPronti", (e) => {
+            mappaReintegroPerData = costruisciMappaContatori(e.detail);
             ridisegnaSeDatiPronti();
         });
     });
@@ -394,7 +451,8 @@
 
         let html = "<thead><tr>";
         intestazioni.forEach(titolo => {
-            html += `<th>${titolo || ""}</th>`;
+            let classeColonna = "col-" + (titolo || "").trim().toLowerCase().replace(/\s+/g, "-");
+            html += `<th class="${classeColonna}">${titolo || ""}</th>`;
         });
         html += `<th>Verifica</th>`;
         html += "</tr></thead><tbody>";
@@ -402,7 +460,9 @@
         righeDati.forEach(riga => {
             if (riga.length === 0 || !riga[0]) return;
 
-            let risultatiVerifica = mappaChimicoPerData ? calcolaVerificaRiga(intestazioni, riga) : [];
+            let { risultati: risultatiVerifica, contesto } = mappaChimicoPerData
+                ? calcolaVerificaRiga(intestazioni, riga)
+                : { risultati: [], contesto: null };
             let { icona, classe } = iconaEClasseEsitoComplessivo(risultatiVerifica);
 
             html += "<tr>";
@@ -414,12 +474,11 @@
 
                 // Colonne quantità (tutte tranne Data e Note): evidenzia solo se valorizzate
                 const eColonnaQuantita = (n !== "data" && n !== "note");
-                let classeCella = "";
-                if (eColonnaQuantita && valore !== "") {
-                    classeCella = ' class="consumo-valorizzato"';
-                }
+                let classeColonna = "col-" + n.replace(/\s+/g, "-");
+                let classi = [classeColonna];
+                if (eColonnaQuantita && valore !== "") classi.push("consumo-valorizzato");
 
-                html += `<td${classeCella} title="${valore.replace(/"/g, '&quot;')}">${valore !== "" ? valore : "-"}</td>`;
+                html += `<td class="${classi.join(" ")}" title="${valore.replace(/"/g, '&quot;')}">${valore !== "" ? valore : "-"}</td>`;
             });
 
             if (icona) {
@@ -427,7 +486,8 @@
                 if (cliccabile) {
                     let rigaEscaped = btoa(unescape(encodeURIComponent(JSON.stringify({
                         data: formatDataItaliana(riga[0] ? riga[0].trim() : ""),
-                        risultati: risultatiVerifica
+                        risultati: risultatiVerifica,
+                        contesto: contesto
                     }))));
                     html += `<td class="${classe}" style="cursor:pointer; text-align:center;" onclick="window.apriVerificaEfficacia('${rigaEscaped}')" title="Clicca per il dettaglio">${icona}</td>`;
                 } else {
@@ -461,23 +521,44 @@
 
         let corpoHTML = `<p style='font-size:0.85rem; color:#64748b; margin-bottom: 12px;'>Dosaggio del ${dati.data} — pH-/Cloro/Decloratore: confronto mattina/sera dello stesso giorno. Tricloro: confronto con la prima lettura CYA disponibile almeno ${GIORNI_DISSOLUZIONE_TRICLORO} giorni dopo.</p>`;
 
+        if (dati.contesto) {
+            let c = dati.contesto;
+            let pezziContesto = [];
+            if (c.tempMattina != null || c.tempSera != null) {
+                let partiTemp = [];
+                if (c.tempMattina != null) partiTemp.push(`${c.tempMattina}°C mattina`);
+                if (c.tempSera != null) partiTemp.push(`${c.tempSera}°C sera`);
+                pezziContesto.push(`🌡️ ${partiTemp.join(" / ")}`);
+            }
+            if (c.ospiti != null) pezziContesto.push(`👥 ${c.ospiti} ospiti`);
+            if (c.reintegro != null) pezziContesto.push(`💧 ${c.reintegro.toLocaleString("it-IT")} l reintegro`);
+
+            if (pezziContesto.length > 0) {
+                corpoHTML += `<p style="font-size:0.85rem; color:#334155; background-color:#f1f5f9; padding:8px 10px; border-radius:4px; margin-bottom:12px;">${pezziContesto.join(" &nbsp;·&nbsp; ")}</p>`;
+            }
+        }
+
         dati.risultati.forEach(r => {
             if (r.tipo === "tricloro") {
                 let info = r.tricloroInfo;
                 let attesoTesto = info.cyaAtteso.toFixed(2).replace(".", ",");
+                let etichettaQuantita = `${info.pastiglie} ${info.pastiglie === 1 ? "pastiglia" : "pastiglie"} (${info.grammi}g)`;
 
                 if (info.posticipato) {
+                    let ultimoNotoTesto = info.cyaUltimoNoto != null
+                        ? `Ultimo CYA noto: <strong>${info.cyaUltimoNoto} ppm</strong> (${info.dataUltimoNoto}).`
+                        : `Nessuna lettura CYA registrata prima di questa data.`;
                     corpoHTML += `<div style="padding:10px 0; border-bottom:1px solid #e2e8f0;">
-                        <strong>${r.prodotto}</strong> — ${r.quantita} g
+                        <strong>${r.prodotto}</strong> — ${etichettaQuantita}
                         <br><span style="color:#0369a1; font-weight:bold;">⏳ Verifica posticipata</span>
-                        <br><span style="font-size:0.85rem; color:#475569;">Il tricloro impiega 3-4 giorni a sciogliersi. CYA atteso in aumento di circa +${attesoTesto} ppm (formula stechiometrica). Ricontrolla dopo la prossima lettura di CYA, almeno ${GIORNI_DISSOLUZIONE_TRICLORO} giorni dopo il dosaggio.</span>
+                        <br><span style="font-size:0.85rem; color:#475569;">Il tricloro impiega 3-4 giorni a sciogliersi. ${ultimoNotoTesto} CYA atteso in aumento di circa +${attesoTesto} ppm (formula stechiometrica), quindi a circa ${info.cyaUltimoNoto != null ? (info.cyaUltimoNoto + parseFloat(attesoTesto.replace(",", "."))).toFixed(1).replace(".", ",") : '?'} ppm. Ricontrolla dopo la prossima lettura di CYA, almeno ${GIORNI_DISSOLUZIONE_TRICLORO} giorni dopo il dosaggio.</span>
                     </div>`;
                     return;
                 }
 
                 if (!r.esito) {
                     corpoHTML += `<div style="padding:10px 0; border-bottom:1px solid #e2e8f0;">
-                        <strong>${r.prodotto}</strong> — ${r.quantita} g
+                        <strong>${r.prodotto}</strong> — ${etichettaQuantita}
                         <br><span style="color:#94a3b8;">CYA atteso in aumento di circa +${attesoTesto} ppm. Prima lettura CYA disponibile dopo il dosaggio: ${info.cyaDopo} ppm (${info.dataDopo}) — manca però una lettura CYA precedente al dosaggio per calcolare l'aumento reale.</span>
                     </div>`;
                     return;
@@ -488,7 +569,7 @@
                 let deltaTesto = info.delta.toFixed(2).replace(".", ",");
 
                 corpoHTML += `<div style="padding:10px 0; border-bottom:1px solid #e2e8f0;">
-                    <strong>${r.prodotto}</strong> — ${r.quantita} g
+                    <strong>${r.prodotto}</strong> — ${etichettaQuantita}
                     <br><span style="color:${coloreEsito}; font-weight:bold;">${testoEsito}</span>
                     <br><span style="font-size:0.85rem; color:#475569;">CYA: ${info.cyaPrima} → ${info.cyaDopo} ppm (Δ${info.delta>=0?'+':''}${deltaTesto}, atteso +${attesoTesto}) — lettura del ${info.dataDopo}</span>
                 </div>`;

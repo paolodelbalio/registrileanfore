@@ -48,6 +48,19 @@
                         const righeDati = data.slice(2);
 
                         disegnaTabellaContatori(intestazioniReali, righeDati);
+
+                        // Espone i dati letti ad altri script (es. consumi.js) per incroci tra registri
+                        let datiOggetti = righeDati
+                            .filter(riga => riga.length > 0 && riga[0])
+                            .map(riga => {
+                                let oggetto = {};
+                                intestazioniReali.forEach((intestazione, indice) => {
+                                    oggetto[(intestazione || "").trim()] = riga[indice] ? riga[indice].toString().trim() : "";
+                                });
+                                return oggetto;
+                            });
+                        window.__registroContatoriDati = datiOggetti;
+                        document.dispatchEvent(new CustomEvent("contatori:datiPronti", { detail: datiOggetti }));
                     }
                 });
             })
