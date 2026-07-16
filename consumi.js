@@ -187,7 +187,9 @@
             return {
                 posticipato: true,
                 cyaAtteso: cyaAtteso,
-                grammi: grammi
+                grammi: grammi,
+                cyaUltimoNoto: prima ? prima.valore : null,
+                dataUltimoNoto: prima ? prima.chiave : null
             };
         }
 
@@ -467,10 +469,13 @@
                 let attesoTesto = info.cyaAtteso.toFixed(2).replace(".", ",");
 
                 if (info.posticipato) {
+                    let ultimoNotoTesto = info.cyaUltimoNoto != null
+                        ? `Ultimo CYA noto: <strong>${info.cyaUltimoNoto} ppm</strong> (${info.dataUltimoNoto}).`
+                        : `Nessuna lettura CYA registrata prima di questa data.`;
                     corpoHTML += `<div style="padding:10px 0; border-bottom:1px solid #e2e8f0;">
                         <strong>${r.prodotto}</strong> — ${r.quantita} g
                         <br><span style="color:#0369a1; font-weight:bold;">⏳ Verifica posticipata</span>
-                        <br><span style="font-size:0.85rem; color:#475569;">Il tricloro impiega 3-4 giorni a sciogliersi. CYA atteso in aumento di circa +${attesoTesto} ppm (formula stechiometrica). Ricontrolla dopo la prossima lettura di CYA, almeno ${GIORNI_DISSOLUZIONE_TRICLORO} giorni dopo il dosaggio.</span>
+                        <br><span style="font-size:0.85rem; color:#475569;">Il tricloro impiega 3-4 giorni a sciogliersi. ${ultimoNotoTesto} CYA atteso in aumento di circa +${attesoTesto} ppm (formula stechiometrica), quindi a circa ${info.cyaUltimoNoto != null ? (info.cyaUltimoNoto + parseFloat(attesoTesto.replace(",", "."))).toFixed(1).replace(".", ",") : '?'} ppm. Ricontrolla dopo la prossima lettura di CYA, almeno ${GIORNI_DISSOLUZIONE_TRICLORO} giorni dopo il dosaggio.</span>
                     </div>`;
                     return;
                 }
