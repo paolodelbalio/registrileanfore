@@ -58,9 +58,9 @@ ven 10 lug 26,500,200,,,,
 sab 11 lug 26,500,200,,,,
 dom 12 lug 26,500,250,,,,
 lun 13 lug 26,300,100,,,,
-mar 14 lug 26,150,200,1000,1,111,Temperatura Alta
-mer 15 lug 26,200,200,,,,
-gio 16 lug 26,,,,,,
+mar 14 lug 26,150,200,1000,,,Temperatura Alta
+mer 15 lug 26,200,200,,,,Temperatura Alta
+gio 16 lug 26,150,250,,,,Temperatura Alta
 ven 17 lug 26,,,,,,
 sab 18 lug 26,,,,,,
 dom 19 lug 26,,,,,,
