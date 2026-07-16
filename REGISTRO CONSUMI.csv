@@ -30,7 +30,7 @@ ven 12 giu 26,,90,,,,,
 sab 13 giu 26,300,,,,,,
 dom 14 giu 26,2000,,,,,,
 lun 15 giu 26,,250,,,,,Arrivato ipoclorito di calcio granulare
-mar 16 giu 26,,,1,,,,
+mar 16 giu 26,,,,,,,
 mer 17 giu 26,600,,,,,,
 gio 18 giu 26,,,,,,,
 ven 19 giu 26,600,90,,,,,
@@ -60,7 +60,7 @@ dom 12 lug 26,500,250,,,,,
 lun 13 lug 26,300,100,,,,,
 mar 14 lug 26,150,200,,1000,,,Temperatura Alta
 mer 15 lug 26,200,200,,,,,Temperatura Alta
-gio 16 lug 26,150,250,,,,,Temperatura Alta
+gio 16 lug 26,150,250,1,,,,"Temperatura Alta, CYA basso"
 ven 17 lug 26,,,,,,,
 sab 18 lug 26,,,,,,,
 dom 19 lug 26,,,,,,,
