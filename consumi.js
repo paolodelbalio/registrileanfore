@@ -155,18 +155,41 @@
     // reintegro. Scarta valori negativi o assurdamente grandi (>20.000 l/giorno): sono quasi
     // sempre un errore di formula nel foglio (contatore non letto quel giorno) piuttosto che
     // un reintegro reale, e mostrarli confonderebbe più che aiutare.
+    // Interpreta la Data del Registro Contatori, che può presentarsi in due formati diversi
+    // a seconda di come LibreOffice la esporta: puramente numerico "20/05/2026", oppure con
+    // giorno della settimana e mese abbreviato "mer 20/mag 26". Restituisce la chiave
+    // "AAAA-MM-GG" o null se il testo non corrisponde a nessuno dei due formati.
+    function parseDataContatoriChiave(testo) {
+        if (!testo) return null;
+        let t = testo.trim();
+
+        let mNumerico = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+        if (mNumerico) {
+            let giorno = parseInt(mNumerico[1], 10);
+            let mese = parseInt(mNumerico[2], 10) - 1;
+            let anno = parseInt(mNumerico[3], 10);
+            if (anno < 100) anno += 2000;
+            return `${anno}-${String(mese + 1).padStart(2, "0")}-${String(giorno).padStart(2, "0")}`;
+        }
+
+        let mAbbreviato = t.match(/(\d{1,2})\/([a-zàèéìòù]{3})\s+(\d{2,4})/i);
+        if (mAbbreviato) {
+            let giorno = parseInt(mAbbreviato[1], 10);
+            let meseIdx = MESI_IT.indexOf(mAbbreviato[2].toLowerCase());
+            if (meseIdx === -1) return null;
+            let anno = parseInt(mAbbreviato[3], 10);
+            if (anno < 100) anno += 2000;
+            return `${anno}-${String(meseIdx + 1).padStart(2, "0")}-${String(giorno).padStart(2, "0")}`;
+        }
+
+        return null;
+    }
+
     function costruisciMappaContatori(datiContatori) {
         let mappa = {};
         datiContatori.forEach(riga => {
-            let dataGrezza = (riga["Data"] || "").trim();
-            let m = dataGrezza.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-            if (!m) return;
-
-            let giorno = parseInt(m[1], 10);
-            let mese = parseInt(m[2], 10) - 1;
-            let anno = parseInt(m[3], 10);
-            if (anno < 100) anno += 2000;
-            let chiave = `${anno}-${String(mese + 1).padStart(2, "0")}-${String(giorno).padStart(2, "0")}`;
+            let chiave = parseDataContatoriChiave(riga["Data"]);
+            if (!chiave) return;
 
             let chiaveReintegro = Object.keys(riga).find(k => k.trim().toLowerCase().startsWith("reintegro"));
             if (!chiaveReintegro) return;
