@@ -114,6 +114,31 @@ tr:nth-child(even) td {
     background-color: #f8fafc;
 }
 
+/* Registro Consumi: alcune colonne (Decloratore, Flocculante, Tricloro, Note) vengono
+   valorizzate raramente o con testo lungo (es. "Temperatura Alta, CYA basso") e finiscono
+   per allargare la tabella inutilmente. Le teniamo strette e tagliamo il testo in eccesso
+   con i puntini di sospensione; il valore completo resta comunque leggibile al passaggio
+   del mouse grazie all'attributo title già presente su ogni cella. */
+#consumiTable th.col-decloratore,
+#consumiTable td.col-decloratore,
+#consumiTable th.col-flocculante,
+#consumiTable td.col-flocculante,
+#consumiTable th.col-tricloro,
+#consumiTable td.col-tricloro {
+    width: 80px;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#consumiTable th.col-note,
+#consumiTable td.col-note {
+    width: 160px;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* COLORI COMPATTI IN TRASPARENZA (STILE ORIGINALE MA SOFT) */
 .evidenzia-verde {
     background-color: rgba(187, 247, 208, 0.5) !important; /* Verde leggero */

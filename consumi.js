@@ -40,6 +40,7 @@
     // TCCA diventa CYA residuo. Volume vasca Le Anfore: 92 m³ = 92.000 litri.
     const FRAZIONE_CYA_DA_TCCA = 0.555;
     const VOLUME_VASCA_LITRI = 92000;
+    const PESO_PASTIGLIA_TRICLORO_G = 200; // pastiglie BIG-BLU TCCA 90/200, 200g cad.
 
     function formatDataItaliana(testo) {
         if (!testo) return testo;
@@ -177,9 +178,10 @@
     // giorni dopo il dosaggio. Se non è ancora passato abbastanza tempo, o non c'è ancora una
     // lettura successiva, la verifica resta "posticipata" mostrando comunque la previsione.
     function calcolaVerificaTricloro(chiaveGiorno, valoreTesto) {
-        let grammi = parseFloat(valoreTesto.replace(",", "."));
-        if (isNaN(grammi) || grammi <= 0) return null;
+        let pastiglie = parseFloat(valoreTesto.replace(",", "."));
+        if (isNaN(pastiglie) || pastiglie <= 0) return null;
 
+        let grammi = pastiglie * PESO_PASTIGLIA_TRICLORO_G;
         let cyaAtteso = (grammi * FRAZIONE_CYA_DA_TCCA * 1000) / VOLUME_VASCA_LITRI;
         let { prima, dopo, giorniDopo } = trovaCyaIntornoA(chiaveGiorno);
 
@@ -187,6 +189,7 @@
             return {
                 posticipato: true,
                 cyaAtteso: cyaAtteso,
+                pastiglie: pastiglie,
                 grammi: grammi,
                 cyaUltimoNoto: prima ? prima.valore : null,
                 dataUltimoNoto: prima ? prima.chiave : null
@@ -202,6 +205,7 @@
                 cyaAtteso: cyaAtteso,
                 cyaDopo: dopo.valore,
                 dataDopo: dopo.chiave,
+                pastiglie: pastiglie,
                 grammi: grammi
             };
         }
@@ -224,6 +228,7 @@
             cyaPrima: prima.valore,
             cyaDopo: dopo.valore,
             dataDopo: dopo.chiave,
+            pastiglie: pastiglie,
             grammi: grammi
         };
     }
@@ -396,7 +401,8 @@
 
         let html = "<thead><tr>";
         intestazioni.forEach(titolo => {
-            html += `<th>${titolo || ""}</th>`;
+            let classeColonna = "col-" + (titolo || "").trim().toLowerCase().replace(/\s+/g, "-");
+            html += `<th class="${classeColonna}">${titolo || ""}</th>`;
         });
         html += `<th>Verifica</th>`;
         html += "</tr></thead><tbody>";
@@ -416,12 +422,11 @@
 
                 // Colonne quantità (tutte tranne Data e Note): evidenzia solo se valorizzate
                 const eColonnaQuantita = (n !== "data" && n !== "note");
-                let classeCella = "";
-                if (eColonnaQuantita && valore !== "") {
-                    classeCella = ' class="consumo-valorizzato"';
-                }
+                let classeColonna = "col-" + n.replace(/\s+/g, "-");
+                let classi = [classeColonna];
+                if (eColonnaQuantita && valore !== "") classi.push("consumo-valorizzato");
 
-                html += `<td${classeCella} title="${valore.replace(/"/g, '&quot;')}">${valore !== "" ? valore : "-"}</td>`;
+                html += `<td class="${classi.join(" ")}" title="${valore.replace(/"/g, '&quot;')}">${valore !== "" ? valore : "-"}</td>`;
             });
 
             if (icona) {
@@ -467,13 +472,14 @@
             if (r.tipo === "tricloro") {
                 let info = r.tricloroInfo;
                 let attesoTesto = info.cyaAtteso.toFixed(2).replace(".", ",");
+                let etichettaQuantita = `${info.pastiglie} ${info.pastiglie === 1 ? "pastiglia" : "pastiglie"} (${info.grammi}g)`;
 
                 if (info.posticipato) {
                     let ultimoNotoTesto = info.cyaUltimoNoto != null
                         ? `Ultimo CYA noto: <strong>${info.cyaUltimoNoto} ppm</strong> (${info.dataUltimoNoto}).`
                         : `Nessuna lettura CYA registrata prima di questa data.`;
                     corpoHTML += `<div style="padding:10px 0; border-bottom:1px solid #e2e8f0;">
-                        <strong>${r.prodotto}</strong> — ${r.quantita} g
+                        <strong>${r.prodotto}</strong> — ${etichettaQuantita}
                         <br><span style="color:#0369a1; font-weight:bold;">⏳ Verifica posticipata</span>
                         <br><span style="font-size:0.85rem; color:#475569;">Il tricloro impiega 3-4 giorni a sciogliersi. ${ultimoNotoTesto} CYA atteso in aumento di circa +${attesoTesto} ppm (formula stechiometrica), quindi a circa ${info.cyaUltimoNoto != null ? (info.cyaUltimoNoto + parseFloat(attesoTesto.replace(",", "."))).toFixed(1).replace(".", ",") : '?'} ppm. Ricontrolla dopo la prossima lettura di CYA, almeno ${GIORNI_DISSOLUZIONE_TRICLORO} giorni dopo il dosaggio.</span>
                     </div>`;
@@ -482,7 +488,7 @@
 
                 if (!r.esito) {
                     corpoHTML += `<div style="padding:10px 0; border-bottom:1px solid #e2e8f0;">
-                        <strong>${r.prodotto}</strong> — ${r.quantita} g
+                        <strong>${r.prodotto}</strong> — ${etichettaQuantita}
                         <br><span style="color:#94a3b8;">CYA atteso in aumento di circa +${attesoTesto} ppm. Prima lettura CYA disponibile dopo il dosaggio: ${info.cyaDopo} ppm (${info.dataDopo}) — manca però una lettura CYA precedente al dosaggio per calcolare l'aumento reale.</span>
                     </div>`;
                     return;
@@ -493,7 +499,7 @@
                 let deltaTesto = info.delta.toFixed(2).replace(".", ",");
 
                 corpoHTML += `<div style="padding:10px 0; border-bottom:1px solid #e2e8f0;">
-                    <strong>${r.prodotto}</strong> — ${r.quantita} g
+                    <strong>${r.prodotto}</strong> — ${etichettaQuantita}
                     <br><span style="color:${coloreEsito}; font-weight:bold;">${testoEsito}</span>
                     <br><span style="font-size:0.85rem; color:#475569;">CYA: ${info.cyaPrima} → ${info.cyaDopo} ppm (Δ${info.delta>=0?'+':''}${deltaTesto}, atteso +${attesoTesto}) — lettura del ${info.dataDopo}</span>
                 </div>`;
