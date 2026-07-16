@@ -114,44 +114,69 @@ tr:nth-child(even) td {
     background-color: #f8fafc;
 }
 
-/* Registro Consumi: le colonne di valori (Data, pH-, Cloro, Tricloro, Antialghe,
-   Decloratore, Flocculante) contengono numeri corti o "-": le teniamo strette invece
-   di lasciarle allargarsi a vuoto. Lo spazio risparmiato va tutto a Note, che è l'unica
-   colonna con testo davvero lungo (es. "Temperatura Alta, CYA basso") e quindi l'unica
-   a cui serve margine per non essere tagliata troppo. Il valore completo resta comunque
-   leggibile al passaggio del mouse grazie all'attributo title già presente su ogni cella. */
+/* Registro Consumi: le intestazioni (es. "Decloratore", "Flocculante") sono più larghe
+   dei valori che contengono (numeri corti o "-"), quindi le larghezze sono calibrate sul
+   testo dell'intestazione, non sul contenuto, per non tagliarle mai. Note è l'unica colonna
+   lasciata senza larghezza fissa: assorbe tutto lo spazio libero rimasto nella tabella.
+   Verifica va invece bloccata a una larghezza fissa piccola (contiene solo un'icona) — senza
+   quel limite il browser tende ad assegnare lo spazio libero a lei invece che a Note, perché
+   è l'ultima colonna e altrimenti resterebbe anche lei senza vincoli. */
 #consumiTable th.col-data,
 #consumiTable td.col-data {
-    width: 95px;
-    max-width: 95px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    width: 105px;
+    min-width: 105px;
 }
 
 #consumiTable th.col-ph-,
-#consumiTable td.col-ph-,
-#consumiTable th.col-cloro,
-#consumiTable td.col-cloro,
-#consumiTable th.col-tricloro,
-#consumiTable td.col-tricloro,
-#consumiTable th.col-antialghe,
-#consumiTable td.col-antialghe,
-#consumiTable th.col-decloratore,
-#consumiTable td.col-decloratore,
-#consumiTable th.col-flocculante,
-#consumiTable td.col-flocculante {
-    width: 60px;
-    max-width: 60px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+#consumiTable td.col-ph- {
+    width: 55px;
+    min-width: 55px;
 }
 
-/* Nessuna larghezza fissa qui: Note prende tutto lo spazio che le colonne sopra
-   hanno liberato. Il taglio con i puntini scatta solo se anche così non basta. */
+#consumiTable th.col-cloro,
+#consumiTable td.col-cloro {
+    width: 65px;
+    min-width: 65px;
+}
+
+#consumiTable th.col-tricloro,
+#consumiTable td.col-tricloro {
+    width: 85px;
+    min-width: 85px;
+}
+
+#consumiTable th.col-antialghe,
+#consumiTable td.col-antialghe {
+    width: 90px;
+    min-width: 90px;
+}
+
+#consumiTable th.col-decloratore,
+#consumiTable td.col-decloratore {
+    width: 105px;
+    min-width: 105px;
+}
+
+#consumiTable th.col-flocculante,
+#consumiTable td.col-flocculante {
+    width: 105px;
+    min-width: 105px;
+}
+
+/* Nessuna larghezza fissa qui: Note prende tutto lo spazio libero rimasto nella tabella.
+   Il taglio con i puntini scatta solo se anche così il testo non basta. */
 #consumiTable th.col-note,
 #consumiTable td.col-note {
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#consumiTable th#colonnaVerifica,
+#consumiTable td.col-verifica {
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
 }
 
 /* COLORI COMPATTI IN TRASPARENZA (STILE ORIGINALE MA SOFT) */

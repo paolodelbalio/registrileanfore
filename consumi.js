@@ -454,7 +454,7 @@
             let classeColonna = "col-" + (titolo || "").trim().toLowerCase().replace(/\s+/g, "-");
             html += `<th class="${classeColonna}">${titolo || ""}</th>`;
         });
-        html += `<th>Verifica</th>`;
+        html += `<th id="colonnaVerifica">Verifica</th>`;
         html += "</tr></thead><tbody>";
 
         righeDati.forEach(riga => {
@@ -489,12 +489,12 @@
                         risultati: risultatiVerifica,
                         contesto: contesto
                     }))));
-                    html += `<td class="${classe}" style="cursor:pointer; text-align:center;" onclick="window.apriVerificaEfficacia('${rigaEscaped}')" title="Clicca per il dettaglio">${icona}</td>`;
+                    html += `<td class="col-verifica ${classe}" style="cursor:pointer; text-align:center;" onclick="window.apriVerificaEfficacia('${rigaEscaped}')" title="Clicca per il dettaglio">${icona}</td>`;
                 } else {
-                    html += `<td class="${classe}" style="text-align:center;" title="Dati insufficienti nel registro chimico per verificare l'effetto">${icona}</td>`;
+                    html += `<td class="col-verifica ${classe}" style="text-align:center;" title="Dati insufficienti nel registro chimico per verificare l'effetto">${icona}</td>`;
                 }
             } else {
-                html += `<td class="testo-muto" style="text-align:center;">-</td>`;
+                html += `<td class="col-verifica testo-muto" style="text-align:center;">-</td>`;
             }
 
             html += "</tr>";
