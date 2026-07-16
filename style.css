@@ -114,27 +114,42 @@ tr:nth-child(even) td {
     background-color: #f8fafc;
 }
 
-/* Registro Consumi: alcune colonne (Decloratore, Flocculante, Tricloro, Note) vengono
-   valorizzate raramente o con testo lungo (es. "Temperatura Alta, CYA basso") e finiscono
-   per allargare la tabella inutilmente. Le teniamo strette e tagliamo il testo in eccesso
-   con i puntini di sospensione; il valore completo resta comunque leggibile al passaggio
-   del mouse grazie all'attributo title già presente su ogni cella. */
-#consumiTable th.col-decloratore,
-#consumiTable td.col-decloratore,
-#consumiTable th.col-flocculante,
-#consumiTable td.col-flocculante,
-#consumiTable th.col-tricloro,
-#consumiTable td.col-tricloro {
-    width: 80px;
-    max-width: 80px;
+/* Registro Consumi: le colonne di valori (Data, pH-, Cloro, Tricloro, Antialghe,
+   Decloratore, Flocculante) contengono numeri corti o "-": le teniamo strette invece
+   di lasciarle allargarsi a vuoto. Lo spazio risparmiato va tutto a Note, che è l'unica
+   colonna con testo davvero lungo (es. "Temperatura Alta, CYA basso") e quindi l'unica
+   a cui serve margine per non essere tagliata troppo. Il valore completo resta comunque
+   leggibile al passaggio del mouse grazie all'attributo title già presente su ogni cella. */
+#consumiTable th.col-data,
+#consumiTable td.col-data {
+    width: 95px;
+    max-width: 95px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
+#consumiTable th.col-ph-,
+#consumiTable td.col-ph-,
+#consumiTable th.col-cloro,
+#consumiTable td.col-cloro,
+#consumiTable th.col-tricloro,
+#consumiTable td.col-tricloro,
+#consumiTable th.col-antialghe,
+#consumiTable td.col-antialghe,
+#consumiTable th.col-decloratore,
+#consumiTable td.col-decloratore,
+#consumiTable th.col-flocculante,
+#consumiTable td.col-flocculante {
+    width: 60px;
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Nessuna larghezza fissa qui: Note prende tutto lo spazio che le colonne sopra
+   hanno liberato. Il taglio con i puntini scatta solo se anche così non basta. */
 #consumiTable th.col-note,
 #consumiTable td.col-note {
-    width: 160px;
-    max-width: 160px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
