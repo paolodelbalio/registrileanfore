@@ -60,6 +60,10 @@
 
         datiChimico = datiFormattati;
         creaTabellaChimica(intestazioni, datiFormattati);
+
+        // Espone i dati letti ad altri script (es. consumi.js) per incroci tra registri
+        window.__registroChimicoDati = datiFormattati;
+        document.dispatchEvent(new CustomEvent("chimico:datiPronti", { detail: datiFormattati }));
     }
 
     function ottieniClasseColore(parametro, v) {
