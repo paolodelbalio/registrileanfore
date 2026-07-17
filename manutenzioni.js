@@ -9,6 +9,50 @@
         "PULIZIA PREFILTRO": { giallo: 10, rosso: 15, msg: "Pulizia prefiltro pompa", paroleChiave: ["PREFILTRO", "PRE-FILTRO"] }
     };
 
+    // Istruzioni passo-passo per ciascun intervento. Vengono mostrate nel popup solo quando lo
+    // stato di quell'intervento è giallo o rosso, non quando è verde (per non affollare il popup
+    // con procedure che al momento non servono).
+    const ISTRUZIONI = {
+        "CONTROLAVAGGIO": {
+            titolo: "📖 Guida Tecnica al Controlavaggio",
+            passi: [
+                "<strong>Spegnere la pompa</strong> di filtrazione della piscina.",
+                "Ruotare la valvola selettrice del filtro sulla posizione <strong>\"CONTROLAVAGGIO\" (Backwash)</strong>.",
+                "Aprire la valvola di scarico, <strong>chiudere la valvola di mandata</strong> e riaccendere la pompa.",
+                "Lasciare circolare l'acqua per circa <strong>2-3 minuti</strong>, o finché la spia trasparente dello scarico non torna perfettamente limpida.",
+                "<strong>Spegnere nuovamente la pompa</strong>.",
+                "Spostare la valvola selettrice sulla posizione <strong>\"RISCIACQUO\" (Rinse)</strong>.",
+                "<strong>Accendere la pompa</strong> per circa 30 secondi per assestare la sabbia del filtro ed evitare residui in piscina.",
+                "<strong>Spegnere la pompa</strong>, riaprire la valvola di mandata, chiudere lo scarico, rimettere la valvola selettrice su <strong>\"FILTRAZIONE\" (Filter)</strong> e riaccendere definitivamente."
+            ]
+        },
+        "PULIZIA CESTELLI": {
+            titolo: "📖 Guida Tecnica alla Pulizia Cestelli Skimmer",
+            passi: [
+                "<strong>Spegnere la pompa</strong> di filtrazione.",
+                "Aprire il coperchio dello skimmer.",
+                "Estrarre il cestello.",
+                "Svuotarlo da foglie e detriti e sciacquarlo con un getto d'acqua.",
+                "Controllare che non sia danneggiato/deformato prima di rimontarlo.",
+                "Riposizionare il cestello e richiudere il coperchio.",
+                "<strong>Riaccendere la pompa</strong>."
+            ]
+        },
+        "PULIZIA PREFILTRO": {
+            titolo: "📖 Guida Tecnica alla Pulizia Prefiltro Pompa",
+            passi: [
+                "<strong>Spegnere la pompa</strong>, posizionare la valvola selettrice in scarico, chiudere le valvole degli skimmer e della presa di fondo e la valvola della mandata (se presente) o le valvole delle bocchette.",
+                "Smontare il coperchio.",
+                "Rimuovere e pulire meccanicamente il cestello.",
+                "Aprire leggermente la valvola della presa di fondo per eliminare lo sporco residuo nella pompa.",
+                "Riposizionare il cestello, chiudere il coperchio.",
+                "Chiudere la valvola di scarico, riaprire le valvole, posizionare la valvola selettrice in filtrazione.",
+                "Aprire lo sfiato per far uscire l'aria.",
+                "<strong>Riavviare la pompa</strong>."
+            ]
+        }
+    };
+
     // Mesi abbreviati italiani, per riconoscere date scritte come testo (es. "19 giu 2026")
     const MESI_IT = { "GEN": 0, "FEB": 1, "MAR": 2, "APR": 3, "MAG": 4, "GIU": 5, "LUG": 6, "AGO": 7, "SET": 8, "OTT": 9, "NOV": 10, "DIC": 11 };
 
@@ -240,14 +284,34 @@
         `;
     }
 
+    // Genera il blocco istruzioni per un intervento, solo se il suo stato è giallo o rosso
+    // (se è verde non serve mostrarle, l'intervento è già stato fatto di recente).
+    function generaBloccoIstruzioni(chiave, stato) {
+        if (stato !== "giallo" && stato !== "rosso") return "";
+        let guida = ISTRUZIONI[chiave];
+        if (!guida) return "";
+
+        let passiHtml = guida.passi.map(p => `<li style="margin-bottom: 6px;">${p}</li>`).join("");
+        return `
+            <div style="margin: 6px 0 18px 0; padding: 10px 14px; background: #f8f9fa; border-radius: 4px;">
+                <h4 style="margin: 0 0 8px 0; color: #0066cc; font-size: 0.95rem;">${guida.titolo}</h4>
+                <ol style="padding-left: 20px; margin: 0; line-height: 1.5; color: #444; font-size: 0.9rem;">
+                    ${passiHtml}
+                </ol>
+            </div>
+        `;
+    }
+
     window.apriDettaglioControlavaggio = function() {
         if (document.getElementById("popup-scadenze")) return;
 
-        // Ordine fisso di visualizzazione: Controlavaggio, Cestelli, Prefiltro
+        // Ordine fisso di visualizzazione: Controlavaggio, Cestelli, Prefiltro.
+        // Per ciascuno: il blocco di stato, seguito dalle istruzioni SOLO se giallo o rosso.
         let ordine = ["CONTROLAVAGGIO", "PULIZIA CESTELLI", "PULIZIA PREFILTRO"];
         let righeHtml = ordine.map(chiave => {
             let info = window.statoScadenzeGlobali.find(s => s.chiave === chiave);
-            return info ? generaRigaScadenza(info) : "";
+            if (!info) return "";
+            return generaRigaScadenza(info) + generaBloccoIstruzioni(chiave, info.stato);
         }).join("");
 
         const popup = document.createElement("div");
@@ -263,18 +327,6 @@
                 <h3 style="margin-top: 0; border-bottom: 2px solid #0066cc; padding-bottom: 10px; color: #333;">🛠️ Stato Scadenze Manutenzione</h3>
 
                 ${righeHtml}
-
-                <h4 style="margin: 15px 0 8px 0; color: #0066cc;">📖 Guida Tecnica al Controlavaggio:</h4>
-                <ol style="padding-left: 20px; line-height: 1.5; color: #444; font-size: 0.92rem;">
-                    <li style="margin-bottom: 6px;"><strong>Spegnere la pompa</strong> di filtrazione della piscina.</li>
-                    <li style="margin-bottom: 6px;">Ruotare la valvola selettrice del filtro sulla posizione <strong>"CONTROLAVAGGIO" (Backwash)</strong>.</li>
-                    <li style="margin-bottom: 6px;">Aprire la valvola di scarico (se presente) e <strong>riaccendere la pompa</strong>.</li>
-                    <li style="margin-bottom: 6px;">Lasciare circolare l'acqua per circa <strong>2-3 minuti</strong>, o finché la spia trasparente dello scarico non torna perfettamente limpida.</li>
-                    <li style="margin-bottom: 6px;"><strong>Spegnere nuovamente la pompa</strong>.</li>
-                    <li style="margin-bottom: 6px;">Spostare la valvola selettrice sulla posizione <strong>"RISCIACQUO" (Rinse)</strong>.</li>
-                    <li style="margin-bottom: 6px;"><strong>Accendere la pompa</strong> per circa 30 secondi per assestare la sabbia del filtro ed evitare residui in piscina.</li>
-                    <li style="margin-bottom: 6px;"><strong>Spegnere la pompa</strong>, rimettere la valvola su <strong>"FILTRAZIONE" (Filter)</strong> e riaccendere definitivamente.</li>
-                </ol>
 
                 <button id="chiudi-popup-scadenze" style="
                     width: 100%; padding: 12px; background: #0066cc; color: #fff;
