@@ -54,7 +54,7 @@
     const TARGET_CLORO_IDEALE = 1.05; // centro fascia 0,9-1,2
     const TARGET_PH_IDEALE = 7.15;    // centro fascia 7,0-7,3
     const OSPITI_MEDIO_STAGIONE = 2.9; // media storica, usata quando gli ospiti di oggi non sono ancora noti
-    const LIMITE_ANOMALO_CLORO_G = 350; // oltre questo valore, il suggerimento va segnalato come anomalo (vedi conversazione: mai superato se non 1-2 volte)
+    const LIMITE_ANOMALO_CLORO_G = 350; // riferimento storico (dose massima normalmente usata finora), non una soglia di errore: superarlo può essere legittimo in certe condizioni
 
     const COEF_CLORO = {
         dose: 0.005873, temp: -0.056180, ospiti: -0.047088, cya: 0.027418,
@@ -781,8 +781,8 @@
         </p>`;
 
         let avvisoCloro = s.cloroAnomalo
-            ? `<p style="font-size:0.85rem; color:#991b1b; background-color:#fee2e2; padding:8px 10px; border-radius:4px; margin-bottom:8px;">
-                 ⚠️ Valore anomalo (oltre ${LIMITE_ANOMALO_CLORO_G}g, mai superato normalmente con l'ipoclorito) — controlla a occhio prima di seguirlo, potrebbe indicare un problema nella lettura o nel calcolo.
+            ? `<p style="font-size:0.85rem; color:#0369a1; background-color:#f0f9ff; padding:8px 10px; border-radius:4px; margin-bottom:8px;">
+                 ℹ️ Più alto di quanto tu abbia normalmente dosato finora (di solito sotto ${LIMITE_ANOMALO_CLORO_G}g) — non è detto sia sbagliato, ma vale la pena ricontrollare temperatura/CYA inseriti prima di seguirlo.
                </p>`
             : "";
 

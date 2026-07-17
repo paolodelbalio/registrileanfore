@@ -9,7 +9,7 @@
     // Modello validato sui dati reali del periodo ipoclorito (dose, temp, ospiti, CYA -> delta
     // Cl.Lib nella giornata, R²=0,68 su 30 giorni). Sostituisce la vecchia formula (mai validata).
     const COEF_CLORO_BASE = { dose: 0.00607, temp: -0.05777, ospiti: -0.05795, cya: 0.02951, intercetta: -0.57151 };
-    const LIMITE_ANOMALO_CLORO_G = 350; // oltre questo valore il suggerimento va segnalato come anomalo
+    const LIMITE_ANOMALO_CLORO_G = 350; // riferimento storico (dose massima normalmente usata finora), non una soglia di errore: superarlo può essere legittimo in certe condizioni
 
     let graficoCorrente = null;
     let datiChimico = [];
@@ -225,12 +225,14 @@
         let ospitiCorrenti = 0;
         let tempCorrente = 26.5;
         let cyaCorrenteRiga = null;
+        let clLibCorrente = null;
         if (rigaCriptata !== "") {
             try {
                 let rigaDecodificata = JSON.parse(decodeURIComponent(escape(atob(rigaCriptata))));
                 if (rigaDecodificata["N.Ospiti"]) ospitiCorrenti = parseInt(rigaDecodificata["N.Ospiti"]) || 0;
                 if (rigaDecodificata["Temp"]) tempCorrente = parseFloat(rigaDecodificata["Temp"].replace(",", ".")) || 26.5;
                 if (rigaDecodificata["_cyaStimato"] != null) cyaCorrenteRiga = rigaDecodificata["_cyaStimato"];
+                if (rigaDecodificata["Cl. Lib"]) clLibCorrente = parseFloat(rigaDecodificata["Cl. Lib"].replace(",", ".")) || null;
             } catch (e) { console.log("Errore parsing parametri riga", e); }
         }
 
@@ -280,7 +282,7 @@
                 let gIdeale = Math.max(0, Math.round((dIdeale - contributiNoti) / COEF_CLORO_BASE.dose));
 
                 let avvisoAnomalo = gIdeale > LIMITE_ANOMALO_CLORO_G
-                    ? `<p style="font-size:0.8rem; color:#991b1b;">⚠️ Valore anomalo (oltre ${LIMITE_ANOMALO_CLORO_G}g) — controlla a occhio prima di seguirlo.</p>`
+                    ? `<p style="font-size:0.8rem; color:#0369a1;">ℹ️ Più alto di quanto tu abbia normalmente dosato finora (di solito sotto ${LIMITE_ANOMALO_CLORO_G}g) — non è detto sia sbagliato, ma vale la pena ricontrollare temperatura/CYA prima di seguirlo.</p>`
                     : "";
 
                 corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Cloro Basso (${valore} mg/l)</span></h3><br>
@@ -293,8 +295,24 @@
             }
         }
         else if (p === 'cl. com') {
+            // Shock clorativo: regola standard di settore, portare il cloro libero a 10 volte
+            // il valore del combinato per rompere le clorammine (breakpoint chlorination).
+            let targetShock = valore * 10;
+            let baseCorrente = clLibCorrente != null ? clLibCorrente : 1.0;
+            let deltaShock = Math.max(0, targetShock - baseCorrente);
+            let grammiShock = Math.round(deltaShock / COEF_CLORO_BASE.dose);
+
+            // Stima pH- extra: regola di settore approssimativa (non validata sui tuoi dati,
+            // non hai mai fatto uno shock di questa entità nel registro) — indicativamente il
+            // pH- necessario per compensare l'alcalinità dell'ipoclorito è un decimo della massa
+            // di ipoclorito stesso. Da verificare/correggere con la prossima misurazione reale.
+            let grammiPhStimati = Math.round(grammiShock * 0.10);
+
             corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Cloro Combinato Elevato (${valore} mg/l)</span></h3><br>
-            <p>Valutare uno shock clorativo o l'aggiunta di ossidante non clorato, e verificare il ricambio d'acqua.</p>`;
+            <p style="margin-bottom:8px;"><strong>Shock clorativo stimato (target ${targetShock.toFixed(1)} mg/l, 10× il combinato):</strong> aggiungere circa <strong>${grammiShock}g</strong> di Ipoclorito di Calcio${clLibCorrente == null ? ' (Cl. Lib di partenza non disponibile in questa riga, stimato da 1,0 mg/l)' : ''}.</p>
+            <p style="margin-bottom:8px;"><strong>pH- extra stimato per l'alcalinità dell'ipoclorito:</strong> circa <strong>${grammiPhStimati}g</strong>.</p>
+            <p style="font-size:0.75rem; color:#991b1b;">⚠️ Lo shock è una dose molto più grande di quelle su cui è stato validato il modello (max osservato ~500g) — trattalo come stima di partenza, non come numero preciso. Il pH- extra è una regola di settore generica, non ancora verificata sui tuoi dati: osserva il risultato reale dopo il prossimo shock, così la calibriamo insieme.</p>
+            <p>Verificare anche il ricambio d'acqua e valutare, in alternativa, l'aggiunta di un ossidante non clorato.</p>`;
         }
         else if (p === 'temp') {
             if (valore > 28) {
