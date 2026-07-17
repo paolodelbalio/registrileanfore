@@ -258,23 +258,22 @@
     // la lettura delle 7 di oggi, quella delle 21 di ieri, la temperatura di entrambe, il CYA più
     // recente noto, il reintegro di ieri (miglior proxy disponibile, quello di oggi non è ancora noto)
     // e ospiti medio storico (idem, quelli di oggi non sono ancora noti).
-    function calcolaSuggerimentoOggi() {
+    // Calcola il suggerimento di dose per una data specifica (chiaveGiorno). Se quel giorno è già
+    // passato e ospiti/reintegro sono già registrati, usa i valori REALI (più precisi); altrimenti
+    // (tipicamente per "oggi", non ancora concluso) usa le stime storiche come fallback.
+    function calcolaSuggerimentoPer(chiaveGiorno) {
         if (!mappaChimicoPerData) return { errore: "Dati del registro chimico non ancora caricati." };
 
-        let chiavi = Object.keys(mappaChimicoPerData).sort();
-        // Cerca l'ultimo giorno con una mattina (07:00) valorizzata: quello è "oggi".
-        let chiaveOggi = null;
-        for (let i = chiavi.length - 1; i >= 0; i--) {
-            let g = mappaChimicoPerData[chiavi[i]];
-            if (g.mattina && g.mattina.cl != null) { chiaveOggi = chiavi[i]; break; }
+        let oggi = mappaChimicoPerData[chiaveGiorno];
+        if (!oggi || !oggi.mattina || oggi.mattina.cl == null) {
+            return { errore: "Nessuna lettura delle 7 disponibile per questa data.", chiaveGiorno };
         }
-        if (!chiaveOggi) return { errore: "Nessuna lettura delle 7 disponibile nel registro chimico." };
 
-        let oggi = mappaChimicoPerData[chiaveOggi];
-        let ieri = mappaChimicoPerData[chiaveGiornoPrecedente(chiaveOggi)] || {};
+        let chiaveIeri = chiaveGiornoPrecedente(chiaveGiorno);
+        let ieri = mappaChimicoPerData[chiaveIeri] || {};
 
         if (!ieri.sera || ieri.sera.cl == null) {
-            return { errore: "Manca la lettura delle 21 di ieri: non posso calcolare il calo notturno.", chiaveOggi };
+            return { errore: "Manca la lettura delle 21 del giorno prima: non posso calcolare il calo notturno.", chiaveGiorno };
         }
 
         let clMattina = oggi.mattina.cl;
@@ -285,7 +284,7 @@
         let tempSeraIeri = ieri.sera.temp;
 
         if (comMattina == null || comSeraIeri == null || tempMattina == null || tempSeraIeri == null) {
-            return { errore: "Mancano Cl. Combinato o Temperatura in una delle due letture (7 oggi / 21 ieri).", chiaveOggi };
+            return { errore: "Mancano Cl. Combinato o Temperatura in una delle due letture (7 di quel giorno / 21 del giorno prima).", chiaveGiorno };
         }
 
         let deltaNotteLibero = clMattina - clSeraIeri;
@@ -294,17 +293,23 @@
 
         let cyaVoce = null;
         for (let i = elencoCyaOrdinato.length - 1; i >= 0; i--) {
-            if (elencoCyaOrdinato[i].chiave <= chiaveOggi) { cyaVoce = elencoCyaOrdinato[i]; break; }
+            if (elencoCyaOrdinato[i].chiave <= chiaveGiorno) { cyaVoce = elencoCyaOrdinato[i]; break; }
         }
         let cya = cyaVoce ? cyaVoce.valore : null;
 
-        let chiaveIeri = chiaveGiornoPrecedente(chiaveOggi);
+        // Ospiti: usa il dato reale di quel giorno se già registrato, altrimenti la media storica.
+        let ospitiReali = mappaOspitiPerGiorno[chiaveGiorno];
+        let ospitiUsati = ospitiReali != null ? ospitiReali : OSPITI_MEDIO_STAGIONE;
+
+        // Reintegro: usa quello dello STESSO giorno se già registrato (giorno passato); altrimenti
+        // quello di ieri come proxy (caso "oggi", non ancora concluso).
+        let reintegroStesso = mappaReintegroPerData[chiaveGiorno];
         let reintegroIeri = mappaReintegroPerData[chiaveIeri];
-        let reintegroUsato = reintegroIeri != null ? reintegroIeri : 0;
+        let reintegroUsato = reintegroStesso != null ? reintegroStesso : (reintegroIeri != null ? reintegroIeri : 0);
 
         // --- Cloro ---
         let deltaTargetCloro = TARGET_CLORO_IDEALE - clMattina;
-        let contributiNotiCloro = COEF_CLORO.temp * tempMedia + COEF_CLORO.ospiti * OSPITI_MEDIO_STAGIONE
+        let contributiNotiCloro = COEF_CLORO.temp * tempMedia + COEF_CLORO.ospiti * ospitiUsati
             + COEF_CLORO.cya * (cya != null ? cya : 50) + COEF_CLORO.notteLibero * deltaNotteLibero
             + COEF_CLORO.notteCombinato * deltaNotteCombinato + COEF_CLORO.reintegro * reintegroUsato
             + COEF_CLORO.intercetta;
@@ -317,7 +322,7 @@
         if (phMattina != null) {
             let deltaTargetPh = TARGET_PH_IDEALE - phMattina;
             let contributiNotiPh = COEF_PH.temp * tempMedia + COEF_PH.reintegro * reintegroUsato
-                + COEF_PH.ospiti * OSPITI_MEDIO_STAGIONE + COEF_PH.intercetta;
+                + COEF_PH.ospiti * ospitiUsati + COEF_PH.intercetta;
             if (deltaTargetPh < 0) { // serve scendere
                 grammiPh = Math.max(0, Math.round((deltaTargetPh - contributiNotiPh) / COEF_PH.dose));
             } else {
@@ -326,10 +331,24 @@
         }
 
         return {
-            chiaveOggi, clMattina, clSeraIeri, comMattina, comSeraIeri, tempMattina, tempSeraIeri,
-            deltaNotteLibero, deltaNotteCombinato, tempMedia, cya, reintegroIeri, phMattina,
-            grammiCloro, cloroAnomalo, grammiPh
+            chiaveGiorno, clMattina, clSeraIeri, comMattina, comSeraIeri, tempMattina, tempSeraIeri,
+            deltaNotteLibero, deltaNotteCombinato, tempMedia, cya, reintegroUsato, ospitiUsati, phMattina,
+            grammiCloro, cloroAnomalo, grammiPh,
+            datiReali: (ospitiReali != null && reintegroStesso != null) // vero se il calcolo usa dati reali di quel giorno, non stime
         };
+    }
+
+    // "Oggi" è semplicemente l'ultimo giorno con una lettura delle 7 disponibile.
+    function calcolaSuggerimentoOggi() {
+        if (!mappaChimicoPerData) return { errore: "Dati del registro chimico non ancora caricati." };
+        let chiavi = Object.keys(mappaChimicoPerData).sort();
+        let chiaveOggi = null;
+        for (let i = chiavi.length - 1; i >= 0; i--) {
+            let g = mappaChimicoPerData[chiavi[i]];
+            if (g.mattina && g.mattina.cl != null) { chiaveOggi = chiavi[i]; break; }
+        }
+        if (!chiaveOggi) return { errore: "Nessuna lettura delle 7 disponibile nel registro chimico." };
+        return calcolaSuggerimentoPer(chiaveOggi);
     }
 
     // Verifica dedicata per il Tricloro: calcola il CYA atteso dalla formula stechiometrica
@@ -610,8 +629,10 @@
             if (icona) {
                 let cliccabile = risultatiVerifica.some(r => r.esito !== null || r.posticipato || r.tipo === "tricloro");
                 if (cliccabile) {
+                    let dObjRiga = parseDataAbbreviata(riga[0]);
                     let rigaEscaped = btoa(unescape(encodeURIComponent(JSON.stringify({
                         data: formatDataItaliana(riga[0] ? riga[0].trim() : ""),
+                        chiaveGiorno: dObjRiga ? chiaveData(dObjRiga) : null,
                         risultati: risultatiVerifica,
                         contesto: contesto
                     }))));
@@ -663,6 +684,8 @@
                 corpoHTML += `<p style="font-size:0.85rem; color:#334155; background-color:#f1f5f9; padding:8px 10px; border-radius:4px; margin-bottom:12px;">${pezziContesto.join(" &nbsp;·&nbsp; ")}</p>`;
             }
         }
+
+        let suggerimentoGiorno = dati.chiaveGiorno ? calcolaSuggerimentoPer(dati.chiaveGiorno) : { errore: "Data non disponibile" };
 
         dati.risultati.forEach(r => {
             if (r.tipo === "tricloro") {
@@ -727,10 +750,34 @@
             let prima = String(r.esito.prima).replace(".", ",");
             let dopo = String(r.esito.dopo).replace(".", ",");
 
+            // Grammi extra consigliati: solo se la dose non è stata pienamente efficace, e solo
+            // per pH-/Cloro (per cui abbiamo un modello). Ricalcola quanto sarebbe servito in
+            // totale quel giorno (con ospiti/reintegro reali, essendo un giorno già passato) e
+            // sottrae quanto già dosato.
+            let notaGrammiExtra = "";
+            if (r.esito.esito !== "ok" && !suggerimentoGiorno.errore) {
+                let nomeProdotto = r.prodotto.trim().toLowerCase();
+                let doseUsata = parseFloat(r.quantita.replace(",", "."));
+                let grammiTotaliNecessari = null;
+                if (nomeProdotto === "cloro") grammiTotaliNecessari = suggerimentoGiorno.grammiCloro;
+                else if (nomeProdotto === "ph-") grammiTotaliNecessari = suggerimentoGiorno.grammiPh;
+
+                if (grammiTotaliNecessari != null && !isNaN(doseUsata)) {
+                    let grammiExtra = Math.max(0, Math.round(grammiTotaliNecessari - doseUsata));
+                    if (grammiExtra > 0) {
+                        let avvisoAffidabilita = nomeProdotto === "ph-"
+                            ? " — ⚠️ modello pH- poco affidabile (R²=0,25-0,30), prendilo solo come ordine di grandezza"
+                            : "";
+                        notaGrammiExtra = `<br><span style="font-size:0.85rem; color:#0369a1; font-weight:bold;">💡 ~${grammiExtra}g in più avrebbero probabilmente centrato l'obiettivo</span>
+                            <span style="font-size:0.75rem; color:#94a3b8;"> (stima retrospettiva col modello validato, usando ospiti/reintegro reali di quel giorno${suggerimentoGiorno.datiReali ? '' : ' — parzialmente stimati, non tutti registrati'}${avvisoAffidabilita})</span>`;
+                    }
+                }
+            }
+
             corpoHTML += `<div style="padding:10px 0; border-bottom:1px solid #e2e8f0;">
                 <strong>${r.prodotto}</strong> — ${r.quantita}<br>
                 <span style="color:${coloreEsito}; font-weight:bold;">${testoEsito}</span><br>
-                <span style="font-size:0.85rem; color:#475569;">${r.esito.label}: ${prima} → ${dopo}</span>${notaKo}
+                <span style="font-size:0.85rem; color:#475569;">${r.esito.label}: ${prima} → ${dopo}</span>${notaKo}${notaGrammiExtra}
             </div>`;
         });
 
@@ -760,7 +807,7 @@
         }
 
         let dataLeggibile = (() => {
-            let [y, m, d] = s.chiaveOggi.split("-").map(Number);
+            let [y, m, d] = s.chiaveGiorno.split("-").map(Number);
             let mesi = ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
             return `${d} ${mesi[m-1]} ${y}`;
         })();
@@ -777,7 +824,7 @@
             📉 Cl. Lib notte: ${it(s.clSeraIeri,2)} → ${it(s.clMattina,2)} (${s.deltaNotteLibero>=0?'+':''}${it(s.deltaNotteLibero,2)}) &nbsp;·&nbsp;
             📈 Cl. Com notte: ${it(s.comSeraIeri,2)} → ${it(s.comMattina,2)} (${s.deltaNotteCombinato>=0?'+':''}${it(s.deltaNotteCombinato,2)}) &nbsp;·&nbsp;
             🧪 CYA: ${s.cya!=null? Math.round(s.cya) : 'n/d'} ppm &nbsp;·&nbsp;
-            💧 reintegro ieri: ${s.reintegroIeri!=null? Math.round(s.reintegroIeri).toLocaleString('it-IT')+' l' : 'n/d'}
+            💧 reintegro: ${s.reintegroUsato!=null? Math.round(s.reintegroUsato).toLocaleString('it-IT')+' l' : 'n/d'}
         </p>`;
 
         let avvisoCloro = s.cloroAnomalo
