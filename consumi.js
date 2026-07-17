@@ -44,6 +44,28 @@
     const VOLUME_VASCA_LITRI = 92000;
     const PESO_PASTIGLIA_TRICLORO_G = 200; // pastiglie BIG-BLU TCCA 90/200, 200g cad.
 
+    // ============================================================
+    // Suggerimento dose giornaliera (Cloro/pH-)
+    // Modelli fittati sui dati reali del periodo ipoclorito (dal 15/6/2026, n=29-30 giorni).
+    // Il modello Cloro è solido (R²=0,78 sui dati storici). Il modello pH- è molto più debole
+    // (R²=0,25-0,30): il pH si muove poco nel periodo osservato, quindi il segnale è scarso.
+    // Va mostrato come stima di massima, non come numero preciso.
+    // ============================================================
+    const TARGET_CLORO_IDEALE = 1.05; // centro fascia 0,9-1,2
+    const TARGET_PH_IDEALE = 7.15;    // centro fascia 7,0-7,3
+    const OSPITI_MEDIO_STAGIONE = 2.9; // media storica, usata quando gli ospiti di oggi non sono ancora noti
+    const LIMITE_ANOMALO_CLORO_G = 350; // oltre questo valore, il suggerimento va segnalato come anomalo (vedi conversazione: mai superato se non 1-2 volte)
+
+    const COEF_CLORO = {
+        dose: 0.005873, temp: -0.056180, ospiti: -0.047088, cya: 0.027418,
+        notteLibero: -0.304696, notteCombinato: 2.139506, reintegro: 0.000043,
+        intercetta: -0.580335
+    };
+    const COEF_PH = {
+        dose: -0.000108, temp: -0.004002, reintegro: -0.000005, ospiti: -0.009237,
+        intercetta: 0.167751
+    };
+
     function formatDataItaliana(testo) {
         if (!testo) return testo;
         let t = testo.trim();
@@ -135,6 +157,7 @@
 
             let ph = parseFloat((riga["pH"] || "").replace(",", "."));
             let cl = parseFloat((riga["Cl. Lib"] || "").replace(",", "."));
+            let com = parseFloat((riga["Cl. Com"] || "").replace(",", "."));
             let temp = parseFloat((riga["Temp"] || "").replace(",", "."));
             let ospiti = parseInt(riga["N.Ospiti"], 10);
             if (!isNaN(ospiti)) mappaOspitiPerGiorno[chiaveCorrente] = ospiti;
@@ -143,6 +166,7 @@
             mappa[chiaveCorrente][fase] = {
                 ph: isNaN(ph) ? null : ph,
                 cl: isNaN(cl) ? null : cl,
+                com: isNaN(com) ? null : com,
                 temp: isNaN(temp) ? null : temp
             };
         });
@@ -228,6 +252,84 @@
         }
 
         return { prima, dopo, giorniDopo };
+    }
+
+    // Calcola il suggerimento di dose per "oggi", usando solo dati già certi in questo momento:
+    // la lettura delle 7 di oggi, quella delle 21 di ieri, la temperatura di entrambe, il CYA più
+    // recente noto, il reintegro di ieri (miglior proxy disponibile, quello di oggi non è ancora noto)
+    // e ospiti medio storico (idem, quelli di oggi non sono ancora noti).
+    function calcolaSuggerimentoOggi() {
+        if (!mappaChimicoPerData) return { errore: "Dati del registro chimico non ancora caricati." };
+
+        let chiavi = Object.keys(mappaChimicoPerData).sort();
+        // Cerca l'ultimo giorno con una mattina (07:00) valorizzata: quello è "oggi".
+        let chiaveOggi = null;
+        for (let i = chiavi.length - 1; i >= 0; i--) {
+            let g = mappaChimicoPerData[chiavi[i]];
+            if (g.mattina && g.mattina.cl != null) { chiaveOggi = chiavi[i]; break; }
+        }
+        if (!chiaveOggi) return { errore: "Nessuna lettura delle 7 disponibile nel registro chimico." };
+
+        let oggi = mappaChimicoPerData[chiaveOggi];
+        let ieri = mappaChimicoPerData[chiaveGiornoPrecedente(chiaveOggi)] || {};
+
+        if (!ieri.sera || ieri.sera.cl == null) {
+            return { errore: "Manca la lettura delle 21 di ieri: non posso calcolare il calo notturno.", chiaveOggi };
+        }
+
+        let clMattina = oggi.mattina.cl;
+        let clSeraIeri = ieri.sera.cl;
+        let comMattina = oggi.mattina.com;
+        let comSeraIeri = ieri.sera.com;
+        let tempMattina = oggi.mattina.temp;
+        let tempSeraIeri = ieri.sera.temp;
+
+        if (comMattina == null || comSeraIeri == null || tempMattina == null || tempSeraIeri == null) {
+            return { errore: "Mancano Cl. Combinato o Temperatura in una delle due letture (7 oggi / 21 ieri).", chiaveOggi };
+        }
+
+        let deltaNotteLibero = clMattina - clSeraIeri;
+        let deltaNotteCombinato = comMattina - comSeraIeri;
+        let tempMedia = (tempMattina + tempSeraIeri) / 2;
+
+        let cyaVoce = null;
+        for (let i = elencoCyaOrdinato.length - 1; i >= 0; i--) {
+            if (elencoCyaOrdinato[i].chiave <= chiaveOggi) { cyaVoce = elencoCyaOrdinato[i]; break; }
+        }
+        let cya = cyaVoce ? cyaVoce.valore : null;
+
+        let chiaveIeri = chiaveGiornoPrecedente(chiaveOggi);
+        let reintegroIeri = mappaReintegroPerData[chiaveIeri];
+        let reintegroUsato = reintegroIeri != null ? reintegroIeri : 0;
+
+        // --- Cloro ---
+        let deltaTargetCloro = TARGET_CLORO_IDEALE - clMattina;
+        let contributiNotiCloro = COEF_CLORO.temp * tempMedia + COEF_CLORO.ospiti * OSPITI_MEDIO_STAGIONE
+            + COEF_CLORO.cya * (cya != null ? cya : 50) + COEF_CLORO.notteLibero * deltaNotteLibero
+            + COEF_CLORO.notteCombinato * deltaNotteCombinato + COEF_CLORO.reintegro * reintegroUsato
+            + COEF_CLORO.intercetta;
+        let grammiCloro = Math.max(0, Math.round((deltaTargetCloro - contributiNotiCloro) / COEF_CLORO.dose));
+        let cloroAnomalo = grammiCloro > LIMITE_ANOMALO_CLORO_G;
+
+        // --- pH- (solo se c'è una dose di pH- da valutare, cioè se pH mattina sopra il target) ---
+        let phMattina = oggi.mattina.ph;
+        let grammiPh = null;
+        if (phMattina != null) {
+            let deltaTargetPh = TARGET_PH_IDEALE - phMattina;
+            let contributiNotiPh = COEF_PH.temp * tempMedia + COEF_PH.reintegro * reintegroUsato
+                + COEF_PH.ospiti * OSPITI_MEDIO_STAGIONE + COEF_PH.intercetta;
+            if (deltaTargetPh < 0) { // serve scendere
+                grammiPh = Math.max(0, Math.round((deltaTargetPh - contributiNotiPh) / COEF_PH.dose));
+            } else {
+                grammiPh = 0; // pH già alla o sotto la fascia ideale, nessuna dose di pH- suggerita
+            }
+        }
+
+        return {
+            chiaveOggi, clMattina, clSeraIeri, comMattina, comSeraIeri, tempMattina, tempSeraIeri,
+            deltaNotteLibero, deltaNotteCombinato, tempMedia, cya, reintegroIeri, phMattina,
+            grammiCloro, cloroAnomalo, grammiPh
+        };
     }
 
     // Verifica dedicata per il Tricloro: calcola il CYA atteso dalla formula stechiometrica
@@ -412,6 +514,7 @@
 
     document.addEventListener("DOMContentLoaded", () => {
         caricaRegistroConsumi();
+        inserisciPulsantiSuggerimento();
 
         // Se chimico.js/contatori.js hanno già finito di caricare (ordine di script + tempi
         // di rete non sono garantiti), i dati sono già disponibili in window.__registroXDati.
@@ -634,4 +737,84 @@
         contenitore.innerHTML = `<h2>Verifica Efficacia Dosaggio</h2><br>${corpoHTML}`;
         modal.classList.remove("hidden");
     };
+
+    // Formatta un numero secondo le convenzioni italiane (virgola decimale)
+    function it(numero, decimali) {
+        if (numero == null || isNaN(numero)) return "n/d";
+        return numero.toFixed(decimali).replace(".", ",");
+    }
+
+    window.mostraSuggerimentoDoseOggi = function () {
+        const modal = document.getElementById("dosageModal");
+        const contenitore = document.getElementById("dosageContent");
+        if (!modal || !contenitore) return;
+        modal.classList.remove("modal-critica");
+
+        let s = calcolaSuggerimentoOggi();
+
+        if (s.errore) {
+            contenitore.innerHTML = `<h2>Suggerimento Dose di Oggi</h2><br>
+                <p style="color:#94a3b8;">${s.errore}</p>`;
+            modal.classList.remove("hidden");
+            return;
+        }
+
+        let dataLeggibile = (() => {
+            let [y, m, d] = s.chiaveOggi.split("-").map(Number);
+            let mesi = ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
+            return `${d} ${mesi[m-1]} ${y}`;
+        })();
+
+        let corpoHTML = `<p style="font-size:0.85rem; color:#64748b; margin-bottom:12px;">
+            Stima per ${dataLeggibile}, calcolata con i dati già certi stamattina: lettura delle 7 di oggi,
+            lettura delle 21 di ieri, CYA più recente, reintegro di ieri. Non conosce ancora gli ospiti/il
+            reintegro di oggi (non ancora accaduti): per questi usa una media storica stagionale.
+            <br><strong>È una stima di massima, non un valore esatto — usala come punto di partenza, non come verità.</strong>
+        </p>`;
+
+        corpoHTML += `<p style="font-size:0.85rem; color:#334155; background-color:#f1f5f9; padding:8px 10px; border-radius:4px; margin-bottom:12px;">
+            🌡️ ${it(s.tempSeraIeri,1)}°C ieri sera / ${it(s.tempMattina,1)}°C oggi mattina &nbsp;·&nbsp;
+            📉 Cl. Lib notte: ${it(s.clSeraIeri,2)} → ${it(s.clMattina,2)} (${s.deltaNotteLibero>=0?'+':''}${it(s.deltaNotteLibero,2)}) &nbsp;·&nbsp;
+            📈 Cl. Com notte: ${it(s.comSeraIeri,2)} → ${it(s.comMattina,2)} (${s.deltaNotteCombinato>=0?'+':''}${it(s.deltaNotteCombinato,2)}) &nbsp;·&nbsp;
+            🧪 CYA: ${s.cya!=null? Math.round(s.cya) : 'n/d'} ppm &nbsp;·&nbsp;
+            💧 reintegro ieri: ${s.reintegroIeri!=null? Math.round(s.reintegroIeri).toLocaleString('it-IT')+' l' : 'n/d'}
+        </p>`;
+
+        let avvisoCloro = s.cloroAnomalo
+            ? `<p style="font-size:0.85rem; color:#991b1b; background-color:#fee2e2; padding:8px 10px; border-radius:4px; margin-bottom:8px;">
+                 ⚠️ Valore anomalo (oltre ${LIMITE_ANOMALO_CLORO_G}g, mai superato normalmente con l'ipoclorito) — controlla a occhio prima di seguirlo, potrebbe indicare un problema nella lettura o nel calcolo.
+               </p>`
+            : "";
+
+        corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
+            <strong>Ipoclorito di calcio (Cloro)</strong>
+            <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${s.grammiCloro} g</div>
+            ${avvisoCloro}
+            <span style="font-size:0.8rem; color:#94a3b8;">Modello validato sui tuoi dati storici (R²=0,78).</span>
+        </div>`;
+
+        if (s.grammiPh !== null) {
+            corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
+                <strong>pH-</strong>
+                <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${s.grammiPh} g</div>
+                <span style="font-size:0.8rem; color:#94a3b8;">⚠️ Modello meno affidabile di quello del cloro (R²=0,25-0,30) — il pH si muove poco nei tuoi dati, quindi il segnale è debole. Prendilo solo come indicazione di massima.</span>
+            </div>`;
+        }
+
+        contenitore.innerHTML = `<h2>Suggerimento Dose di Oggi</h2><br>${corpoHTML}`;
+        modal.classList.remove("hidden");
+    };
+
+    // Inserisce un pulsante leggero (non una colonna) accanto ai titoli di Chimico e Consumi,
+    // per accedere al suggerimento da entrambi i registri senza affollare le tabelle.
+    function inserisciPulsantiSuggerimento() {
+        const html = ` <button onclick="window.mostraSuggerimentoDoseOggi()" style="font-size:0.8rem; padding:4px 10px; border-radius:4px; border:1px solid #0369a1; background-color:#f0f9ff; color:#0369a1; cursor:pointer; vertical-align:middle;">💡 Suggerimento dose di oggi</button>`;
+
+        document.querySelectorAll("h2").forEach(h2 => {
+            let testo = h2.textContent.trim();
+            if ((testo === "Registro Chimico" || testo === "Registro Consumi") && !h2.querySelector("button")) {
+                h2.insertAdjacentHTML("beforeend", html);
+            }
+        });
+    }
 })();
