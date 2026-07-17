@@ -6,6 +6,11 @@
     const VOL_PISCINA = 92; // 92 m³ costanti
     const TEMP_REINTEGRO = 22.0;
 
+    // Modello validato sui dati reali del periodo ipoclorito (dose, temp, ospiti, CYA -> delta
+    // Cl.Lib nella giornata, R²=0,68 su 30 giorni). Sostituisce la vecchia formula (mai validata).
+    const COEF_CLORO_BASE = { dose: 0.00607, temp: -0.05777, ospiti: -0.05795, cya: 0.02951, intercetta: -0.57151 };
+    const LIMITE_ANOMALO_CLORO_G = 350; // oltre questo valore il suggerimento va segnalato come anomalo
+
     let graficoCorrente = null;
     let datiChimico = [];
 
@@ -125,7 +130,17 @@
         });
         html += "</tr></thead><tbody>";
 
-        dati.forEach(riga => {
+        // CYA forward-fill: le misurazioni sono sparse (non su ogni riga), quindi per ogni riga
+        // teniamo l'ultimo valore noto fino a quel punto. Serve al popup diagnostico per stimare
+        // correttamente il dosaggio di cloro (il CYA influisce su quanto cloro serve).
+        let cyaCorrente = null;
+        let cyaPerRiga = dati.map(riga => {
+            let val = parseFloat((riga['Cya'] || '').replace(',', '.'));
+            if (!isNaN(val)) cyaCorrente = val;
+            return cyaCorrente;
+        });
+
+        dati.forEach((riga, indiceRiga) => {
             html += "<tr>";
             intestazioni.forEach(chiave => {
                 let n = chiave.trim().toLowerCase();
@@ -148,7 +163,8 @@
 
                 let attributoClick = "";
                 if (classeColore === "evidenzia-giallo" || classeColore === "evidenzia-rosso") {
-                    let rigaEscaped = btoa(unescape(encodeURIComponent(JSON.stringify(riga))));
+                    let rigaConCya = Object.assign({}, riga, { _cyaStimato: cyaPerRiga[indiceRiga] });
+                    let rigaEscaped = btoa(unescape(encodeURIComponent(JSON.stringify(rigaConCya))));
                     attributoClick = `onclick="window.apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeColore}', '${rigaEscaped}')"`;
                 }
 
@@ -208,11 +224,13 @@
 
         let ospitiCorrenti = 0;
         let tempCorrente = 26.5;
+        let cyaCorrenteRiga = null;
         if (rigaCriptata !== "") {
             try {
                 let rigaDecodificata = JSON.parse(decodeURIComponent(escape(atob(rigaCriptata))));
                 if (rigaDecodificata["N.Ospiti"]) ospitiCorrenti = parseInt(rigaDecodificata["N.Ospiti"]) || 0;
                 if (rigaDecodificata["Temp"]) tempCorrente = parseFloat(rigaDecodificata["Temp"].replace(",", ".")) || 26.5;
+                if (rigaDecodificata["_cyaStimato"] != null) cyaCorrenteRiga = rigaDecodificata["_cyaStimato"];
             } catch (e) { console.log("Errore parsing parametri riga", e); }
         }
 
@@ -252,15 +270,23 @@
         }
         else if (p === 'cl. lib' || p === 'cl. tot') {
             if (valore < 1.1) {
-                let fattoreCaricoOspiti = ospitiCorrenti * 12;
-                let fattoreTemperatura = tempCorrente > 28 ? 1.4 : (tempCorrente > 26 ? 1.15 : 1.0);
+                // Formula validata sui dati reali del periodo ipoclorito (R²=0,68 sui 30 giorni
+                // osservati) — sostituisce la vecchia stima (mai validata, sovrastimava di circa
+                // 8 volte: proponeva oltre 1500g dove nella pratica ne bastano 150-300).
+                let cyaCorrente = cyaCorrenteRiga != null ? cyaCorrenteRiga : 50;
+                let dIdeale = 1.05 - valore; // centro della fascia ideale 0,9-1,2
+                let contributiNoti = COEF_CLORO_BASE.temp * tempCorrente + COEF_CLORO_BASE.ospiti * ospitiCorrenti
+                    + COEF_CLORO_BASE.cya * cyaCorrente + COEF_CLORO_BASE.intercetta;
+                let gIdeale = Math.max(0, Math.round((dIdeale - contributiNoti) / COEF_CLORO_BASE.dose));
 
-                let dIdeale = 1.1 - valore;
-                let baseGrammi = (dIdeale / 0.1) * 1.5 * VOL_PISCINA;
-                let gIdeale = Math.round((baseGrammi + fattoreCaricoOspiti) * fattoreTemperatura);
+                let avvisoAnomalo = gIdeale > LIMITE_ANOMALO_CLORO_G
+                    ? `<p style="font-size:0.8rem; color:#991b1b;">⚠️ Valore anomalo (oltre ${LIMITE_ANOMALO_CLORO_G}g) — controlla a occhio prima di seguirlo.</p>`
+                    : "";
 
                 corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Cloro Basso (${valore} mg/l)</span></h3><br>
-                <p style="margin-bottom:8px;"><strong>Dose correttiva stimata (in base a ${ospitiCorrenti} ospiti e ${tempCorrente}°C):</strong> aggiungere circa <strong>${gIdeale > 0 ? gIdeale : 0}g</strong> di Ipoclorito di Calcio.</p>`;
+                <p style="margin-bottom:8px;"><strong>Dose correttiva stimata (in base a ${ospitiCorrenti} ospiti, ${tempCorrente}°C e CYA ${Math.round(cyaCorrente)} ppm):</strong> aggiungere circa <strong>${gIdeale}g</strong> di Ipoclorito di Calcio.</p>
+                ${avvisoAnomalo}
+                <p style="font-size:0.75rem; color:#94a3b8;">Stima di massima (modello validato R²=0,68) — per un calcolo più completo, che include anche il consumo notturno e il reintegro, usa "💡 Suggerimento dose di oggi" in cima alla pagina.</p>`;
             } else if (valore > 1.2) {
                 corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Cloro Alto (${valore} mg/l)</span></h3><br>
                 <p>Sospendere il dosaggio di cloro e attendere il rientro naturale dei valori prima di reintegrare.</p>`;
