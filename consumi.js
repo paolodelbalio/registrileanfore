@@ -617,14 +617,17 @@
             }
 
             let coloreEsito = r.esito.esito === "ok" ? "#166534" : (r.esito.esito === "parziale" ? "#854d0e" : "#991b1b");
-            let testoEsito = r.esito.esito === "ok" ? "Dose efficace" : (r.esito.esito === "parziale" ? "Variazione insufficiente" : "Nessun effetto / direzione inattesa");
+            let testoEsito = r.esito.esito === "ok" ? "Dose efficace" : (r.esito.esito === "parziale" ? "Variazione insufficiente" : "Dose non sufficiente a contrastare la tendenza della giornata");
+            let notaKo = r.esito.esito === "ko"
+                ? `<br><span style="font-size:0.8rem; color:#94a3b8; font-style:italic;">La dose ha comunque agito nella direzione corretta: il resto della giornata (temperatura, ospiti, altri fattori) ha pesato di più. Da valutare se aumentarla.</span>`
+                : "";
             let prima = String(r.esito.prima).replace(".", ",");
             let dopo = String(r.esito.dopo).replace(".", ",");
 
             corpoHTML += `<div style="padding:10px 0; border-bottom:1px solid #e2e8f0;">
                 <strong>${r.prodotto}</strong> — ${r.quantita}<br>
                 <span style="color:${coloreEsito}; font-weight:bold;">${testoEsito}</span><br>
-                <span style="font-size:0.85rem; color:#475569;">${r.esito.label}: ${prima} → ${dopo}</span>
+                <span style="font-size:0.85rem; color:#475569;">${r.esito.label}: ${prima} → ${dopo}</span>${notaKo}
             </div>`;
         });
 
