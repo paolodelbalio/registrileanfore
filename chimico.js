@@ -11,6 +11,10 @@
     const COEF_CLORO_BASE = { dose: 0.00607, temp: -0.05777, ospiti: -0.05795, cya: 0.02951, intercetta: -0.57151 };
     const LIMITE_ANOMALO_CLORO_G = 350; // riferimento storico (dose massima normalmente usata finora), non una soglia di errore: superarlo può essere legittimo in certe condizioni
 
+    // Water Stop Cloro (Sodio Bisolfito): dall'etichetta, 100g riducono il cloro di 0,5 ppm
+    // ogni 100 m³ d'acqua. Convertito per la vasca di Le Anfore (92 m³): 184g per ogni ppm da ridurre.
+    const GRAMMI_DECLORATORE_PER_PPM = 184;
+
     let graficoCorrente = null;
     let datiChimico = [];
 
@@ -290,8 +294,15 @@
                 ${avvisoAnomalo}
                 <p style="font-size:0.75rem; color:#94a3b8;">Stima di massima (modello validato R²=0,68) — per un calcolo più completo, che include anche il consumo notturno e il reintegro, usa "💡 Suggerimento dose di oggi" in cima alla pagina.</p>`;
             } else if (valore > 1.2) {
+                // Water Stop Cloro (Sodio Bisolfito): 184g per ogni ppm da ridurre nella vasca
+                // di Le Anfore (formula da etichetta, convertita per i 92 m³).
+                let deltaDaRidurre = valore - 1.05; // riporta al centro della fascia ideale 0,9-1,2
+                let grammiDecloratore = Math.round(deltaDaRidurre * GRAMMI_DECLORATORE_PER_PPM);
+
                 corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Cloro Alto (${valore} mg/l)</span></h3><br>
-                <p>Sospendere il dosaggio di cloro e attendere il rientro naturale dei valori prima di reintegrare.</p>`;
+                <p style="margin-bottom:8px;"><strong>Dose di Decloratore (Water Stop Cloro) per rientrare in fascia:</strong> aggiungere circa <strong>${grammiDecloratore}g</strong>.</p>
+                <p style="font-size:0.75rem; color:#94a3b8;">Calcolato dall'etichetta del prodotto (100g riducono 0,5 ppm ogni 100 m³), convertito per la vasca da 92 m³.</p>
+                <p>In alternativa, sospendere il dosaggio di cloro e attendere il rientro naturale dei valori prima di reintegrare.</p>`;
             }
         }
         else if (p === 'cl. com') {
