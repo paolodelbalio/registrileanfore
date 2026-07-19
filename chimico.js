@@ -42,21 +42,13 @@
         let step = 100 / numeroRighe;
         let stops = [];
         for (let i = 0; i < numeroRighe; i++) {
-            // CSS nth-child è 1-indicizzato: la riga assoluta di tabella è indiceRigaAncora+i+1.
             let numeroRigaAssoluta = indiceRigaAncora + i + 1;
             let colore = (numeroRigaAssoluta % 2 === 0) ? GRIGIO : BIANCO;
             let inizio = (i * step).toFixed(3) + "%";
             let fine = ((i + 1) * step).toFixed(3) + "%";
-            // L'ultima banda si ferma un pixel prima del 100%, per lasciare spazio alla striscia
-            // di bordo qui sotto — i punti di un gradiente CSS devono stare in ordine crescente,
-            // altrimenti il browser annulla la larghezza della striscia successiva.
             if (i === numeroRighe - 1) fine = "calc(100% - 1px)";
             stops.push(`${colore} ${inizio}`, `${colore} ${fine}`);
         }
-        // Riga di confine tra un blocco (lun-mer / gio-dom) e il successivo: disegnata come
-        // ultimo pixel del gradiente, non come bordo CSS vero — le celle con rowspan a volte
-        // non mostrano il border-bottom in modo affidabile con border-collapse:collapse, il
-        // gradiente invece è parte dello sfondo e non ha questo problema.
         stops.push(`${BORDO} calc(100% - 1px)`, `${BORDO} 100%`);
         return `linear-gradient(to bottom, ${stops.join(", ")})`;
     }
@@ -116,7 +108,6 @@
         datiChimico = datiFormattati;
         creaTabellaChimica(intestazioni, datiFormattati);
 
-        // Espone i dati letti ad altri script (es. consumi.js) per incroci tra registri
         window.__registroChimicoDati = datiFormattati;
         document.dispatchEvent(new CustomEvent("chimico:datiPronti", { detail: datiFormattati }));
     }
@@ -168,8 +159,6 @@
             let label = chiave.trim();
             if (n === 'ph') html += `<th onclick="window.apriGraficoChimico('${chiave}', 'pH', '#ff6384', 'line')" style="cursor:pointer; text-decoration:underline;">pH</th>`;
             else if (n === 'cl. lib') html += `<th onclick="window.apriGraficoChimico('${chiave}', 'Cloro Libero', '#36a2eb', 'line')" style="cursor:pointer; text-decoration:underline;">Cl. Lib</th>`;
-            // Cl. Tot è solo un dato di calcolo (non richiesto dalla legge): colonna sempre visibile
-            // ma neutra, senza colori di allarme.
             else if (n === 'cl. tot') html += `<th>Cl. Tot</th>`;
             else if (n === 'cl. com') html += `<th onclick="window.apriGraficoChimico('${chiave}', 'Cloro Combinato', '#ff9f40', 'line')" style="cursor:pointer; text-decoration:underline;">Cl. Com</th>`;
             else if (n === 'temp') html += `<th onclick="window.apriGraficoChimico('${chiave}', 'Temperatura', '#ffcd56', 'line')" style="cursor:pointer; text-decoration:underline;">Temp</th>`;
@@ -181,9 +170,6 @@
         });
         html += "</tr></thead><tbody>";
 
-        // CYA forward-fill: le misurazioni sono sparse (non su ogni riga), quindi per ogni riga
-        // teniamo l'ultimo valore noto fino a quel punto. Serve al popup diagnostico per stimare
-        // correttamente il dosaggio di cloro (il CYA influisce su quanto cloro serve).
         let cyaCorrente = null;
         let cyaPerRiga = dati.map(riga => {
             let val = parseFloat((riga['Cya'] || '').replace(',', '.'));
@@ -191,9 +177,6 @@
             return cyaCorrente;
         });
 
-        // Data forward-fill: la Data è compilata solo sulla riga delle 07:00, qui la propaghiamo
-        // anche sulla riga delle 21:00 dello stesso giorno, per sapere sempre il giorno della
-        // settimana (serve al promemoria e al rowspan di CYA/TA qui sotto).
         let dataCorrente = "";
         let dataPerRiga = dati.map(riga => {
             let d = (riga['Data'] || '').trim();
@@ -201,13 +184,6 @@
             return dataCorrente;
         });
 
-        // CYA e TA (Alka) si misurano solo lunedì e giovedì, ma sul foglio sorgente restano
-        // celle NON unite (un valore sulla riga di lunedì, uno su quella di giovedì, il resto
-        // vuoto) — è il modo più pulito per l'esportazione CSV e per il promemoria di sopra.
-        // Qui invece, solo per la visualizzazione, ricreiamo l'effetto "cella unita" con un
-        // rowspan HTML: la cella del lunedì copre anche mar/mer, quella del giovedì copre
-        // anche ven/sab/dom — stesso colpo d'occhio di una cella unita, dato sorgente pulito.
-        // Contatore di righe-tabella ancora da saltare (perché coperte da un rowspan attivo).
         let righeDaSaltare = { cya: 0, alka: 0 };
 
         dati.forEach((riga, indiceRiga) => {
@@ -221,18 +197,15 @@
                     if (!isNaN(vCom)) valoreTesto = vCom.toFixed(2).replace(".", ",");
                 }
 
-                // Cl. Tot è solo un riferimento di calcolo: nessuna evidenziazione a colori,
-                // nessun popup di dettaglio, sempre lo stesso colore neutro.
                 if (n === 'cl. tot') {
                     html += `<td class="testo-muto" title="${valoreTesto.replace(/"/g, '&quot;')}">${valoreTesto}</td>`;
                     return;
                 }
 
-                // Gestione speciale CYA/Alka: rowspan verso i giorni successivi (vedi sopra).
                 if (n === 'cya' || n === 'alka') {
                     if (righeDaSaltare[n] > 0) {
                         righeDaSaltare[n]--;
-                        return; // coperta dal rowspan della cella "ancora" (lun/gio), nessun <td> qui
+                        return;
                     }
 
                     let ora07 = (riga['Ora'] || '').trim().startsWith('07');
@@ -241,29 +214,23 @@
                     let eAncoraGio = ora07 && giornoTesto.startsWith('gio ');
 
                     if (!eAncoraLun && !eAncoraGio) {
-                        // Capita solo se il registro inizia a metà settimana, prima del primo
-                        // lun/gio: cella normale, senza rowspan, quasi sempre vuota.
                         html += `<td class="testo-muto col-${n}" title="${valoreTesto.replace(/"/g, '&quot;')}">${valoreTesto || '-'}</td>`;
                         return;
                     }
 
-                    // Righe-tabella coperte: lun→mer = 3 giorni × 2 righe = 6; gio→dom = 4 giorni × 2 righe = 8.
                     let righeBlocco = eAncoraLun ? 6 : 8;
-                    righeBlocco = Math.min(righeBlocco, dati.length - indiceRiga); // sicurezza a fine tabella
+                    righeBlocco = Math.min(righeBlocco, dati.length - indiceRiga);
                     righeDaSaltare[n] = righeBlocco - 1;
 
                     let vNum = parseFloat(valoreTesto.replace(",", "."));
 
-                    // Il rosso deve accendersi solo il lunedì/giovedì di OGGI, non su tutti i
-                    // lun/gio passati (già andati, inutile segnalarli) né su quelli futuri
-                    // (non ancora arrivati). Confrontiamo la data della riga con oggi davvero.
                     let dataRigaObj = parseDataItalianaChimico(giornoTesto);
                     let oggiObj = new Date();
                     oggiObj.setHours(0, 0, 0, 0);
                     let eOggi = dataRigaObj && dataRigaObj.getTime() === oggiObj.getTime();
 
                     let ePromemoriaMancante = valoreTesto === '' && eOggi;
-                    let classeValore = (valoreTesto === '') ? '' : ottieniClasseColore(chiave, vNum); // verde/giallo/rosso in base al valore, solo per il badge
+                    let classeValore = (valoreTesto === '') ? '' : ottieniClasseColore(chiave, vNum);
 
                     let attributoClick = "";
                     if (!ePromemoriaMancante && classeValore !== '' && !isNaN(vNum)) {
@@ -276,13 +243,8 @@
                         ? `Misurazione ${n === 'cya' ? 'CYA' : 'TA/Alcalinità'} in programma oggi (lun/gio) — non ancora inserita`
                         : valoreTesto.replace(/"/g, '&quot;');
 
-                    // Il <td> unito (rowspan) resta sempre bianco/neutro: il colore non deve
-                    // estendersi su tutto il blocco lun-mer / gio-dom, solo sul numero stesso
-                    // (o sul segnaposto rosso), tramite un piccolo "badge" interno.
                     let contenutoBadge;
                     if (ePromemoriaMancante) {
-                        // Non ancora misurato: pallino rosso in alto (dove "cade" il lun/gio),
-                        // senza numero — il valore vero e proprio arriverà quando la inserisci.
                         contenutoBadge = `<span class="evidenzia-rosso" style="display:inline-block; padding:3px 10px; border-radius:5px;">&nbsp;</span>`;
                     } else {
                         contenutoBadge = `<span class="${classeValore}" style="display:inline-block; padding:3px 10px; border-radius:5px;">${valoreTesto}</span>`;
@@ -304,8 +266,6 @@
                     attributoClick = `onclick="window.apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeColore}', '${rigaEscaped}')"`;
                 }
 
-                // col-nospiti/col-note: colonne sempre disegnate su ogni riga (mai coperte da un
-                // rowspan), usate come aggancio stabile per le righe verticali attorno a Cya/Alka.
                 let classeColonnaExtra = (n === 'n.ospiti') ? ' col-nospiti' : (n === 'note' ? ' col-note' : '');
 
                 html += `<td class="${classeColore}${classeColonnaExtra}" ${attributoClick} title="${valoreTesto.replace(/"/g, '&quot;')}" style="${attributoClick !== '' ? 'cursor:pointer;' : ''}">${valoreTesto}</td>`;
@@ -412,11 +372,8 @@
         }
         else if (p === 'cl. lib' || p === 'cl. tot') {
             if (valore < 1.1) {
-                // Formula validata sui dati reali del periodo ipoclorito (R²=0,68 sui 30 giorni
-                // osservati) — sostituisce la vecchia stima (mai validata, sovrastimava di circa
-                // 8 volte: proponeva oltre 1500g dove nella pratica ne bastano 150-300).
                 let cyaCorrente = cyaCorrenteRiga != null ? cyaCorrenteRiga : 50;
-                let dIdeale = 1.05 - valore; // centro della fascia ideale 0,9-1,2
+                let dIdeale = 1.05 - valore;
                 let contributiNoti = COEF_CLORO_BASE.temp * tempCorrente + COEF_CLORO_BASE.ospiti * ospitiCorrenti
                     + COEF_CLORO_BASE.cya * cyaCorrente + COEF_CLORO_BASE.intercetta;
                 let gIdeale = Math.max(0, Math.round((dIdeale - contributiNoti) / COEF_CLORO_BASE.dose));
@@ -430,9 +387,7 @@
                 ${avvisoAnomalo}
                 <p style="font-size:0.75rem; color:#94a3b8;">Stima di massima (modello validato R²=0,68) — per un calcolo più completo, che include anche il consumo notturno e il reintegro, usa "💡 Suggerimento dose di oggi" in cima alla pagina.</p>`;
             } else if (valore > 1.2) {
-                // Water Stop Cloro (Sodio Bisolfito): 184g per ogni ppm da ridurre nella vasca
-                // di Le Anfore (formula da etichetta, convertita per i 92 m³).
-                let deltaDaRidurre = valore - 1.05; // riporta al centro della fascia ideale 0,9-1,2
+                let deltaDaRidurre = valore - 1.05;
                 let grammiDecloratore = Math.round(deltaDaRidurre * GRAMMI_DECLORATORE_PER_PPM);
 
                 corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Cloro Alto (${valore} mg/l)</span></h3><br>
@@ -442,17 +397,11 @@
             }
         }
         else if (p === 'cl. com') {
-            // Shock clorativo: regola standard di settore, portare il cloro libero a 10 volte
-            // il valore del combinato per rompere le clorammine (breakpoint chlorination).
             let targetShock = valore * 10;
             let baseCorrente = clLibCorrente != null ? clLibCorrente : 1.0;
             let deltaShock = Math.max(0, targetShock - baseCorrente);
             let grammiShock = Math.round(deltaShock / COEF_CLORO_BASE.dose);
 
-            // Stima pH- extra: regola di settore approssimativa (non validata sui tuoi dati,
-            // non hai mai fatto uno shock di questa entità nel registro) — indicativamente il
-            // pH- necessario per compensare l'alcalinità dell'ipoclorito è un decimo della massa
-            // di ipoclorito stesso. Da verificare/correggere con la prossima misurazione reale.
             let grammiPhStimati = Math.round(grammiShock * 0.10);
 
             corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Cloro Combinato Elevato (${valore} mg/l)</span></h3><br>
@@ -526,11 +475,6 @@
         let etichette = [];
         let valori = [];
 
-        // Individua l'indice dell'ultima riga con una misurazione reale (pH compilato).
-        // Alcune colonne (es. Cl. Com) arrivano precompilate con "0" anche sulle righe
-        // future non ancora misurate: senza questo taglio i grafici proseguirebbero
-        // piatti fino all'ultima riga del registro (es. settembre) invece di fermarsi
-        // all'ultima rilevazione effettiva.
         let ultimoIndiceValido = -1;
         datiChimico.forEach((riga, idx) => {
             let phTesto = (riga["pH"] || "").trim();
