@@ -163,9 +163,10 @@
             else if (n === 'cl. tot') html += `<th>Cl. Tot</th>`;
             else if (n === 'cl. com') html += `<th onclick="window.apriGraficoChimico('${chiave}', 'Cloro Combinato', '#ff9f40', 'line')" style="cursor:pointer; text-decoration:underline;">Cl. Com</th>`;
             else if (n === 'temp') html += `<th onclick="window.apriGraficoChimico('${chiave}', 'Temperatura', '#ffcd56', 'line')" style="cursor:pointer; text-decoration:underline;">Temp</th>`;
-            else if (n === 'n.ospiti') html += `<th onclick="window.apriGraficoChimico('${chiave}', 'Numero Ospiti', '#9966ff', 'bar')" style="cursor:pointer; text-decoration:underline;">N.Ospiti</th>`;
+            else if (n === 'n.ospiti') html += `<th class="col-nospiti" onclick="window.apriGraficoChimico('${chiave}', 'Numero Ospiti', '#9966ff', 'bar')" style="cursor:pointer; text-decoration:underline;">N.Ospiti</th>`;
             else if (n === 'cya') html += `<th onclick="window.apriGraficoChimico('${chiave}', 'Acido Cianurico', '#c9cbcf', 'line')" style="cursor:pointer; text-decoration:underline;">Cya</th>`;
             else if (n === 'alka') html += `<th onclick="window.apriGraficoChimico('${chiave}', 'Alcalinità', '#22c55e', 'line')" style="cursor:pointer; text-decoration:underline;">Alka</th>`;
+            else if (n === 'note') html += `<th class="col-note">${label}</th>`;
             else html += `<th>${label}</th>`;
         });
         html += "</tr></thead><tbody>";
@@ -232,7 +233,7 @@
                     if (!eAncoraLun && !eAncoraGio) {
                         // Capita solo se il registro inizia a metà settimana, prima del primo
                         // lun/gio: cella normale, senza rowspan, quasi sempre vuota.
-                        html += `<td class="testo-muto" title="${valoreTesto.replace(/"/g, '&quot;')}">${valoreTesto || '-'}</td>`;
+                        html += `<td class="testo-muto col-${n}" title="${valoreTesto.replace(/"/g, '&quot;')}">${valoreTesto || '-'}</td>`;
                         return;
                     }
 
@@ -279,7 +280,7 @@
 
                     let sfondoARighe = costruisciSfondoARighe(righeBlocco, indiceRiga);
 
-                    html += `<td rowspan="${righeBlocco}" ${attributoClick} title="${titoloCella}" style="text-align:center; vertical-align:${ePromemoriaMancante ? 'top' : 'middle'}; ${ePromemoriaMancante ? 'padding-top:8px;' : ''} background:${sfondoARighe}; ${attributoClick !== '' ? 'cursor:pointer;' : ''}">${contenutoBadge}</td>`;
+                    html += `<td class="col-${n}" rowspan="${righeBlocco}" ${attributoClick} title="${titoloCella}" style="text-align:center; vertical-align:${ePromemoriaMancante ? 'top' : 'middle'}; ${ePromemoriaMancante ? 'padding-top:8px;' : ''} background:${sfondoARighe}; border-bottom:1px solid #cbd5e1; ${attributoClick !== '' ? 'cursor:pointer;' : ''}">${contenutoBadge}</td>`;
                     return;
                 }
 
@@ -293,7 +294,11 @@
                     attributoClick = `onclick="window.apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeColore}', '${rigaEscaped}')"`;
                 }
 
-                html += `<td class="${classeColore}" ${attributoClick} title="${valoreTesto.replace(/"/g, '&quot;')}" style="${attributoClick !== '' ? 'cursor:pointer;' : ''}">${valoreTesto}</td>`;
+                // col-nospiti/col-note: colonne sempre disegnate su ogni riga (mai coperte da un
+                // rowspan), usate come aggancio stabile per le righe verticali attorno a Cya/Alka.
+                let classeColonnaExtra = (n === 'n.ospiti') ? ' col-nospiti' : (n === 'note' ? ' col-note' : '');
+
+                html += `<td class="${classeColore}${classeColonnaExtra}" ${attributoClick} title="${valoreTesto.replace(/"/g, '&quot;')}" style="${attributoClick !== '' ? 'cursor:pointer;' : ''}">${valoreTesto}</td>`;
             });
             html += "</tr>";
         });
