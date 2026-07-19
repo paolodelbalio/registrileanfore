@@ -45,16 +45,19 @@
             // CSS nth-child è 1-indicizzato: la riga assoluta di tabella è indiceRigaAncora+i+1.
             let numeroRigaAssoluta = indiceRigaAncora + i + 1;
             let colore = (numeroRigaAssoluta % 2 === 0) ? GRIGIO : BIANCO;
-            // Ogni banda inizia subito dopo la striscia di bordo precedente (o da 0% per la
-            // prima) e finisce un pixel prima del proprio confine, per lasciare spazio alla
-            // striscia di bordo che segue. I punti di un gradiente CSS devono restare in ordine
-            // crescente, altrimenti il browser annulla la larghezza della striscia successiva.
-            let inizio = i === 0 ? "0%" : `calc(${(i * step).toFixed(3)}% + 1px)`;
-            let fine = `calc(${((i + 1) * step).toFixed(3)}% - 1px)`;
+            let inizio = (i * step).toFixed(3) + "%";
+            let fine = ((i + 1) * step).toFixed(3) + "%";
+            // L'ultima banda si ferma un pixel prima del 100%, per lasciare spazio alla striscia
+            // di bordo qui sotto — i punti di un gradiente CSS devono stare in ordine crescente,
+            // altrimenti il browser annulla la larghezza della striscia successiva.
+            if (i === numeroRighe - 1) fine = "calc(100% - 1px)";
             stops.push(`${colore} ${inizio}`, `${colore} ${fine}`);
-            let confine = `${((i + 1) * step).toFixed(3)}%`;
-            stops.push(`${BORDO} ${fine}`, `${BORDO} calc(${confine} + 1px)`);
         }
+        // Riga di confine tra un blocco (lun-mer / gio-dom) e il successivo: disegnata come
+        // ultimo pixel del gradiente, non come bordo CSS vero — le celle con rowspan a volte
+        // non mostrano il border-bottom in modo affidabile con border-collapse:collapse, il
+        // gradiente invece è parte dello sfondo e non ha questo problema.
+        stops.push(`${BORDO} calc(100% - 1px)`, `${BORDO} 100%`);
         return `linear-gradient(to bottom, ${stops.join(", ")})`;
     }
 
