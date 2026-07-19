@@ -38,6 +38,7 @@
     function costruisciSfondoARighe(numeroRighe, indiceRigaAncora) {
         const BIANCO = "#ffffff";
         const GRIGIO = "#f8fafc";
+        const BORDO = "#cbd5e1";
         let step = 100 / numeroRighe;
         let stops = [];
         for (let i = 0; i < numeroRighe; i++) {
@@ -48,6 +49,11 @@
             let fine = ((i + 1) * step).toFixed(3);
             stops.push(`${colore} ${inizio}%`, `${colore} ${fine}%`);
         }
+        // Riga di confine tra un blocco (lun-mer / gio-dom) e il successivo: disegnata come
+        // ultimo pixel del gradiente, non come bordo CSS vero — le celle con rowspan a volte
+        // non mostrano il border-bottom in modo affidabile con border-collapse:collapse, il
+        // gradiente invece è parte dello sfondo e non ha questo problema.
+        stops.push(`${BORDO} calc(100% - 1px)`, `${BORDO} 100%`);
         return `linear-gradient(to bottom, ${stops.join(", ")})`;
     }
 
@@ -280,7 +286,7 @@
 
                     let sfondoARighe = costruisciSfondoARighe(righeBlocco, indiceRiga);
 
-                    html += `<td class="col-${n}" rowspan="${righeBlocco}" ${attributoClick} title="${titoloCella}" style="text-align:center; vertical-align:${ePromemoriaMancante ? 'top' : 'middle'}; ${ePromemoriaMancante ? 'padding-top:8px;' : ''} background:${sfondoARighe}; border-bottom:1px solid #cbd5e1; ${attributoClick !== '' ? 'cursor:pointer;' : ''}">${contenutoBadge}</td>`;
+                    html += `<td class="col-${n}" rowspan="${righeBlocco}" ${attributoClick} title="${titoloCella}" style="text-align:center; vertical-align:${ePromemoriaMancante ? 'top' : 'middle'}; ${ePromemoriaMancante ? 'padding-top:8px;' : ''} background:${sfondoARighe}; ${attributoClick !== '' ? 'cursor:pointer;' : ''}">${contenutoBadge}</td>`;
                     return;
                 }
 
