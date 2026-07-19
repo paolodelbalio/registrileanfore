@@ -40,7 +40,7 @@
     function costruisciSfondoARighe(numeroRighe, indiceRigaAncora) {
         const BIANCO = "#ffffff";
         const GRIGIO = "#f8fafc";
-        const BORDO = "#dddddd";
+        const BORDO = "#cbd5e1";
         let step = 100 / numeroRighe;
         let stops = [];
         for (let i = 0; i < numeroRighe; i++) {
