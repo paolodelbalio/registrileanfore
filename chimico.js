@@ -31,6 +31,26 @@
         return new Date(anno, meseIdx, giorno);
     }
 
+    // Costruisce uno sfondo "a bande" che replica l'alternanza bianco/grigio delle righe della
+    // tabella (tr:nth-child(even) -> #f8fafc) dentro a una cella unita (rowspan). Serve perché
+    // una cella con rowspan ha UN SOLO sfondo per tutta la sua area, quindi altrimenti le
+    // colonne CYA/Alka apparirebbero con un colore fisso invece di alternarsi come le altre.
+    function costruisciSfondoARighe(numeroRighe, indiceRigaAncora) {
+        const BIANCO = "#ffffff";
+        const GRIGIO = "#f8fafc";
+        let step = 100 / numeroRighe;
+        let stops = [];
+        for (let i = 0; i < numeroRighe; i++) {
+            // CSS nth-child è 1-indicizzato: la riga assoluta di tabella è indiceRigaAncora+i+1.
+            let numeroRigaAssoluta = indiceRigaAncora + i + 1;
+            let colore = (numeroRigaAssoluta % 2 === 0) ? GRIGIO : BIANCO;
+            let inizio = (i * step).toFixed(3);
+            let fine = ((i + 1) * step).toFixed(3);
+            stops.push(`${colore} ${inizio}%`, `${colore} ${fine}%`);
+        }
+        return `linear-gradient(to bottom, ${stops.join(", ")})`;
+    }
+
     let graficoCorrente = null;
     let datiChimico = [];
 
@@ -257,7 +277,9 @@
                         contenutoBadge = `<span class="${classeValore}" style="display:inline-block; padding:3px 10px; border-radius:5px;">${valoreTesto}</span>`;
                     }
 
-                    html += `<td rowspan="${righeBlocco}" ${attributoClick} title="${titoloCella}" style="text-align:center; vertical-align:${ePromemoriaMancante ? 'top' : 'middle'}; ${ePromemoriaMancante ? 'padding-top:8px;' : ''} ${attributoClick !== '' ? 'cursor:pointer;' : ''}">${contenutoBadge}</td>`;
+                    let sfondoARighe = costruisciSfondoARighe(righeBlocco, indiceRiga);
+
+                    html += `<td rowspan="${righeBlocco}" ${attributoClick} title="${titoloCella}" style="text-align:center; vertical-align:${ePromemoriaMancante ? 'top' : 'middle'}; ${ePromemoriaMancante ? 'padding-top:8px;' : ''} background:${sfondoARighe}; ${attributoClick !== '' ? 'cursor:pointer;' : ''}">${contenutoBadge}</td>`;
                     return;
                 }
 
