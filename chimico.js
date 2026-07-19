@@ -206,26 +206,33 @@
                     righeDaSaltare[n] = righeBlocco - 1;
 
                     let vNum = parseFloat(valoreTesto.replace(",", "."));
-                    let classeColore = ottieniClasseColore(chiave, vNum);
-
-                    let ePromemoriaMancante = false;
-                    if (valoreTesto === '') {
-                        classeColore = 'evidenzia-rosso';
-                        ePromemoriaMancante = true;
-                    }
+                    let ePromemoriaMancante = valoreTesto === '';
+                    let classeValore = ePromemoriaMancante ? '' : ottieniClasseColore(chiave, vNum); // verde/giallo/rosso in base al valore, solo per il badge
 
                     let attributoClick = "";
-                    if ((classeColore === "evidenzia-giallo" || classeColore === "evidenzia-rosso") && !isNaN(vNum)) {
+                    if (!ePromemoriaMancante && classeValore !== '' && !isNaN(vNum)) {
                         let rigaConCya = Object.assign({}, riga, { _cyaStimato: cyaPerRiga[indiceRiga] });
                         let rigaEscaped = btoa(unescape(encodeURIComponent(JSON.stringify(rigaConCya))));
-                        attributoClick = `onclick="window.apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeColore}', '${rigaEscaped}')"`;
+                        attributoClick = `onclick="window.apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeValore}', '${rigaEscaped}')"`;
                     }
 
                     let titoloCella = ePromemoriaMancante
                         ? `Misurazione ${n === 'cya' ? 'CYA' : 'TA/Alcalinità'} in programma oggi (lun/gio) — non ancora inserita`
                         : valoreTesto.replace(/"/g, '&quot;');
 
-                    html += `<td rowspan="${righeBlocco}" class="${classeColore}" ${attributoClick} title="${titoloCella}" style="vertical-align:middle; ${attributoClick !== '' ? 'cursor:pointer;' : ''}">${valoreTesto}</td>`;
+                    // Il <td> unito (rowspan) resta sempre bianco/neutro: il colore non deve
+                    // estendersi su tutto il blocco lun-mer / gio-dom, solo sul numero stesso
+                    // (o sul segnaposto rosso), tramite un piccolo "badge" interno.
+                    let contenutoBadge;
+                    if (ePromemoriaMancante) {
+                        // Non ancora misurato: pallino rosso in alto (dove "cade" il lun/gio),
+                        // senza numero — il valore vero e proprio arriverà quando la inserisci.
+                        contenutoBadge = `<span class="evidenzia-rosso" style="display:inline-block; padding:3px 10px; border-radius:5px;">&nbsp;</span>`;
+                    } else {
+                        contenutoBadge = `<span class="${classeValore}" style="display:inline-block; padding:3px 10px; border-radius:5px;">${valoreTesto}</span>`;
+                    }
+
+                    html += `<td rowspan="${righeBlocco}" ${attributoClick} title="${titoloCella}" style="text-align:center; vertical-align:${ePromemoriaMancante ? 'top' : 'middle'}; ${ePromemoriaMancante ? 'padding-top:8px;' : ''} ${attributoClick !== '' ? 'cursor:pointer;' : ''}">${contenutoBadge}</td>`;
                     return;
                 }
 
@@ -408,14 +415,19 @@
             }
         }
         else if (p === 'cya') {
-            let fLimite = (valore - 60) / valore;
-            let fIdeale = (valore - 35) / valore;
-            let lLimite = Math.round(fLimite * VOL_PISCINA * 1000);
-            let lIdeale = Math.round(fIdeale * VOL_PISCINA * 1000);
+            if (valore > 60) {
+                let fLimite = (valore - 60) / valore;
+                let fIdeale = (valore - 35) / valore;
+                let lLimite = Math.round(fLimite * VOL_PISCINA * 1000);
+                let lIdeale = Math.round(fIdeale * VOL_PISCINA * 1000);
 
-            corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Acido Cianurico Elevato (${valore} ppm)</span></h3><br>
-            <p style="margin-bottom:8px;"><strong>1. Scarico minimo di rientro (Sotto allarme 60 ppm):</strong> rinnovare <strong>${lLimite > 0 ? lLimite.toLocaleString() : 0} Litri</strong> d'acqua.</p>
-            <p><strong>2. Scarico ottimale di stabilizzazione (Valore perfetto 35 ppm):</strong> rinnovare <strong>${lIdeale.toLocaleString()} Litri</strong> d'acqua.</p>`;
+                corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Acido Cianurico Elevato (${valore} ppm)</span></h3><br>
+                <p style="margin-bottom:8px;"><strong>1. Scarico minimo di rientro (Sotto allarme 60 ppm):</strong> rinnovare <strong>${lLimite > 0 ? lLimite.toLocaleString() : 0} Litri</strong> d'acqua.</p>
+                <p><strong>2. Scarico ottimale di stabilizzazione (Valore perfetto 35 ppm):</strong> rinnovare <strong>${lIdeale.toLocaleString()} Litri</strong> d'acqua.</p>`;
+            } else {
+                corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Acido Cianurico Basso (${valore} ppm)</span></h3><br>
+                <p>Scudo UV ridotto: il cloro si degrada più in fretta al sole. Valutare una pastiglia di tricloro per rialzarlo (vedi calcolatore nel Registro Consumi).</p>`;
+            }
         }
         else if (p === 'alka') {
             if (valore < 80) {
