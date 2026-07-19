@@ -15,6 +15,22 @@
     // ogni 100 m³ d'acqua. Convertito per la vasca di Le Anfore (92 m³): 184g per ogni ppm da ridurre.
     const GRAMMI_DECLORATORE_PER_PPM = 184;
 
+    const MESI_IT_BREVI = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"];
+
+    // Interpreta una data nel formato "lun 13 lug 2026" (quello già usato nel CSV) e restituisce
+    // un oggetto Date, o null se il testo non è nel formato atteso. Serve per confrontare la data
+    // di una riga con la data di oggi (promemoria CYA/TA: deve accendersi solo il giorno giusto,
+    // non su tutti i lun/gio passati o futuri).
+    function parseDataItalianaChimico(testo) {
+        let parti = (testo || '').trim().split(/\s+/);
+        if (parti.length < 4) return null;
+        let giorno = parseInt(parti[1], 10);
+        let meseIdx = MESI_IT_BREVI.indexOf(parti[2].toLowerCase());
+        let anno = parseInt(parti[3], 10);
+        if (isNaN(giorno) || meseIdx === -1 || isNaN(anno)) return null;
+        return new Date(anno, meseIdx, giorno);
+    }
+
     let graficoCorrente = null;
     let datiChimico = [];
 
@@ -206,8 +222,17 @@
                     righeDaSaltare[n] = righeBlocco - 1;
 
                     let vNum = parseFloat(valoreTesto.replace(",", "."));
-                    let ePromemoriaMancante = valoreTesto === '';
-                    let classeValore = ePromemoriaMancante ? '' : ottieniClasseColore(chiave, vNum); // verde/giallo/rosso in base al valore, solo per il badge
+
+                    // Il rosso deve accendersi solo il lunedì/giovedì di OGGI, non su tutti i
+                    // lun/gio passati (già andati, inutile segnalarli) né su quelli futuri
+                    // (non ancora arrivati). Confrontiamo la data della riga con oggi davvero.
+                    let dataRigaObj = parseDataItalianaChimico(giornoTesto);
+                    let oggiObj = new Date();
+                    oggiObj.setHours(0, 0, 0, 0);
+                    let eOggi = dataRigaObj && dataRigaObj.getTime() === oggiObj.getTime();
+
+                    let ePromemoriaMancante = valoreTesto === '' && eOggi;
+                    let classeValore = (valoreTesto === '') ? '' : ottieniClasseColore(chiave, vNum); // verde/giallo/rosso in base al valore, solo per il badge
 
                     let attributoClick = "";
                     if (!ePromemoriaMancante && classeValore !== '' && !isNaN(vNum)) {
