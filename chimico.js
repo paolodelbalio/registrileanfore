@@ -144,6 +144,25 @@
             return cyaCorrente;
         });
 
+        // Data forward-fill: la Data è compilata solo sulla riga delle 07:00, qui la propaghiamo
+        // anche sulla riga delle 21:00 dello stesso giorno, per sapere sempre il giorno della
+        // settimana (serve al promemoria e al rowspan di CYA/TA qui sotto).
+        let dataCorrente = "";
+        let dataPerRiga = dati.map(riga => {
+            let d = (riga['Data'] || '').trim();
+            if (d !== "") dataCorrente = d;
+            return dataCorrente;
+        });
+
+        // CYA e TA (Alka) si misurano solo lunedì e giovedì, ma sul foglio sorgente restano
+        // celle NON unite (un valore sulla riga di lunedì, uno su quella di giovedì, il resto
+        // vuoto) — è il modo più pulito per l'esportazione CSV e per il promemoria di sopra.
+        // Qui invece, solo per la visualizzazione, ricreiamo l'effetto "cella unita" con un
+        // rowspan HTML: la cella del lunedì copre anche mar/mer, quella del giovedì copre
+        // anche ven/sab/dom — stesso colpo d'occhio di una cella unita, dato sorgente pulito.
+        // Contatore di righe-tabella ancora da saltare (perché coperte da un rowspan attivo).
+        let righeDaSaltare = { cya: 0, alka: 0 };
+
         dati.forEach((riga, indiceRiga) => {
             html += "<tr>";
             intestazioni.forEach(chiave => {
@@ -162,11 +181,59 @@
                     return;
                 }
 
+                // Gestione speciale CYA/Alka: rowspan verso i giorni successivi (vedi sopra).
+                if (n === 'cya' || n === 'alka') {
+                    if (righeDaSaltare[n] > 0) {
+                        righeDaSaltare[n]--;
+                        return; // coperta dal rowspan della cella "ancora" (lun/gio), nessun <td> qui
+                    }
+
+                    let ora07 = (riga['Ora'] || '').trim().startsWith('07');
+                    let giornoTesto = dataPerRiga[indiceRiga];
+                    let eAncoraLun = ora07 && giornoTesto.startsWith('lun ');
+                    let eAncoraGio = ora07 && giornoTesto.startsWith('gio ');
+
+                    if (!eAncoraLun && !eAncoraGio) {
+                        // Capita solo se il registro inizia a metà settimana, prima del primo
+                        // lun/gio: cella normale, senza rowspan, quasi sempre vuota.
+                        html += `<td class="testo-muto" title="${valoreTesto.replace(/"/g, '&quot;')}">${valoreTesto || '-'}</td>`;
+                        return;
+                    }
+
+                    // Righe-tabella coperte: lun→mer = 3 giorni × 2 righe = 6; gio→dom = 4 giorni × 2 righe = 8.
+                    let righeBlocco = eAncoraLun ? 6 : 8;
+                    righeBlocco = Math.min(righeBlocco, dati.length - indiceRiga); // sicurezza a fine tabella
+                    righeDaSaltare[n] = righeBlocco - 1;
+
+                    let vNum = parseFloat(valoreTesto.replace(",", "."));
+                    let classeColore = ottieniClasseColore(chiave, vNum);
+
+                    let ePromemoriaMancante = false;
+                    if (valoreTesto === '') {
+                        classeColore = 'evidenzia-rosso';
+                        ePromemoriaMancante = true;
+                    }
+
+                    let attributoClick = "";
+                    if ((classeColore === "evidenzia-giallo" || classeColore === "evidenzia-rosso") && !isNaN(vNum)) {
+                        let rigaConCya = Object.assign({}, riga, { _cyaStimato: cyaPerRiga[indiceRiga] });
+                        let rigaEscaped = btoa(unescape(encodeURIComponent(JSON.stringify(rigaConCya))));
+                        attributoClick = `onclick="window.apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeColore}', '${rigaEscaped}')"`;
+                    }
+
+                    let titoloCella = ePromemoriaMancante
+                        ? `Misurazione ${n === 'cya' ? 'CYA' : 'TA/Alcalinità'} in programma oggi (lun/gio) — non ancora inserita`
+                        : valoreTesto.replace(/"/g, '&quot;');
+
+                    html += `<td rowspan="${righeBlocco}" class="${classeColore}" ${attributoClick} title="${titoloCella}" style="vertical-align:middle; ${attributoClick !== '' ? 'cursor:pointer;' : ''}">${valoreTesto}</td>`;
+                    return;
+                }
+
                 let vNum = parseFloat(valoreTesto.replace(",", "."));
                 let classeColore = ottieniClasseColore(chiave, vNum);
 
                 let attributoClick = "";
-                if (classeColore === "evidenzia-giallo" || classeColore === "evidenzia-rosso") {
+                if ((classeColore === "evidenzia-giallo" || classeColore === "evidenzia-rosso") && !isNaN(vNum)) {
                     let rigaConCya = Object.assign({}, riga, { _cyaStimato: cyaPerRiga[indiceRiga] });
                     let rigaEscaped = btoa(unescape(encodeURIComponent(JSON.stringify(rigaConCya))));
                     attributoClick = `onclick="window.apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeColore}', '${rigaEscaped}')"`;
