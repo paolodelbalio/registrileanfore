@@ -45,9 +45,13 @@
             // CSS nth-child è 1-indicizzato: la riga assoluta di tabella è indiceRigaAncora+i+1.
             let numeroRigaAssoluta = indiceRigaAncora + i + 1;
             let colore = (numeroRigaAssoluta % 2 === 0) ? GRIGIO : BIANCO;
-            let inizio = (i * step).toFixed(3);
-            let fine = ((i + 1) * step).toFixed(3);
-            stops.push(`${colore} ${inizio}%`, `${colore} ${fine}%`);
+            let inizio = (i * step).toFixed(3) + "%";
+            let fine = ((i + 1) * step).toFixed(3) + "%";
+            // L'ultima banda si ferma un pixel prima del 100%, per lasciare spazio alla striscia
+            // di bordo qui sotto — i punti di un gradiente CSS devono stare in ordine crescente,
+            // altrimenti il browser annulla la larghezza della striscia successiva.
+            if (i === numeroRighe - 1) fine = "calc(100% - 1px)";
+            stops.push(`${colore} ${inizio}`, `${colore} ${fine}`);
         }
         // Riga di confine tra un blocco (lun-mer / gio-dom) e il successivo: disegnata come
         // ultimo pixel del gradiente, non come bordo CSS vero — le celle con rowspan a volte
