@@ -32,29 +32,21 @@
     }
 
     // Costruisce uno sfondo "a bande" che replica l'alternanza bianco/grigio delle righe della
-    // tabella (tr:nth-child(even) -> #f8fafc) dentro a una cella unita (rowspan), comprese le
-    // sottili linee divisorie (stesso colore dei bordi normali, #dddddd) a ogni confine tra le
-    // righe virtuali. Serve perché una cella con rowspan ha UN SOLO sfondo per tutta la sua
-    // area: senza questo trucco le colonne CYA/Alka apparirebbero con un blocco di colore
-    // fisso e senza righe, invece di alternarsi e dividersi come le altre colonne.
+    // tabella (tr:nth-child(even) -> #f8fafc) dentro a una cella unita (rowspan). Serve perché
+    // una cella con rowspan ha UN SOLO sfondo per tutta la sua area: senza questo trucco le
+    // colonne CYA/Alka apparirebbero con un blocco di colore fisso invece di alternarsi.
     function costruisciSfondoARighe(numeroRighe, indiceRigaAncora) {
         const BIANCO = "#ffffff";
         const GRIGIO = "#f8fafc";
-        const BORDO = "#cbd5e1";
         let step = 100 / numeroRighe;
         let stops = [];
         for (let i = 0; i < numeroRighe; i++) {
             // CSS nth-child è 1-indicizzato: la riga assoluta di tabella è indiceRigaAncora+i+1.
             let numeroRigaAssoluta = indiceRigaAncora + i + 1;
             let colore = (numeroRigaAssoluta % 2 === 0) ? GRIGIO : BIANCO;
-            let inizio = i === 0 ? "0%" : `calc(${(i * step).toFixed(3)}% + 1px)`;
-            let fine = `${((i + 1) * step).toFixed(3)}%`;
-            stops.push(`${colore} ${inizio}`, `${colore} ${fine}`);
-            // Linea divisoria di 1px alla fine di ogni banda, tranne l'ultima (il bordo
-            // inferiore della cella lo mette già il CSS normale del td).
-            if (i < numeroRighe - 1) {
-                stops.push(`${BORDO} ${fine}`, `${BORDO} calc(${fine} + 1px)`);
-            }
+            let inizio = (i * step).toFixed(3);
+            let fine = ((i + 1) * step).toFixed(3);
+            stops.push(`${colore} ${inizio}%`, `${colore} ${fine}%`);
         }
         return `linear-gradient(to bottom, ${stops.join(", ")})`;
     }

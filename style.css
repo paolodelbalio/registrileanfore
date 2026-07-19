@@ -110,6 +110,15 @@ tbody td {
     white-space: nowrap;
 }
 
+/* Registro Chimico: righe verticali tra N.Ospiti-Cya-Alka-Note, zona dove le celle hanno poco
+   colore e senza queste linee le colonne sembrano "unite" tra loro. Ordine colonne: Data(1),
+   Ora(2), pH(3), Cl.Lib(4), Cl.Tot(5), Cl.Com(6), Temp(7), N.Ospiti(8), Cya(9), Alka(10), Note(11). */
+#chimicoTable th:nth-child(8), #chimicoTable td:nth-child(8),
+#chimicoTable th:nth-child(9), #chimicoTable td:nth-child(9),
+#chimicoTable th:nth-child(10), #chimicoTable td:nth-child(10) {
+    border-right: 1px solid #cbd5e1;
+}
+
 tr:nth-child(even) td {
     background-color: #f8fafc;
 }
