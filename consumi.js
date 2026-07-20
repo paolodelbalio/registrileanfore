@@ -31,6 +31,7 @@
     let mappaOspitiPerGiorno = {};  // "AAAA-MM-GG" -> Number (N.Ospiti, di solito compilato solo sulla riga 07:00)
     let mappaReintegroPerData = {}; // "AAAA-MM-GG" -> litri di reintegro (dal Registro Contatori)
     let elencoCyaOrdinato = [];     // [{chiave:"AAAA-MM-GG", valore:Number}, ...] ordinato per data, una voce per giorno con CYA misurato
+    let elencoAlkaOrdinato = [];    // stessa struttura del CYA, per l'alcalinità (Alka), letta 2 volte/settimana
     let righeConsumiGrezze = null;
     let intestazioniConsumi = null;
 
@@ -55,6 +56,7 @@
     const TARGET_PH_IDEALE = 7.15;    // centro fascia 7,0-7,3
     const OSPITI_MEDIO_STAGIONE = 2.9; // media storica, usata quando gli ospiti di oggi non sono ancora noti
     const LIMITE_ANOMALO_CLORO_G = 350; // riferimento storico (dose massima normalmente usata finora), non una soglia di errore: superarlo può essere legittimo in certe condizioni
+    const LIMITE_ANOMALO_PHMENO_G = 2000; // dose massima di pH- realmente testata sui dati storici
 
     const COEF_CLORO = {
         dose: 0.005873, temp: -0.056180, ospiti: -0.047088, cya: 0.027418,
@@ -141,6 +143,7 @@
     function costruisciMappaChimico(datiChimico) {
         let mappa = {};
         let cyaPerGiorno = {};
+        let alkaPerGiorno = {};
         let chiaveCorrente = null;
 
         datiChimico.forEach(riga => {
@@ -150,6 +153,9 @@
 
             let cya = parseFloat((riga["Cya"] || "").replace(",", "."));
             if (!isNaN(cya)) cyaPerGiorno[chiaveCorrente] = cya;
+
+            let alka = parseFloat((riga["Alka"] || "").replace(",", "."));
+            if (!isNaN(alka)) alkaPerGiorno[chiaveCorrente] = alka;
 
             let ora = (riga["Ora"] || "").trim();
             let fase = ora.startsWith("07") ? "mattina" : (ora.startsWith("21") ? "sera" : null);
@@ -172,6 +178,7 @@
         });
 
         elencoCyaOrdinato = Object.keys(cyaPerGiorno).sort().map(chiave => ({ chiave, valore: cyaPerGiorno[chiave] }));
+        elencoAlkaOrdinato = Object.keys(alkaPerGiorno).sort().map(chiave => ({ chiave, valore: alkaPerGiorno[chiave] }));
         return mappa;
     }
 
@@ -319,12 +326,20 @@
         // --- pH- (solo se c'è una dose di pH- da valutare, cioè se pH mattina sopra il target) ---
         let phMattina = oggi.mattina.ph;
         let grammiPh = null;
+        let alkaUsato = null;
         if (phMattina != null) {
+            let alkaVoce = null;
+            for (let i = elencoAlkaOrdinato.length - 1; i >= 0; i--) {
+                if (elencoAlkaOrdinato[i].chiave <= chiaveGiorno) { alkaVoce = elencoAlkaOrdinato[i]; break; }
+            }
+            alkaUsato = alkaVoce ? alkaVoce.valore : null;
+            let fattoreAlka = alkaUsato != null ? (alkaUsato / 100) : 1;
+
             let deltaTargetPh = TARGET_PH_IDEALE - phMattina;
             let contributiNotiPh = COEF_PH.temp * tempMedia + COEF_PH.reintegro * reintegroUsato
                 + COEF_PH.ospiti * ospitiUsati + COEF_PH.intercetta;
             if (deltaTargetPh < 0) { // serve scendere
-                grammiPh = Math.max(0, Math.round((deltaTargetPh - contributiNotiPh) / COEF_PH.dose));
+                grammiPh = Math.max(0, Math.round(((deltaTargetPh - contributiNotiPh) / COEF_PH.dose) * fattoreAlka));
             } else {
                 grammiPh = 0; // pH già alla o sotto la fascia ideale, nessuna dose di pH- suggerita
             }
@@ -332,7 +347,7 @@
 
         return {
             chiaveGiorno, clMattina, clSeraIeri, comMattina, comSeraIeri, tempMattina, tempSeraIeri,
-            deltaNotteLibero, deltaNotteCombinato, tempMedia, cya, reintegroUsato, ospitiUsati, phMattina,
+            deltaNotteLibero, deltaNotteCombinato, tempMedia, cya, reintegroUsato, ospitiUsati, phMattina, alkaUsato,
             grammiCloro, cloroAnomalo, grammiPh,
             datiReali: (ospitiReali != null && reintegroStesso != null) // vero se il calcolo usa dati reali di quel giorno, non stime
         };
@@ -824,6 +839,7 @@
             📉 Cl. Lib notte: ${it(s.clSeraIeri,2)} → ${it(s.clMattina,2)} (${s.deltaNotteLibero>=0?'+':''}${it(s.deltaNotteLibero,2)}) &nbsp;·&nbsp;
             📈 Cl. Com notte: ${it(s.comSeraIeri,2)} → ${it(s.comMattina,2)} (${s.deltaNotteCombinato>=0?'+':''}${it(s.deltaNotteCombinato,2)}) &nbsp;·&nbsp;
             🧪 CYA: ${s.cya!=null? Math.round(s.cya) : 'n/d'} ppm &nbsp;·&nbsp;
+            🧂 Alka: ${s.alkaUsato!=null? Math.round(s.alkaUsato)+' ppm' : 'n/d (standard 100 ppm)'} &nbsp;·&nbsp;
             💧 reintegro: ${s.reintegroUsato!=null? Math.round(s.reintegroUsato).toLocaleString('it-IT')+' l' : 'n/d'}
         </p>`;
 
@@ -841,10 +857,17 @@
         </div>`;
 
         if (s.grammiPh !== null) {
+            let avvisoPhAnomalo = s.grammiPh > LIMITE_ANOMALO_PHMENO_G
+                ? `<p style="font-size:0.8rem; color:#0369a1; background-color:#f0f9ff; padding:8px 10px; border-radius:4px; margin:6px 0;">
+                     ℹ️ Più alto di quanto tu abbia mai testato in un solo giorno (max storico ${LIMITE_ANOMALO_PHMENO_G}g) — considera di dosarne una parte oggi, rimisurare, e completare nei giorni successivi.
+                   </p>`
+                : "";
             corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
                 <strong>pH-</strong>
                 <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${s.grammiPh} g</div>
-                <span style="font-size:0.8rem; color:#94a3b8;">⚠️ Modello meno affidabile di quello del cloro (R²=0,25-0,30) — il pH si muove poco nei tuoi dati, quindi il segnale è debole. Prendilo solo come indicazione di massima.</span>
+                ${avvisoPhAnomalo}
+                <span style="font-size:0.8rem; color:#94a3b8;">⚠️ Modello meno affidabile di quello del cloro (R²=0,25-0,30) — il pH si muove poco nei tuoi dati, quindi il segnale è debole. Prendilo solo come indicazione di massima.
+                Dose corretta per l'Alka ${s.alkaUsato!=null? 'attuale ('+Math.round(s.alkaUsato)+' ppm)' : 'standard (nessuna lettura recente, assunta 100 ppm)'} — con TA più alto serve più prodotto per lo stesso effetto.</span>
             </div>`;
         }
 
