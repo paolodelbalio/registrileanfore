@@ -11,6 +11,10 @@
     const COEF_CLORO_BASE = { dose: 0.00607, temp: -0.05777, ospiti: -0.05795, cya: 0.02951, intercetta: -0.57151 };
     const LIMITE_ANOMALO_CLORO_G = 350; // riferimento storico (dose massima normalmente usata finora), non una soglia di errore: superarlo può essere legittimo in certe condizioni
 
+    // pH-: dose massima realmente testata sui dati storici (Registro Consumi). Non è una soglia
+    // di errore ma di dati mancanti: oltre questo valore la scalatura per Alka non è verificata.
+    const LIMITE_ANOMALO_PHMENO_G = 2000;
+
     // Water Stop Cloro (Sodio Bisolfito): dall'etichetta, 100g riducono il cloro di 0,5 ppm
     // ogni 100 m³ d'acqua. Convertito per la vasca di Le Anfore (92 m³): 184g per ogni ppm da ridurre.
     const GRAMMI_DECLORATORE_PER_PPM = 184;
@@ -177,6 +181,15 @@
             return cyaCorrente;
         });
 
+        // Stesso principio del CYA: l'Alka è letta solo 2 volte/settimana, qui la "propaghiamo"
+        // in avanti così il popup diagnostico del pH ha sempre un valore di riferimento recente.
+        let alkaCorrente = null;
+        let alkaPerRiga = dati.map(riga => {
+            let val = parseFloat((riga['Alka'] || '').replace(',', '.'));
+            if (!isNaN(val)) alkaCorrente = val;
+            return alkaCorrente;
+        });
+
         let dataCorrente = "";
         let dataPerRiga = dati.map(riga => {
             let d = (riga['Data'] || '').trim();
@@ -234,7 +247,7 @@
 
                     let attributoClick = "";
                     if (!ePromemoriaMancante && classeValore !== '' && !isNaN(vNum)) {
-                        let rigaConCya = Object.assign({}, riga, { _cyaStimato: cyaPerRiga[indiceRiga] });
+                        let rigaConCya = Object.assign({}, riga, { _cyaStimato: cyaPerRiga[indiceRiga], _alkaStimato: alkaPerRiga[indiceRiga] });
                         let rigaEscaped = btoa(unescape(encodeURIComponent(JSON.stringify(rigaConCya))));
                         attributoClick = `onclick="window.apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeValore}', '${rigaEscaped}')"`;
                     }
@@ -261,7 +274,7 @@
 
                 let attributoClick = "";
                 if ((classeColore === "evidenzia-giallo" || classeColore === "evidenzia-rosso") && !isNaN(vNum)) {
-                    let rigaConCya = Object.assign({}, riga, { _cyaStimato: cyaPerRiga[indiceRiga] });
+                    let rigaConCya = Object.assign({}, riga, { _cyaStimato: cyaPerRiga[indiceRiga], _alkaStimato: alkaPerRiga[indiceRiga] });
                     let rigaEscaped = btoa(unescape(encodeURIComponent(JSON.stringify(rigaConCya))));
                     attributoClick = `onclick="window.apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeColore}', '${rigaEscaped}')"`;
                 }
@@ -325,6 +338,7 @@
         let ospitiCorrenti = 0;
         let tempCorrente = 26.5;
         let cyaCorrenteRiga = null;
+        let alkaCorrenteRiga = null;
         let clLibCorrente = null;
         if (rigaCriptata !== "") {
             try {
@@ -332,6 +346,7 @@
                 if (rigaDecodificata["N.Ospiti"]) ospitiCorrenti = parseInt(rigaDecodificata["N.Ospiti"]) || 0;
                 if (rigaDecodificata["Temp"]) tempCorrente = parseFloat(rigaDecodificata["Temp"].replace(",", ".")) || 26.5;
                 if (rigaDecodificata["_cyaStimato"] != null) cyaCorrenteRiga = rigaDecodificata["_cyaStimato"];
+                if (rigaDecodificata["_alkaStimato"] != null) alkaCorrenteRiga = rigaDecodificata["_alkaStimato"];
                 if (rigaDecodificata["Cl. Lib"]) clLibCorrente = parseFloat(rigaDecodificata["Cl. Lib"].replace(",", ".")) || null;
             } catch (e) { console.log("Errore parsing parametri riga", e); }
         }
@@ -351,23 +366,38 @@
 
         if (p === 'ph') {
             if (valore > 7.3) {
+                // Tasso base validato sui dati reali (regressione pulita, n=30, post 15/6):
+                // ~943g per 0,1 pH con Alka vasca ~100 ppm — praticamente identico al tasso
+                // teorico della formula (920g), quindi confermato. Scalato linearmente sull'Alka
+                // corrente: più tampone (Alka alto) = serve più prodotto per lo stesso effetto,
+                // coerente con le due dosi da 2000g fatte con Alka 155-157 che hanno mosso il pH
+                // pochissimo. Scalatura lineare di primo ordine, da raffinare con più letture Alka.
+                let alkaRiferimento = alkaCorrenteRiga != null ? alkaCorrenteRiga : 100;
+                let fattoreAlka = alkaRiferimento / 100;
+
                 let dLimite = valore - 7.5;
                 let dIdeale = valore - 7.3;
-                let gLimite = Math.round((dLimite / 0.1) * 10 * VOL_PISCINA);
-                let gIdeale = Math.round((dIdeale / 0.1) * 10 * VOL_PISCINA);
+                let gLimite = Math.round((dLimite / 0.1) * 10 * VOL_PISCINA * fattoreAlka);
+                let gIdeale = Math.round((dIdeale / 0.1) * 10 * VOL_PISCINA * fattoreAlka);
+
+                let notaAlka = alkaCorrenteRiga != null
+                    ? `<p style="font-size:0.75rem; color:#94a3b8;">Dose corretta per l'alcalinità attuale (Alka ${Math.round(alkaRiferimento)} ppm) — con TA più alto serve più prodotto per lo stesso effetto (effetto tampone), con TA più basso ne serve meno.</p>`
+                    : `<p style="font-size:0.75rem; color:#94a3b8;">Nessuna lettura recente di Alka: dose calcolata assumendo Alka standard (100 ppm). Misurala per un consiglio più preciso.</p>`;
+
+                let avvisoNonValidato = gIdeale > LIMITE_ANOMALO_PHMENO_G
+                    ? `<p style="font-size:0.8rem; color:#0369a1;">ℹ️ Dose più alta di quanto tu abbia mai testato in un solo giorno (max storico ${LIMITE_ANOMALO_PHMENO_G}g) — non è detto sia sbagliata, ma a queste quantità non abbiamo dati reali. Valuta di dosarne una parte oggi, rimisurare, e completare nei giorni successivi.</p>`
+                    : "";
 
                 corpoHTML += `<h3>Stato: <span style="color:#991b1b;">pH Alto (${valore})</span></h3><br>
                 <p style="margin-bottom:8px;"><strong>1. Dose correttiva di rientro (Limite 7.5):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Riduttore Acido.</p>
-                <p><strong>2. Dose ottimale di stabilizzazione (Ideale 7.3):</strong> aggiungere <strong>${gIdeale}g</strong> di Riduttore Acido.</p>`;
+                <p><strong>2. Dose ottimale di stabilizzazione (Ideale 7.3):</strong> aggiungere <strong>${gIdeale}g</strong> di Riduttore Acido.</p>
+                ${notaAlka}
+                ${avvisoNonValidato}`;
             } else if (valore < 7.0) {
-                let dLimite = 6.5 - valore;
-                let dIdeale = 7.3 - valore;
-                let gLimite = Math.round((dLimite / 0.1) * 10 * VOL_PISCINA);
-                let gIdeale = Math.round((dIdeale / 0.1) * 10 * VOL_PISCINA);
-
                 corpoHTML += `<h3>Stato: <span style="color:#991b1b;">pH Basso (${valore})</span></h3><br>
-                <p style="margin-bottom:8px;"><strong>1. Dose correttiva di rientro (Limite 6.5):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di pH Plus.</p>
-                <p><strong>2. Dose ottimale di stabilizzazione (Ideale 7.3):</strong> aggiungere <strong>${gIdeale}g</strong> di pH Plus.</p>`;
+                <p style="margin-bottom:8px;"><strong>Suggerimento:</strong> aumenta il reintegro nei prossimi giorni. L'acqua di rete (pH 7,49, alcalinità elevata) tende a far risalire gradualmente sia il pH che il TA della vasca.</p>
+                <p style="font-size:0.75rem; color:#94a3b8;">Non abbiamo ancora un modello numerico affidabile "litri di reintegro → variazione pH" (a differenza del pH-, qui non ci sono dati sufficienti per calcolare grammi/litri precisi). Trattalo come indicazione qualitativa: aumenta il reintegro rispetto al solito, poi verifica l'effetto nella lettura successiva.</p>
+                <p style="font-size:0.75rem; color:#94a3b8;">Nota: il rientro sarà più lento del pH- (non è un'aggiunta diretta di prodotto, ma un ricambio d'acqua), quindi non aspettarti un effetto già nella lettura delle 21:00 dello stesso giorno.</p>`;
             }
         }
         else if (p === 'cl. lib' || p === 'cl. tot') {
