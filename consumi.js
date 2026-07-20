@@ -665,6 +665,42 @@
 
         html += "</tbody>";
         tabella.innerHTML = html;
+
+        mostraTotaliConsumi(intestazioni, righeDati);
+    }
+
+    // Somma tutte le quantità registrate per ciascun prodotto (Data e Note escluse) e le mostra
+    // sopra la tabella. Funziona con qualsiasi colonna prodotto presente nel CSV, senza nomi
+    // hardcoded, così resta valido anche se in futuro cambiano i prodotti tracciati.
+    function mostraTotaliConsumi(intestazioni, righeDati) {
+        const contenitore = document.getElementById("consumiTotali");
+        if (!contenitore) return;
+
+        let colonneProdotto = intestazioni
+            .map((titolo, indice) => ({ titolo: (titolo || "").trim(), indice }))
+            .filter(c => c.titolo !== "" && c.titolo.toLowerCase() !== "data" && c.titolo.toLowerCase() !== "note");
+
+        let totali = colonneProdotto.map(col => {
+            let somma = 0;
+            righeDati.forEach(riga => {
+                let val = parseFloat((riga[col.indice] || "").replace(",", "."));
+                if (!isNaN(val)) somma += val;
+            });
+            return { titolo: col.titolo, totale: somma };
+        }).filter(t => t.totale > 0);
+
+        if (totali.length === 0) {
+            contenitore.innerHTML = "";
+            return;
+        }
+
+        let pillole = totali.map(t =>
+            `<span style="display:inline-block; background:#f1f5f9; border-radius:6px; padding:4px 10px; margin:2px 6px 2px 0; font-size:0.85rem; color:#334155;">
+                <strong>${t.titolo}:</strong> ${t.totale.toLocaleString('it-IT')} g
+            </span>`
+        ).join("");
+
+        contenitore.innerHTML = `<div style="font-size:0.8rem; color:#64748b; margin-bottom:4px;">Totale stagione:</div>${pillole}`;
     }
 
     window.apriVerificaEfficacia = function (datiCodificati) {
