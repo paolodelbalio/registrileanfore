@@ -141,13 +141,13 @@
             return "evidenzia-rosso";
         }
         if (p === 'cya') {
-            if (v >= 0 && v <= 40) return "evidenzia-verde";
-            if (v > 40 && v <= 60) return "evidenzia-giallo";
+            if (v >= 0 && v <= 50) return "evidenzia-verde";
+            if (v > 50 && v <= 75) return "evidenzia-giallo";
             return "evidenzia-rosso";
         }
         if (p === 'alka') {
-            if (v >= 80 && v <= 120) return "evidenzia-verde";
-            if ((v >= 60 && v < 80) || (v > 120 && v <= 150)) return "evidenzia-giallo";
+            if (v >= 80 && v <= 100) return "evidenzia-verde";
+            if ((v >= 60 && v < 80) || (v > 100 && v <= 150)) return "evidenzia-giallo";
             return "evidenzia-rosso";
         }
         return "";
@@ -473,16 +473,20 @@
         else if (p === 'alka') {
             if (valore < 80) {
                 let dLimite = 60 - valore;
-                let dIdeale = 100 - valore;
+                let dIdeale = 90 - valore;
                 let gLimite = Math.round(dLimite * 1.7 * VOL_PISCINA);
                 let gIdeale = Math.round(dIdeale * 1.7 * VOL_PISCINA);
 
                 corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Alcalinità Bassa (${valore} ppm)</span></h3><br>
                 <p style="margin-bottom:8px;"><strong>1. Dose minima di rientro (Limite 60 ppm):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Bicarbonato di Sodio.</p>
-                <p><strong>2. Dose ottimale di stabilizzazione (Ideale 100 ppm):</strong> aggiungere <strong>${gIdeale}g</strong> di Bicarbonato di Sodio.</p>`;
-            } else if (valore > 120) {
+                <p><strong>2. Dose ottimale di stabilizzazione (Ideale 80-100 ppm, centro 90):</strong> aggiungere <strong>${gIdeale}g</strong> di Bicarbonato di Sodio.</p>`;
+            } else if (valore > 100) {
+                let notaCritica = valore > 150
+                    ? `<p style="font-size:0.8rem; color:#991b1b;">⚠️ Sopra 150 ppm il pH- diventa quasi inefficace (confermato dai tuoi dati reali: dosi da 2000g con Alka a 155-157 hanno spostato il pH di soli -0,02). Valuta un ricambio parziale d'acqua prima di continuare a dosare pH-.</p>`
+                    : "";
                 corpoHTML += `<h3>Stato: <span style="color:#854d0e;">Alcalinità Alta (${valore} ppm)</span></h3><br>
-                <p>Effetto tampone rigido. Frazionare piccole dosi di riduttore acido.</p>`;
+                <p>Effetto tampone rigido. Frazionare piccole dosi di riduttore acido.</p>
+                ${notaCritica}`;
             }
         }
 
@@ -546,9 +550,9 @@
             ];
         } else if (n === 'cya') {
             configurazioneFasce = [
-                { yMin: 0, yMax: 40, color: 'rgba(34, 197, 94, 0.09)' },
-                { yMin: 40, yMax: 60, color: 'rgba(245, 158, 11, 0.08)' },
-                { yMin: 60, yMax: 150, color: 'rgba(239, 68, 68, 0.08)' }
+                { yMin: 0, yMax: 50, color: 'rgba(34, 197, 94, 0.09)' },
+                { yMin: 50, yMax: 75, color: 'rgba(245, 158, 11, 0.08)' },
+                { yMin: 75, yMax: 150, color: 'rgba(239, 68, 68, 0.08)' }
             ];
         } else if (n === 'temp') {
             configurazioneFasce = [
@@ -562,8 +566,8 @@
             configurazioneFasce = [
                 { yMin: 0, yMax: 60, color: 'rgba(239, 68, 68, 0.08)' },
                 { yMin: 60, yMax: 80, color: 'rgba(245, 158, 11, 0.08)' },
-                { yMin: 80, yMax: 120, color: 'rgba(34, 197, 94, 0.09)' },
-                { yMin: 120, yMax: 150, color: 'rgba(245, 158, 11, 0.08)' },
+                { yMin: 80, yMax: 100, color: 'rgba(34, 197, 94, 0.09)' },
+                { yMin: 100, yMax: 150, color: 'rgba(245, 158, 11, 0.08)' },
                 { yMin: 150, yMax: 300, color: 'rgba(239, 68, 68, 0.08)' }
             ];
         }
