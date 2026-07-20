@@ -336,6 +336,7 @@
         let intestazioneAllarme = "";
 
         let ospitiCorrenti = 0;
+        let ospitiDisponibili = false;
         let tempCorrente = 26.5;
         let cyaCorrenteRiga = null;
         let alkaCorrenteRiga = null;
@@ -343,7 +344,10 @@
         if (rigaCriptata !== "") {
             try {
                 let rigaDecodificata = JSON.parse(decodeURIComponent(escape(atob(rigaCriptata))));
-                if (rigaDecodificata["N.Ospiti"]) ospitiCorrenti = parseInt(rigaDecodificata["N.Ospiti"]) || 0;
+                if (rigaDecodificata["N.Ospiti"] !== undefined && rigaDecodificata["N.Ospiti"] !== "") {
+                    ospitiCorrenti = parseInt(rigaDecodificata["N.Ospiti"]) || 0;
+                    ospitiDisponibili = true;
+                }
                 if (rigaDecodificata["Temp"]) tempCorrente = parseFloat(rigaDecodificata["Temp"].replace(",", ".")) || 26.5;
                 if (rigaDecodificata["_cyaStimato"] != null) cyaCorrenteRiga = rigaDecodificata["_cyaStimato"];
                 if (rigaDecodificata["_alkaStimato"] != null) alkaCorrenteRiga = rigaDecodificata["_alkaStimato"];
@@ -363,6 +367,9 @@
 
         let titoloModale = `Diagnostica Parametro: ${parametro}`;
         let corpoHTML = `${intestazioneAllarme}<p style='font-size:0.85rem; color:#64748b; margin-bottom: 12px;'>Rilevazione del ${dataOra}</p>`;
+        corpoHTML += `<p style="font-size:0.8rem; color:#334155; background-color:#f1f5f9; padding:6px 10px; border-radius:4px; margin-bottom:12px;">
+            👥 Ospiti: ${ospitiDisponibili ? ospitiCorrenti : 'n/d (non registrati su questa riga)'}
+        </p>`;
 
         if (p === 'ph') {
             if (valore > 7.3) {
