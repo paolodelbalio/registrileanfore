@@ -190,6 +190,18 @@
             return alkaCorrente;
         });
 
+        // Gli ospiti sono scritti solo sulla riga delle 7 di ogni giorno: qui li propaghiamo
+        // alla riga delle 21 dello STESSO giorno (reset ad ogni nuova data, a differenza di
+        // CYA/Alka che invece devono restare validi anche per giorni successivi).
+        let ospitiCorrente = null;
+        let ospitiPerRiga = dati.map(riga => {
+            let d = (riga['Data'] || '').trim();
+            if (d !== "") ospitiCorrente = null;
+            let val = parseInt(riga['N.Ospiti'], 10);
+            if (!isNaN(val)) ospitiCorrente = val;
+            return ospitiCorrente;
+        });
+
         let dataCorrente = "";
         let dataPerRiga = dati.map(riga => {
             let d = (riga['Data'] || '').trim();
@@ -247,7 +259,7 @@
 
                     let attributoClick = "";
                     if (!ePromemoriaMancante && classeValore !== '' && !isNaN(vNum)) {
-                        let rigaConCya = Object.assign({}, riga, { _cyaStimato: cyaPerRiga[indiceRiga], _alkaStimato: alkaPerRiga[indiceRiga] });
+                        let rigaConCya = Object.assign({}, riga, { _cyaStimato: cyaPerRiga[indiceRiga], _alkaStimato: alkaPerRiga[indiceRiga], _ospitiStimato: ospitiPerRiga[indiceRiga] });
                         let rigaEscaped = btoa(unescape(encodeURIComponent(JSON.stringify(rigaConCya))));
                         attributoClick = `onclick="window.apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeValore}', '${rigaEscaped}')"`;
                     }
@@ -274,7 +286,7 @@
 
                 let attributoClick = "";
                 if ((classeColore === "evidenzia-giallo" || classeColore === "evidenzia-rosso") && !isNaN(vNum)) {
-                    let rigaConCya = Object.assign({}, riga, { _cyaStimato: cyaPerRiga[indiceRiga], _alkaStimato: alkaPerRiga[indiceRiga] });
+                    let rigaConCya = Object.assign({}, riga, { _cyaStimato: cyaPerRiga[indiceRiga], _alkaStimato: alkaPerRiga[indiceRiga], _ospitiStimato: ospitiPerRiga[indiceRiga] });
                     let rigaEscaped = btoa(unescape(encodeURIComponent(JSON.stringify(rigaConCya))));
                     attributoClick = `onclick="window.apriConsiglioDettagliato('${chiave}', ${vNum}, '${riga.Data || ''} ${riga.Ora || ''}', '${classeColore}', '${rigaEscaped}')"`;
                 }
@@ -346,6 +358,9 @@
                 let rigaDecodificata = JSON.parse(decodeURIComponent(escape(atob(rigaCriptata))));
                 if (rigaDecodificata["N.Ospiti"] !== undefined && rigaDecodificata["N.Ospiti"] !== "") {
                     ospitiCorrenti = parseInt(rigaDecodificata["N.Ospiti"]) || 0;
+                    ospitiDisponibili = true;
+                } else if (rigaDecodificata["_ospitiStimato"] != null) {
+                    ospitiCorrenti = rigaDecodificata["_ospitiStimato"];
                     ospitiDisponibili = true;
                 }
                 if (rigaDecodificata["Temp"]) tempCorrente = parseFloat(rigaDecodificata["Temp"].replace(",", ".")) || 26.5;

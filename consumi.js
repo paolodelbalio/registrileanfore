@@ -306,6 +306,7 @@
 
         // Ospiti: usa il dato reale di quel giorno se già registrato, altrimenti la media storica.
         let ospitiReali = mappaOspitiPerGiorno[chiaveGiorno];
+        let ospitiIeri = mappaOspitiPerGiorno[chiaveIeri];
         let ospitiUsati = ospitiReali != null ? ospitiReali : OSPITI_MEDIO_STAGIONE;
 
         // Reintegro: usa quello dello STESSO giorno se già registrato (giorno passato); altrimenti
@@ -347,7 +348,7 @@
 
         return {
             chiaveGiorno, clMattina, clSeraIeri, comMattina, comSeraIeri, tempMattina, tempSeraIeri,
-            deltaNotteLibero, deltaNotteCombinato, tempMedia, cya, reintegroUsato, ospitiUsati, ospitiSonoReali: (ospitiReali != null), phMattina, alkaUsato,
+            deltaNotteLibero, deltaNotteCombinato, tempMedia, cya, reintegroUsato, ospitiUsati, ospitiSonoReali: (ospitiReali != null), ospitiIeri, phMattina, alkaUsato,
             grammiCloro, cloroAnomalo, grammiPh,
             datiReali: (ospitiReali != null && reintegroStesso != null) // vero se il calcolo usa dati reali di quel giorno, non stime
         };
@@ -840,7 +841,7 @@
             📈 Cl. Com notte: ${it(s.comSeraIeri,2)} → ${it(s.comMattina,2)} (${s.deltaNotteCombinato>=0?'+':''}${it(s.deltaNotteCombinato,2)}) &nbsp;·&nbsp;
             🧪 CYA: ${s.cya!=null? Math.round(s.cya) : 'n/d'} ppm &nbsp;·&nbsp;
             🧂 Alka: ${s.alkaUsato!=null? Math.round(s.alkaUsato)+' ppm' : 'n/d (standard 100 ppm)'} &nbsp;·&nbsp;
-            👥 Ospiti: ${it(s.ospitiUsati,1)}${s.ospitiSonoReali ? '' : ' (media stagionale, non ancora rilevati)'} &nbsp;·&nbsp;
+            👥 Ospiti: ${it(s.ospitiUsati,1)}${s.ospitiSonoReali ? '' : ' (media stagionale, non ancora rilevati)'}${(!s.ospitiSonoReali && s.ospitiIeri!=null) ? ' &nbsp;·&nbsp; ieri: '+s.ospitiIeri : ''} &nbsp;·&nbsp;
             💧 reintegro: ${s.reintegroUsato!=null? Math.round(s.reintegroUsato).toLocaleString('it-IT')+' l' : 'n/d'}
         </p>`;
 
