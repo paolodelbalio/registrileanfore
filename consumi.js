@@ -684,7 +684,11 @@
             let somma = 0;
             righeDati.forEach(riga => {
                 let val = parseFloat((riga[col.indice] || "").replace(",", "."));
-                if (!isNaN(val)) somma += val;
+                if (!isNaN(val)) {
+                    // Il Tricloro nel registro è conteggiato in PASTIGLIE (es. "1"), non in
+                    // grammi come le altre colonne — va convertito prima di sommarlo.
+                    somma += (col.titolo.toLowerCase() === "tricloro") ? val * PESO_PASTIGLIA_TRICLORO_G : val;
+                }
             });
             return { titolo: col.titolo, totale: somma };
         }).filter(t => t.totale > 0);
