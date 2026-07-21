@@ -936,6 +936,21 @@
         });
     }
 
+    // Stessi colori già usati per i parametri corrispondenti in chimico.js, per coerenza visiva
+    // in tutto il dashboard. pH- -> colore pH, Cloro -> colore Cl. Lib, Decloratore -> colore
+    // Cl. Com (è il prodotto che lo riduce), Tricloro -> colore CYA (è l'effetto che genera).
+    const COLORI_PRODOTTO = {
+        "ph-": "#ff6384",
+        "cloro": "#36a2eb",
+        "tricloro": "#c9cbcf",
+        "decloratore": "#ff9f40",
+        "antialghe": "#14b8a6",
+        "flocculante": "#e879f9"
+    };
+    function coloreProdotto(nome) {
+        return COLORI_PRODOTTO[(nome || "").trim().toLowerCase()] || "#0369a1";
+    }
+
     // Estrae, per ogni riga del Registro Consumi, la dose del prodotto in colonna (convertendo
     // il Tricloro da pastiglie a grammi), la data in chiaro e la chiave "AAAA-MM-GG" per
     // incrociarla con temperatura/ospiti del Registro Chimico. Righe senza data valida escluse.
@@ -992,7 +1007,7 @@
                         type: "bar",
                         label: nomeProdotto + " (g)",
                         data: serie.map(r => r.dose),
-                        backgroundColor: "rgba(3, 105, 161, 0.6)",
+                        backgroundColor: coloreProdotto(nomeProdotto),
                         yAxisID: "yDose"
                     },
                     {
@@ -1057,8 +1072,8 @@
                 datasets: [{
                     label: nomeProdotto + " cumulativo (g)",
                     data: valori,
-                    borderColor: "#0369a1",
-                    backgroundColor: "rgba(3, 105, 161, 0.08)",
+                    borderColor: coloreProdotto(nomeProdotto),
+                    backgroundColor: coloreProdotto(nomeProdotto) + "15",
                     borderWidth: 2,
                     pointRadius: 1,
                     pointHoverRadius: 4,
