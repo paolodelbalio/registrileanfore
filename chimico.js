@@ -550,6 +550,8 @@
         });
 
         if (graficoCorrente) graficoCorrente.destroy();
+        let esistente = Chart.getChart(ctx.canvas);
+        if (esistente) esistente.destroy();
 
         let n = chiaveFiltro.trim().toLowerCase();
         let configurazioneFasce = [];
@@ -643,5 +645,8 @@
     window.closeOverlay = function () {
         document.getElementById("chartOverlay")?.classList.add("hidden");
         if (graficoCorrente) { graficoCorrente.destroy(); graficoCorrente = null; }
+        const canvas = document.getElementById("overlayCanvas");
+        const esistente = canvas ? Chart.getChart(canvas) : null;
+        if (esistente) esistente.destroy();
     };
 })();

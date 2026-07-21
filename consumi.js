@@ -611,9 +611,15 @@
         if (!tabella) return;
 
         let html = "<thead><tr>";
-        intestazioni.forEach(titolo => {
+        intestazioni.forEach((titolo, indice) => {
+            let n = (titolo || "").trim().toLowerCase();
             let classeColonna = "col-" + (titolo || "").trim().toLowerCase().replace(/\s+/g, "-");
-            html += `<th class="${classeColonna}">${titolo || ""}</th>`;
+            let eColonnaProdotto = (n !== "" && n !== "data" && n !== "note");
+            if (eColonnaProdotto) {
+                html += `<th class="${classeColonna}" onclick="window.apriGraficoConsumo(${indice}, '${(titolo || "").trim().replace(/'/g, "\\'")}')" style="cursor:pointer; text-decoration:underline;">${titolo || ""}</th>`;
+            } else {
+                html += `<th class="${classeColonna}">${titolo || ""}</th>`;
+            }
         });
         html += `<th id="colonnaVerifica">Verifica</th>`;
         html += "</tr></thead><tbody>";
@@ -690,7 +696,7 @@
                     somma += (col.titolo.toLowerCase() === "tricloro") ? val * PESO_PASTIGLIA_TRICLORO_G : val;
                 }
             });
-            return { titolo: col.titolo, totale: somma };
+            return { titolo: col.titolo, totale: somma, indice: col.indice };
         }).filter(t => t.totale > 0);
 
         if (totali.length === 0) {
@@ -699,12 +705,12 @@
         }
 
         let pillole = totali.map(t =>
-            `<span style="display:inline-block; background:#f1f5f9; border-radius:6px; padding:4px 10px; margin:2px 6px 2px 0; font-size:0.85rem; color:#334155;">
+            `<span onclick="window.apriGraficoCumulativoConsumo(${t.indice}, '${t.titolo.replace(/'/g, "\\'")}')" style="display:inline-block; background:#f1f5f9; border-radius:6px; padding:4px 10px; margin:2px 6px 2px 0; font-size:0.85rem; color:#334155; cursor:pointer;" title="Clicca per l'andamento cumulativo stagionale">
                 <strong>${t.titolo}:</strong> ${t.totale.toLocaleString('it-IT')} g
             </span>`
         ).join("");
 
-        contenitore.innerHTML = `<div style="font-size:0.8rem; color:#64748b; margin-bottom:4px;">Totale stagione:</div>${pillole}`;
+        contenitore.innerHTML = `<div style="font-size:0.8rem; color:#64748b; margin-bottom:4px;">Totale stagione (clicca un prodotto per il grafico):</div>${pillole}`;
     }
 
     window.apriVerificaEfficacia = function (datiCodificati) {
@@ -929,4 +935,145 @@
             }
         });
     }
+
+    // Estrae, per ogni riga del Registro Consumi, la dose del prodotto in colonna (convertendo
+    // il Tricloro da pastiglie a grammi), la data in chiaro e la chiave "AAAA-MM-GG" per
+    // incrociarla con temperatura/ospiti del Registro Chimico. Righe senza data valida escluse.
+    function estraiSerieProdotto(indiceColonna, nomeProdotto) {
+        if (!righeConsumiGrezze) return [];
+        let eTricloro = nomeProdotto.trim().toLowerCase() === "tricloro";
+
+        return righeConsumiGrezze
+            .map(riga => {
+                if (!riga[0]) return null;
+                let dObj = parseDataAbbreviata(riga[0]);
+                if (!dObj) return null;
+                let chiave = chiaveData(dObj);
+
+                let val = parseFloat((riga[indiceColonna] || "").replace(",", "."));
+                let dose = isNaN(val) ? 0 : (eTricloro ? val * PESO_PASTIGLIA_TRICLORO_G : val);
+
+                let giorno = mappaChimicoPerData ? mappaChimicoPerData[chiave] : null;
+                let temp = null;
+                if (giorno) {
+                    let tM = giorno.mattina ? giorno.mattina.temp : null;
+                    let tS = giorno.sera ? giorno.sera.temp : null;
+                    temp = (tM != null && tS != null) ? (tM + tS) / 2 : (tM != null ? tM : tS);
+                }
+                let ospiti = mappaOspitiPerGiorno[chiave] != null ? mappaOspitiPerGiorno[chiave] : null;
+
+                return { chiave, etichetta: formatDataItaliana(riga[0].trim()), dose, temp, ospiti };
+            })
+            .filter(r => r !== null)
+            .sort((a, b) => a.chiave.localeCompare(b.chiave));
+    }
+
+    // Grafico a barre delle dosi giornaliere di un prodotto, con temperatura e ospiti in
+    // sovrapposizione (assi secondari) per individuare a occhio eventuali pattern comuni.
+    window.apriGraficoConsumo = function (indiceColonna, nomeProdotto) {
+        const overlay = document.getElementById("chartOverlay");
+        const canvas = document.getElementById("overlayCanvas");
+        if (!overlay || !canvas) return;
+
+        document.getElementById("overlayTitle").textContent = "Dosi giornaliere: " + nomeProdotto;
+        overlay.classList.remove("hidden");
+
+        let serie = estraiSerieProdotto(indiceColonna, nomeProdotto);
+
+        let esistente = Chart.getChart(canvas);
+        if (esistente) esistente.destroy();
+
+        new Chart(canvas.getContext("2d"), {
+            type: "bar",
+            data: {
+                labels: serie.map(r => r.etichetta),
+                datasets: [
+                    {
+                        type: "bar",
+                        label: nomeProdotto + " (g)",
+                        data: serie.map(r => r.dose),
+                        backgroundColor: "rgba(3, 105, 161, 0.6)",
+                        yAxisID: "yDose"
+                    },
+                    {
+                        type: "line",
+                        label: "Temperatura (°C)",
+                        data: serie.map(r => r.temp),
+                        borderColor: "#ffcd56",
+                        backgroundColor: "transparent",
+                        borderWidth: 2,
+                        pointRadius: 2,
+                        spanGaps: true,
+                        yAxisID: "yTemp"
+                    },
+                    {
+                        type: "line",
+                        label: "Ospiti",
+                        data: serie.map(r => r.ospiti),
+                        borderColor: "#9966ff",
+                        backgroundColor: "transparent",
+                        borderWidth: 2,
+                        pointRadius: 2,
+                        spanGaps: true,
+                        yAxisID: "yOspiti"
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: "index", intersect: false },
+                scales: {
+                    x: { grid: { display: false } },
+                    yDose: { position: "left", title: { display: true, text: "grammi" }, grid: { color: "rgba(0,0,0,0.03)" } },
+                    yTemp: { position: "right", title: { display: true, text: "°C" }, grid: { display: false } },
+                    yOspiti: { position: "right", title: { display: true, text: "ospiti" }, grid: { display: false }, offset: true }
+                }
+            }
+        });
+    };
+
+    // Grafico a linea del consumo cumulativo stagionale di un prodotto (somma progressiva
+    // giorno dopo giorno), utile per vedere il ritmo di consumo e proiettarlo a fine stagione.
+    window.apriGraficoCumulativoConsumo = function (indiceColonna, nomeProdotto) {
+        const overlay = document.getElementById("chartOverlay");
+        const canvas = document.getElementById("overlayCanvas");
+        if (!overlay || !canvas) return;
+
+        document.getElementById("overlayTitle").textContent = "Consumo cumulativo stagionale: " + nomeProdotto;
+        overlay.classList.remove("hidden");
+
+        let serie = estraiSerieProdotto(indiceColonna, nomeProdotto);
+        let cumulativo = 0;
+        let valori = serie.map(r => { cumulativo += r.dose; return cumulativo; });
+
+        let esistente = Chart.getChart(canvas);
+        if (esistente) esistente.destroy();
+
+        new Chart(canvas.getContext("2d"), {
+            type: "line",
+            data: {
+                labels: serie.map(r => r.etichetta),
+                datasets: [{
+                    label: nomeProdotto + " cumulativo (g)",
+                    data: valori,
+                    borderColor: "#0369a1",
+                    backgroundColor: "rgba(3, 105, 161, 0.08)",
+                    borderWidth: 2,
+                    pointRadius: 1,
+                    pointHoverRadius: 4,
+                    fill: true,
+                    stepped: "before"
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { title: { display: true, text: "grammi totali" }, grid: { color: "rgba(0,0,0,0.03)" } }
+                }
+            }
+        });
+    };
 })();
