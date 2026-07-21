@@ -566,6 +566,19 @@
         disegnaGraficoChimico();
     };
 
+    // Media mobile centrata: per ogni punto, fa la media dei punti entro "raggio" posizioni
+    // prima e dopo nella serie già filtrata (non in giorni di calendario, così funziona
+    // identica sia in vista completa che mattina/sera). ai bordi la finestra si restringe.
+    function calcolaMediaMobile(valori, raggio) {
+        return valori.map((_, i) => {
+            let inizio = Math.max(0, i - raggio);
+            let fine = Math.min(valori.length - 1, i + raggio);
+            let fetta = valori.slice(inizio, fine + 1);
+            let somma = fetta.reduce((acc, v) => acc + v, 0);
+            return somma / fetta.length;
+        });
+    }
+
     function disegnaGraficoChimico() {
         if (!graficoParametriCorrenti) return;
         const { chiaveFiltro, nomeParametro, coloreLinea, tipoGrafico } = graficoParametriCorrenti;
@@ -666,16 +679,31 @@
             type: tipoGrafico,
             data: {
                 labels: etichette,
-                datasets: [{
-                    label: nomeParametro,
-                    data: valori,
-                    borderColor: coloreLinea,
-                    backgroundColor: tipoGrafico === 'bar' ? coloreLinea + '88' : 'transparent',
-                    borderWidth: 1,
-                    pointRadius: 1,
-                    pointHoverRadius: 4,
-                    tension: 0.3
-                }]
+                datasets: [
+                    {
+                        label: nomeParametro,
+                        data: valori,
+                        borderColor: coloreLinea,
+                        backgroundColor: tipoGrafico === 'bar' ? coloreLinea + '88' : 'transparent',
+                        borderWidth: 1,
+                        pointRadius: 1,
+                        pointHoverRadius: 4,
+                        tension: 0.3,
+                        order: 2
+                    },
+                    ...(tipoGrafico === 'line' && valori.length >= 5 ? [{
+                        label: 'Tendenza (media mobile)',
+                        data: calcolaMediaMobile(valori, filtroOraGrafico === 'completo' ? 7 : 3),
+                        borderColor: coloreLinea,
+                        backgroundColor: 'transparent',
+                        borderWidth: 2.5,
+                        borderDash: [6, 3],
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        tension: 0.35,
+                        order: 1
+                    }] : [])
+                ]
             },
             options: {
                 responsive: true,
