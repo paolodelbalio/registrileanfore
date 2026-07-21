@@ -520,13 +520,57 @@
         }
     };
 
+    // Stato del grafico attualmente aperto, per poter ridisegnare quando si cambia filtro
+    // mattina/sera senza dover richiudere e riaprire l'overlay.
+    let graficoParametriCorrenti = null; // { chiaveFiltro, nomeParametro, coloreLinea, tipoGrafico }
+    let filtroOraGrafico = 'completo'; // 'completo' | 'mattina' | 'sera'
+
+    // Parametri letti 2 volte al giorno: qui ha senso il filtro mattina/sera per vedere il
+    // trend di fondo senza il dente di sega del ciclo giorno/notte. CYA/Alka/Ospiti sono letti
+    // con altra cadenza (settimanale o 1 volta/giorno): il filtro non li riguarda.
+    const PARAMETRI_CON_FILTRO_ORA = ['ph', 'cl. lib', 'cl. tot', 'cl. com', 'temp'];
+
     window.apriGraficoChimico = function (chiaveFiltro, nomeParametro, coloreLinea, tipoGrafico) {
         const overlay = document.getElementById("chartOverlay");
-        const ctx = document.getElementById("overlayCanvas")?.getContext("2d");
-        if (!overlay || !ctx) return;
+        if (!overlay) return;
 
         document.getElementById("overlayTitle").textContent = "Andamento Storico: " + nomeParametro;
         overlay.classList.remove("hidden");
+
+        graficoParametriCorrenti = { chiaveFiltro, nomeParametro, coloreLinea, tipoGrafico };
+        filtroOraGrafico = 'completo';
+
+        const contenitoreFiltri = document.getElementById("overlayFiltri");
+        let n = chiaveFiltro.trim().toLowerCase();
+        if (contenitoreFiltri) {
+            if (PARAMETRI_CON_FILTRO_ORA.includes(n)) {
+                contenitoreFiltri.innerHTML = `
+                    <button type="button" onclick="window.impostaFiltroOraGrafico('completo')" data-filtro-ora="completo" class="filtro-ora-btn filtro-ora-attivo">Completo</button>
+                    <button type="button" onclick="window.impostaFiltroOraGrafico('mattina')" data-filtro-ora="mattina" class="filtro-ora-btn">Solo mattina</button>
+                    <button type="button" onclick="window.impostaFiltroOraGrafico('sera')" data-filtro-ora="sera" class="filtro-ora-btn">Solo sera</button>
+                `;
+            } else {
+                contenitoreFiltri.innerHTML = "";
+            }
+        }
+
+        disegnaGraficoChimico();
+    };
+
+    // Cambia il filtro mattina/sera/completo sul grafico attualmente aperto e lo ridisegna.
+    window.impostaFiltroOraGrafico = function (modo) {
+        filtroOraGrafico = modo;
+        document.querySelectorAll(".filtro-ora-btn").forEach(btn => {
+            btn.classList.toggle("filtro-ora-attivo", btn.dataset.filtroOra === modo);
+        });
+        disegnaGraficoChimico();
+    };
+
+    function disegnaGraficoChimico() {
+        if (!graficoParametriCorrenti) return;
+        const { chiaveFiltro, nomeParametro, coloreLinea, tipoGrafico } = graficoParametriCorrenti;
+        const ctx = document.getElementById("overlayCanvas")?.getContext("2d");
+        if (!ctx) return;
 
         let etichette = [];
         let valori = [];
@@ -541,6 +585,14 @@
 
         datiChimico.forEach((riga, idx) => {
             if (ultimoIndiceValido !== -1 && idx > ultimoIndiceValido) return;
+
+            if (filtroOraGrafico !== 'completo') {
+                let ora = (riga["Ora"] || "").trim();
+                let eMattina = ora.startsWith("07");
+                if (filtroOraGrafico === 'mattina' && !eMattina) return;
+                if (filtroOraGrafico === 'sera' && eMattina) return;
+            }
+
             let dataOra = `${riga["Data"] || ""} ${riga["Ora"] || ""}`.trim();
             let valNum = parseFloat((riga[chiaveFiltro] || "").replace(",", "."));
             if (!isNaN(valNum) && dataOra !== "") {
@@ -549,7 +601,6 @@
             }
         });
 
-        if (graficoCorrente) graficoCorrente.destroy();
         let esistente = Chart.getChart(ctx.canvas);
         if (esistente) esistente.destroy();
 
@@ -623,7 +674,7 @@
                     borderWidth: 1,
                     pointRadius: 1,
                     pointHoverRadius: 4,
-                    tension: 0.1
+                    tension: 0.3
                 }]
             },
             options: {
@@ -636,7 +687,7 @@
             },
             plugins: configurazioneFasce.length > 0 ? [pluginFasceSfondo] : []
         });
-    };
+    }
 
     window.chiudiDosaggio = function () {
         document.getElementById("dosageModal")?.classList.add("hidden");
@@ -648,5 +699,6 @@
         const canvas = document.getElementById("overlayCanvas");
         const esistente = canvas ? Chart.getChart(canvas) : null;
         if (esistente) esistente.destroy();
+        graficoParametriCorrenti = null;
     };
 })();

@@ -230,6 +230,24 @@ tr:nth-child(even) td {
     transition: all 0.2s ease-in-out;
 }
 
+.filtro-ora-btn {
+    font-size: 0.8rem;
+    padding: 4px 12px;
+    margin-right: 6px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #475569;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.filtro-ora-btn.filtro-ora-attivo {
+    background: #0066cc;
+    border-color: #0066cc;
+    color: white;
+    font-weight: bold;
+}
+
 /* STILE ENFASI SEGNALAZIONE ROSSA/CRITICA */
 .dosage-card.modal-critica {
     border: 3px solid #dc2626 !important;
