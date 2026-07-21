@@ -694,7 +694,7 @@
                     ...(tipoGrafico === 'line' && valori.length >= 5 ? [{
                         label: 'Tendenza (media mobile)',
                         data: calcolaMediaMobile(valori, filtroOraGrafico === 'completo' ? 7 : 3),
-                        borderColor: coloreLinea,
+                        borderColor: '#1e293b',
                         backgroundColor: 'transparent',
                         borderWidth: 2.5,
                         borderDash: [6, 3],
