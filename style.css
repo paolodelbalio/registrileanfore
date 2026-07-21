@@ -106,92 +106,12 @@ thead th {
 
 tbody td {
     padding: 6px 10px;
-    border-bottom: 1px solid #cbd5e1;
+    border-bottom: 1px solid #dddddd;
     white-space: nowrap;
-}
-
-/* Registro Chimico: righe verticali tra N.Ospiti-Cya-Alka-Note. Le colonne Cya/Alka usano
-   celle unite (rowspan) che vengono "saltate" su molte righe: agganciare la riga verticale a
-   nth-child sarebbe inaffidabile perché la posizione delle colonne successive si sposta in
-   quelle righe. Le colonne N.Ospiti e Note invece sono disegnate su OGNI riga (mai saltate),
-   quindi ancorare lì la riga verticale la rende continua lungo tutta la tabella. La riga tra
-   Cya e Alka funziona già con nth-child perché la cella unita (col-cya) copre comunque tutta
-   l'altezza del blocco con il proprio bordo destro. */
-#chimicoTable .col-nospiti,
-#chimicoTable .col-cya {
-    border-right: 1px solid #cbd5e1;
-}
-#chimicoTable .col-note {
-    border-left: 1px solid #cbd5e1;
 }
 
 tr:nth-child(even) td {
     background-color: #f8fafc;
-}
-
-/* Registro Consumi: le intestazioni (es. "Decloratore", "Flocculante") sono più larghe
-   dei valori che contengono (numeri corti o "-"), quindi le larghezze sono calibrate sul
-   testo dell'intestazione, non sul contenuto, per non tagliarle mai. Note è l'unica colonna
-   lasciata senza larghezza fissa: assorbe tutto lo spazio libero rimasto nella tabella.
-   Verifica va invece bloccata a una larghezza fissa piccola (contiene solo un'icona) — senza
-   quel limite il browser tende ad assegnare lo spazio libero a lei invece che a Note, perché
-   è l'ultima colonna e altrimenti resterebbe anche lei senza vincoli. */
-#consumiTable th.col-data,
-#consumiTable td.col-data {
-    width: 105px;
-    min-width: 105px;
-}
-
-#consumiTable th.col-ph-,
-#consumiTable td.col-ph- {
-    width: 55px;
-    min-width: 55px;
-}
-
-#consumiTable th.col-cloro,
-#consumiTable td.col-cloro {
-    width: 65px;
-    min-width: 65px;
-}
-
-#consumiTable th.col-tricloro,
-#consumiTable td.col-tricloro {
-    width: 85px;
-    min-width: 85px;
-}
-
-#consumiTable th.col-antialghe,
-#consumiTable td.col-antialghe {
-    width: 90px;
-    min-width: 90px;
-}
-
-#consumiTable th.col-decloratore,
-#consumiTable td.col-decloratore {
-    width: 105px;
-    min-width: 105px;
-}
-
-#consumiTable th.col-flocculante,
-#consumiTable td.col-flocculante {
-    width: 105px;
-    min-width: 105px;
-}
-
-/* Nessuna larghezza fissa qui: Note prende tutto lo spazio libero rimasto nella tabella.
-   Il taglio con i puntini scatta solo se anche così il testo non basta. */
-#consumiTable th.col-note,
-#consumiTable td.col-note {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-#consumiTable th#colonnaVerifica,
-#consumiTable td.col-verifica {
-    width: 90px;
-    min-width: 90px;
-    max-width: 90px;
 }
 
 /* COLORI COMPATTI IN TRASPARENZA (STILE ORIGINALE MA SOFT) */
@@ -302,6 +222,8 @@ tr:nth-child(even) td {
     border-radius: 8px;
     max-width: 520px;
     width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     position: relative;
     border: 1px solid #e2e8f0;
