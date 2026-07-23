@@ -31,7 +31,7 @@ mer 10 giu 26,07:00,G,trattato linea battente pulito cestelli skimmer,"Cloro, ",
 ,,,,,,,Solarium,,
 gio 11 giu 26,07:00,G,,,Paolo,,Sdraio,,
 ,,,,,,,Cestini,,
-ven 12 giu 26,07:00,G,"pulizia robot, lavato solarum",", acido",Paolo,,Pulizia,,
+ven 12 giu 26,07:00,G,"disinfezione lettini e zona piedi nudi, ombrelloni.","Cloro,",Paolo,,Pulizia,,
 sab 13 giu 26,07:00,G,,,Paolo,,,,
 dom 14 giu 26,07:00,G,,,Paolo,,,,
 lun 15 giu 26,07:00,G S,lavato a pressione zona piedi nudi e lettini,"Cloro, ",Paolo,,Giornaliero,Settimanale,Mensile
@@ -41,7 +41,7 @@ mer 17 giu 26,07:00,G ,lavato soffione doccia,acido,Paolo,,Doccia,Locale tecnico
 ,,,,,,,Solarium,,
 gio 18 giu 26,07:00,G ,,,Paolo,,Sdraio,,
 ,,,,,,,Cestini,,
-ven 19 giu 26,07:00,G ,pulizia robot,acido,Paolo,,Pulizia,,
+ven 19 giu 26,07:00,G ,"disinfezione lettini e zona piedi nudi, ombrelloni.","Cloro,",Paolo,,Pulizia,,
 sab 20 giu 26,07:00,G,,,Paolo,,,,
 dom 21 giu 26,07:00,G,,,Paolo,,,,
 lun 22 giu 26,07:00,GS,lavato a pressione zona piedi nudi,"Cloro,",Paolo,,Giornaliero,Settimanale,Mensile
@@ -51,7 +51,7 @@ mer 24 giu 26,07:00,G,lavato soffione doccia,acido,Paolo,,Doccia,Locale tecnico,
 ,,,,,,,Solarium,,
 gio 25 giu 26,07:00,G,,,Paolo,,Sdraio,,
 ,,,,,,,Cestini,,
-ven 26 giu 26,07:00,G,pulizia robot,acido,Paolo,,Pulizia,,
+ven 26 giu 26,07:00,G,"disinfezione lettini e zona piedi nudi, ombrelloni.","Cloro,",Paolo,,Pulizia,,
 sab 27 giu 26,07:00,G,,,Paolo,,,,
 dom 28 giu 26,07:00,G,,,Paolo,,,,
 lun 29 giu 26,07:00,G,,,Paolo,,Giornaliero,Settimanale,Mensile
@@ -64,17 +64,17 @@ gio 2 lug 26,07:00,G,"Tremporali, lavato tutto a pressione, era pieno d foglie",
 ven 3 lug 26,07:00,G ,Raccolto foglie solarium,,Paolo,,Pulizia,,
 sab 4 lug 26,07:00,G,,,Paolo,,,,
 dom 5 lug 26,07:00,G,,,Paolo,,,,
-lun 6 lug 26,07:00,GS,"Pulito soffione doccia, pulito Robot",acido,Paolo,,Giornaliero,Settimanale,Mensile
+lun 6 lug 26,07:00,GS,Pulito soffione doccia,acido,Paolo,,Giornaliero,Settimanale,Mensile
 mar 7 lug 26,07:00,G,,,Paolo,,Bordo,Ombrelloni,Pompa filtro
 ,,,,,,,Linea battente,Bacheca,Pulizia
 mer 8 lug 26,07:00,G,Pulito Locale Tecnico,,Paolo,,Doccia,Locale tecnico,
 ,,,,,,,Solarium,,
 gio 9 lug 26,07:00,G,,,Paolo,,Sdraio,,
 ,,,,,,,Cestini,,
-ven 10 lug 26,07:00,G,pulizia robot,acido,Paolo,,Pulizia,,
+ven 10 lug 26,07:00,G,"disinfezione lettini e zona piedi nudi, ombrelloni.","Cloro,",Paolo,,Pulizia,,
 sab 11 lug 26,07:00,G,,,Paolo,,,,
 dom 12 lug 26,07:00,G,,,Paolo,,,,
-lun 13 lug 26,07:00,GS,"Pulito soffione doccia, pulito Robot",acido,Paolo,,Giornaliero,Settimanale,Mensile
+lun 13 lug 26,07:00,GS,Pulito soffione doccia,acido,Paolo,,Giornaliero,Settimanale,Mensile
 mar 14 lug 26,07:00,G,,,Paolo,,Bordo,Ombrelloni,Pompa filtro
 ,,,,,,,Linea battente,Bacheca,Pulizia
 mer 15 lug 26,07:00,G,lavato a pressione zona piedi nudi,"Cloro,",Paolo,,Doccia,Locale tecnico,
@@ -84,7 +84,7 @@ gio 16 lug 26,07:00,G,,,Paolo,,Sdraio,,
 ven 17 lug 26,07:00,G,Pulito magazzino ,,Paolo,,Pulizia,,
 sab 18 lug 26,07:00,G,,,Paolo,,,,
 dom 19 lug 26,07:00,G,,,Paolo,,,,
-lun 20 lug 26,07:00,GS,"Pulito soffione doccia, pulito Robot",acido,Paolo,,Giornaliero,Settimanale,Mensile
+lun 20 lug 26,07:00,GS,Pulito soffione doccia,acido,Paolo,,Giornaliero,Settimanale,Mensile
 mar 21 lug 26,07:00,G,,,Paolo,,Bordo,Ombrelloni,Pompa filtro
 ,,,,,,,Linea battente,Bacheca,Pulizia
 mer 22 lug 26,07:00,G,lavato a pressione zona piedi nudi e lettini,Cloro,Paolo,,Doccia,Locale tecnico,
