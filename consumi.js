@@ -709,7 +709,7 @@
         }
 
         let pillole = totali.map(t =>
-            `<span onclick="window.apriGraficoCumulativoConsumo(${t.indice}, '${t.titolo.replace(/'/g, "\\'")}')" style="display:inline-block; background:#f1f5f9; border-radius:6px; padding:4px 10px; margin:2px 6px 2px 0; font-size:0.85rem; color:#334155; cursor:pointer;" title="Clicca per l'andamento cumulativo stagionale">
+            `<span onclick="window.apriGraficoCumulativoConsumo(${t.indice}, '${t.titolo.replace(/'/g, "\\'")}')" style="display:inline-block; background:#f1f5f9; border-radius:6px; padding:4px 10px; margin:2px 6px 2px 0; font-size:0.85rem; color:#334155; cursor:pointer;" title="Clicca per il ritmo di consumo (ultimi 7 giorni)">
                 <strong>${t.titolo}:</strong> ${t.totale.toLocaleString('it-IT')} g
             </span>`
         ).join("");
@@ -1000,6 +1000,9 @@
     function estraiSerieProdotto(indiceColonna, nomeProdotto) {
         if (!righeConsumiGrezze) return [];
         let eTricloro = nomeProdotto.trim().toLowerCase() === "tricloro";
+        let oggi = new Date();
+        oggi.setHours(0, 0, 0, 0);
+        let chiaveOggi = chiaveData(oggi);
 
         return righeConsumiGrezze
             .map(riga => {
@@ -1007,6 +1010,7 @@
                 let dObj = parseDataAbbreviata(riga[0]);
                 if (!dObj) return null;
                 let chiave = chiaveData(dObj);
+                if (chiave > chiaveOggi) return null; // esclude righe future ancora vuote
 
                 let val = parseFloat((riga[indiceColonna] || "").replace(",", "."));
                 let dose = isNaN(val) ? 0 : (eTricloro ? val * PESO_PASTIGLIA_TRICLORO_G : val);
@@ -1093,17 +1097,27 @@
 
     // Grafico a linea del consumo cumulativo stagionale di un prodotto (somma progressiva
     // giorno dopo giorno), utile per vedere il ritmo di consumo e proiettarlo a fine stagione.
+    // Somma mobile "a ritroso": per ogni giorno, quanto è stato consumato negli ultimi
+    // "finestra" giorni (compreso quel giorno). Sale quando il ritmo di consumo aumenta,
+    // scende quando diminuisce — a differenza del cumulativo, che sale sempre e basta.
+    function calcolaSommaMobile(valori, finestra) {
+        return valori.map((_, i) => {
+            let inizio = Math.max(0, i - finestra + 1);
+            let fetta = valori.slice(inizio, i + 1);
+            return fetta.reduce((acc, v) => acc + v, 0);
+        });
+    }
+
     window.apriGraficoCumulativoConsumo = function (indiceColonna, nomeProdotto) {
         const overlay = document.getElementById("chartOverlay");
         const canvas = document.getElementById("overlayCanvas");
         if (!overlay || !canvas) return;
 
-        document.getElementById("overlayTitle").textContent = "Consumo cumulativo stagionale: " + nomeProdotto;
+        document.getElementById("overlayTitle").textContent = "Ritmo di consumo (ultimi 7gg): " + nomeProdotto;
         overlay.classList.remove("hidden");
 
         let serie = estraiSerieProdotto(indiceColonna, nomeProdotto);
-        let cumulativo = 0;
-        let valori = serie.map(r => { cumulativo += r.dose; return cumulativo; });
+        let valori = calcolaSommaMobile(serie.map(r => r.dose), 7);
 
         let esistente = Chart.getChart(canvas);
         if (esistente) esistente.destroy();
@@ -1113,7 +1127,7 @@
             data: {
                 labels: serie.map(r => r.etichetta),
                 datasets: [{
-                    label: nomeProdotto + " cumulativo (g)",
+                    label: nomeProdotto + " — ultimi 7 giorni (g)",
                     data: valori,
                     borderColor: coloreProdotto(nomeProdotto),
                     backgroundColor: coloreProdotto(nomeProdotto) + "15",
@@ -1121,7 +1135,7 @@
                     pointRadius: 1,
                     pointHoverRadius: 4,
                     fill: true,
-                    stepped: "before"
+                    tension: 0.25
                 }]
             },
             options: {
@@ -1129,7 +1143,7 @@
                 maintainAspectRatio: false,
                 scales: {
                     x: { grid: { display: false } },
-                    y: { title: { display: true, text: "grammi totali" }, grid: { color: "rgba(0,0,0,0.03)" } }
+                    y: { title: { display: true, text: "grammi negli ultimi 7 giorni" }, grid: { color: "rgba(0,0,0,0.03)" } }
                 }
             }
         });
