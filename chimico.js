@@ -126,13 +126,13 @@
             return "evidenzia-rosso";
         }
         if (p === 'cl. lib' || p === 'cl. tot') {
-            if (v >= 0.9 && v <= 1.2) return "evidenzia-verde";
-            if ((v >= 0.7 && v < 0.9) || (v > 1.2 && v <= 2.0)) return "evidenzia-giallo";
+            if (v >= 0.8 && v <= 1.4) return "evidenzia-verde";
+            if ((v >= 0.7 && v < 0.8) || (v > 1.4 && v <= 1.5)) return "evidenzia-giallo";
             return "evidenzia-rosso";
         }
         if (p === 'cl. com') {
-            if (v <= 0.20) return "evidenzia-verde";
-            if (v > 0.20 && v <= 0.40) return "evidenzia-giallo";
+            if (v <= 0.30) return "evidenzia-verde";
+            if (v > 0.30 && v <= 0.40) return "evidenzia-giallo";
             return "evidenzia-rosso";
         }
         if (p === 'temp') {
@@ -423,7 +423,7 @@
             }
         }
         else if (p === 'cl. lib' || p === 'cl. tot') {
-            if (valore < 1.1) {
+            if (valore < 0.8) {
                 let cyaCorrente = cyaCorrenteRiga != null ? cyaCorrenteRiga : 50;
                 let dIdeale = 1.05 - valore;
                 let contributiNoti = COEF_CLORO_BASE.temp * tempCorrente + COEF_CLORO_BASE.ospiti * ospitiCorrenti
@@ -438,7 +438,7 @@
                 <p style="margin-bottom:8px;"><strong>Dose correttiva stimata (in base a ${ospitiCorrenti} ospiti, ${tempCorrente}°C e CYA ${Math.round(cyaCorrente)} ppm):</strong> aggiungere circa <strong>${gIdeale}g</strong> di Ipoclorito di Calcio.</p>
                 ${avvisoAnomalo}
                 <p style="font-size:0.75rem; color:#94a3b8;">Stima di massima (modello validato R²=0,68) — per un calcolo più completo, che include anche il consumo notturno e il reintegro, usa "💡 Suggerimento dose di oggi" in cima alla pagina.</p>`;
-            } else if (valore > 1.2) {
+            } else if (valore > 1.4) {
                 let deltaDaRidurre = valore - 1.05;
                 let grammiDecloratore = Math.round(deltaDaRidurre * GRAMMI_DECLORATORE_PER_PPM);
 
@@ -631,10 +631,16 @@
         } else if (n === 'cl. lib' || n === 'cl. tot') {
             configurazioneFasce = [
                 { yMin: 0, yMax: 0.7, color: 'rgba(239, 68, 68, 0.08)' },
-                { yMin: 0.7, yMax: 0.9, color: 'rgba(245, 158, 11, 0.08)' },
-                { yMin: 0.9, yMax: 1.2, color: 'rgba(34, 197, 94, 0.09)' },
-                { yMin: 1.2, yMax: 2.0, color: 'rgba(245, 158, 11, 0.08)' },
-                { yMin: 2.0, yMax: 5, color: 'rgba(239, 68, 68, 0.08)' }
+                { yMin: 0.7, yMax: 0.8, color: 'rgba(245, 158, 11, 0.08)' },
+                { yMin: 0.8, yMax: 1.4, color: 'rgba(34, 197, 94, 0.09)' },
+                { yMin: 1.4, yMax: 1.5, color: 'rgba(245, 158, 11, 0.08)' },
+                { yMin: 1.5, yMax: 5, color: 'rgba(239, 68, 68, 0.08)' }
+            ];
+        } else if (n === 'cl. com') {
+            configurazioneFasce = [
+                { yMin: 0, yMax: 0.30, color: 'rgba(34, 197, 94, 0.09)' },
+                { yMin: 0.30, yMax: 0.40, color: 'rgba(245, 158, 11, 0.08)' },
+                { yMin: 0.40, yMax: 3, color: 'rgba(239, 68, 68, 0.08)' }
             ];
         } else if (n === 'cya') {
             configurazioneFasce = [
