@@ -45,6 +45,10 @@
     const VOLUME_VASCA_LITRI = 92000;
     const PESO_PASTIGLIA_TRICLORO_G = 200; // pastiglie BIG-BLU TCCA 90/200, 200g cad.
 
+    // Water Stop Cloro (Sodio Bisolfito): dall'etichetta, 100g riducono il cloro di 0,5 ppm
+    // ogni 100 m³ d'acqua. Convertito per la vasca di Le Anfore (92 m³): 184g per ogni ppm da ridurre.
+    const GRAMMI_DECLORATORE_PER_PPM = 184;
+
     // ============================================================
     // Suggerimento dose giornaliera (Cloro/pH-)
     // Modelli fittati sui dati reali del periodo ipoclorito (dal 15/6/2026, n=29-30 giorni).
@@ -897,31 +901,50 @@
                </p>`
             : "";
 
-        let avvisoShock = "";
-        if (s.comMattina != null && s.comMattina > 0.40) {
+        let serveShock = (s.comMattina != null && s.comMattina > 0.40);
+        let grammiShock = 0, grammiPhShock = 0;
+
+        if (serveShock) {
             let targetShock = s.comMattina * 10;
             let deltaShock = Math.max(0, targetShock - (s.clMattina != null ? s.clMattina : 1.0));
-            let grammiShock = Math.round(deltaShock / COEF_CLORO.dose);
-            let grammiPhShock = Math.round(grammiShock * 0.10);
+            grammiShock = Math.round(deltaShock / COEF_CLORO.dose);
+            grammiPhShock = Math.round(grammiShock * 0.10);
 
-            avvisoShock = `<div style="background-color:#fee2e2; border:1px solid #fca5a5; border-radius:6px; padding:12px; margin-bottom:14px;">
-                <strong style="color:#991b1b;">🚨 Cloro combinato fuori norma (${it(s.comMattina,2)} mg/l)</strong>
-                <p style="font-size:0.85rem; color:#334155; margin:8px 0;">
-                    Il suggerimento qui sotto <strong>NON considera questo problema</strong> — è pensato solo per il mantenimento ordinario. Oggi serve prima uno shock clorativo:
-                </p>
-                <p style="margin:6px 0;"><strong>Shock stimato (target ${targetShock.toFixed(1)} mg/l, 10× il combinato):</strong> circa <strong>${grammiShock}g</strong> di Ipoclorito di Calcio, + circa <strong>${grammiPhShock}g</strong> di pH- extra per l'alcalinità dell'ipoclorito.</p>
-                <p style="font-size:0.75rem; color:#94a3b8;">Stima di partenza (dose molto più grande di quelle validate, max osservato ~500g) — clicca la cella rossa di Cl. Com nel Registro Chimico per il dettaglio completo.</p>
+            modal.classList.add("modal-critica");
+
+            // Quando serve lo shock, sostituisce la dose ordinaria di ipoclorito (non si sommano:
+            // lo shock porta il libero già molto oltre il target ordinario). Il pH- invece si
+            // somma, perché è un correttivo aggiuntivo per l'alcalinità portata dall'ipoclorito.
+            let grammiPhTotale = (s.grammiPh || 0) + grammiPhShock;
+            let targetRientroLibero = 1.05;
+            let ppmDaRidurreStima = Math.max(0, targetShock - targetRientroLibero);
+            let grammiDeclorStima = Math.round(ppmDaRidurreStima * GRAMMI_DECLORATORE_PER_PPM);
+
+            corpoHTML += `<div style="background-color:#fee2e2; border:1px solid #fca5a5; border-radius:6px; padding:12px; margin-bottom:14px;">
+                <strong style="color:#991b1b;">🚨 Cloro combinato fuori norma (${it(s.comMattina,2)} mg/l) — oggi serve uno shock, non il mantenimento ordinario</strong>
+
+                <p style="margin:10px 0 4px 0; font-weight:bold;">1. Aggiungi in vasca, con la pompa di filtrazione accesa:</p>
+                <p style="margin:2px 0;">≈ <strong>${grammiShock}g</strong> di Ipoclorito di Calcio (target ${targetShock.toFixed(1)} mg/l, 10× il combinato)</p>
+                <p style="margin:2px 0 8px 0;">≈ <strong>${grammiPhTotale}g</strong> di pH- totali (${it(s.grammiPh,0)}g mantenimento ordinario + ${grammiPhShock}g extra per l'alcalinità dello shock)</p>
+
+                <p style="margin:10px 0 4px 0; font-weight:bold;">2. Lascia la pompa in ricircolo continuo</p>
+                <p style="margin:2px 0 8px 0; font-size:0.85rem;">Per almeno 8-12 ore (tipicamente durante la notte). <strong>Vasca chiusa ai bagnanti</strong> in questo periodo: il cloro libero sarà troppo alto per la balneazione.</p>
+
+                <p style="margin:10px 0 4px 0; font-weight:bold;">3. Il giorno dopo, rimisura Cl. Lib e Cl. Com</p>
+                <p style="margin:2px 0 8px 0; font-size:0.85rem;">Se il combinato è rientrato sotto 0,40 ma il libero è ancora sopra 1,2 mg/l, riducilo prima di riaprire (vedi punto 4). Se il combinato è ancora alto, ripeti lo shock.</p>
+
+                <p style="margin:10px 0 4px 0; font-weight:bold;">4. Se serve riportare giù il cloro libero prima di riaprire:</p>
+                <p style="margin:2px 0 8px 0; font-size:0.85rem;">Decloratore (Water Stop Cloro): 184g per ogni ppm da abbassare, target centro fascia 1,05 mg/l. Con la lettura di oggi, se il libero restasse vicino a ${targetShock.toFixed(1)} mg/l servirebbero circa <strong>${grammiDeclorStima}g</strong> — ma è solo indicativo: <strong>ricalcolalo sulla lettura reale del giorno dopo</strong> cliccando la cella del Cl. Lib nel Registro Chimico, che fa il calcolo esatto su quel valore.</p>
+
+                <p style="font-size:0.75rem; color:#94a3b8; margin-top:10px;">Stima di partenza (dose molto più grande di quelle validate, max osservato ~500g) — non un valore preciso.</p>
             </div>`;
         }
 
-        corpoHTML += avvisoShock;
-        if (s.comMattina != null && s.comMattina > 0.40) modal.classList.add("modal-critica");
-
         corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
             <strong>Ipoclorito di calcio (Cloro)</strong>
-            <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${s.grammiCloro} g</div>
-            ${avvisoCloro}
-            <span style="font-size:0.8rem; color:#94a3b8;">Modello validato sui tuoi dati storici (R²=0,78).${s.comMattina != null && s.comMattina > 0.40 ? ' Questo numero è il mantenimento ordinario: non sostituisce lo shock indicato sopra.' : ''}</span>
+            <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${serveShock ? grammiShock : s.grammiCloro} g</div>
+            ${serveShock ? '' : avvisoCloro}
+            <span style="font-size:0.8rem; color:#94a3b8;">${serveShock ? 'Quantità dello shock indicato sopra (sostituisce il mantenimento ordinario per oggi).' : 'Modello validato sui tuoi dati storici (R²=0,78).'}</span>
         </div>`;
 
         if (s.grammiPh !== null) {
@@ -932,9 +955,9 @@
                 : "";
             corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
                 <strong>pH-</strong>
-                <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${s.grammiPh} g</div>
+                <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${serveShock ? (s.grammiPh + grammiPhShock) : s.grammiPh} g</div>
                 ${avvisoPhAnomalo}
-                <span style="font-size:0.8rem; color:#94a3b8;">⚠️ Modello meno affidabile di quello del cloro (R²=0,25-0,30) — il pH si muove poco nei tuoi dati, quindi il segnale è debole. Prendilo solo come indicazione di massima.
+                <span style="font-size:0.8rem; color:#94a3b8;">${serveShock ? `Include ${grammiPhShock}g extra per l'alcalinità dello shock, già conteggiati sopra. ` : ''}⚠️ Modello meno affidabile di quello del cloro (R²=0,25-0,30) — il pH si muove poco nei tuoi dati, quindi il segnale è debole. Prendilo solo come indicazione di massima.
                 Dose corretta per l'Alka ${s.alkaUsato!=null? 'attuale ('+Math.round(s.alkaUsato)+' ppm)' : 'standard (nessuna lettura recente, assunta 100 ppm)'} — con TA più alto serve più prodotto per lo stesso effetto.</span>
             </div>`;
         }
