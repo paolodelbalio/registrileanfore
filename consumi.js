@@ -897,11 +897,31 @@
                </p>`
             : "";
 
+        let avvisoShock = "";
+        if (s.comMattina != null && s.comMattina > 0.40) {
+            let targetShock = s.comMattina * 10;
+            let deltaShock = Math.max(0, targetShock - (s.clMattina != null ? s.clMattina : 1.0));
+            let grammiShock = Math.round(deltaShock / COEF_CLORO.dose);
+            let grammiPhShock = Math.round(grammiShock * 0.10);
+
+            avvisoShock = `<div style="background-color:#fee2e2; border:1px solid #fca5a5; border-radius:6px; padding:12px; margin-bottom:14px;">
+                <strong style="color:#991b1b;">🚨 Cloro combinato fuori norma (${it(s.comMattina,2)} mg/l)</strong>
+                <p style="font-size:0.85rem; color:#334155; margin:8px 0;">
+                    Il suggerimento qui sotto <strong>NON considera questo problema</strong> — è pensato solo per il mantenimento ordinario. Oggi serve prima uno shock clorativo:
+                </p>
+                <p style="margin:6px 0;"><strong>Shock stimato (target ${targetShock.toFixed(1)} mg/l, 10× il combinato):</strong> circa <strong>${grammiShock}g</strong> di Ipoclorito di Calcio, + circa <strong>${grammiPhShock}g</strong> di pH- extra per l'alcalinità dell'ipoclorito.</p>
+                <p style="font-size:0.75rem; color:#94a3b8;">Stima di partenza (dose molto più grande di quelle validate, max osservato ~500g) — clicca la cella rossa di Cl. Com nel Registro Chimico per il dettaglio completo.</p>
+            </div>`;
+        }
+
+        corpoHTML += avvisoShock;
+        if (s.comMattina != null && s.comMattina > 0.40) modal.classList.add("modal-critica");
+
         corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
             <strong>Ipoclorito di calcio (Cloro)</strong>
             <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${s.grammiCloro} g</div>
             ${avvisoCloro}
-            <span style="font-size:0.8rem; color:#94a3b8;">Modello validato sui tuoi dati storici (R²=0,78).</span>
+            <span style="font-size:0.8rem; color:#94a3b8;">Modello validato sui tuoi dati storici (R²=0,78).${s.comMattina != null && s.comMattina > 0.40 ? ' Questo numero è il mantenimento ordinario: non sostituisce lo shock indicato sopra.' : ''}</span>
         </div>`;
 
         if (s.grammiPh !== null) {
