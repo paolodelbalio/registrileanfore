@@ -51,13 +51,13 @@
 
     // ============================================================
     // Suggerimento dose giornaliera (Cloro/pH-)
-    // Modelli fittati sui dati reali del periodo ipoclorito (dal 15/6/2026, n=29-30 giorni).
-    // Il modello Cloro è solido (R²=0,78 sui dati storici). Il modello pH- è molto più debole
-    // (R²=0,25-0,30): il pH si muove poco nel periodo osservato, quindi il segnale è scarso.
-    // Va mostrato come stima di massima, non come numero preciso.
+    // Modello Cloro fittato sui dati reali del periodo ipoclorito (dal 15/6/2026, n=29-30
+    // giorni), R²=0,78 sui dati storici.
+    // Il pH- usa invece il modello condiviso con il popup diagnostico del Registro Chimico
+    // (vedi modello-ph.js) — stesso target (7,30) e stesso range calibrato sui dati reali,
+    // così i due suggerimenti non divergono più.
     // ============================================================
     const TARGET_CLORO_IDEALE = 1.05; // centro fascia 0,9-1,2
-    const TARGET_PH_IDEALE = 7.15;    // centro fascia 7,0-7,3
     const OSPITI_MEDIO_STAGIONE = 2.9; // media storica, usata quando gli ospiti di oggi non sono ancora noti
     const LIMITE_ANOMALO_CLORO_G = 350; // riferimento storico (dose massima normalmente usata finora), non una soglia di errore: superarlo può essere legittimo in certe condizioni
     const LIMITE_ANOMALO_PHMENO_G = 2000; // dose massima di pH- realmente testata sui dati storici
@@ -66,10 +66,6 @@
         dose: 0.005873, temp: -0.056180, ospiti: -0.047088, cya: 0.027418,
         notteLibero: -0.304696, notteCombinato: 2.139506, reintegro: 0.000043,
         intercetta: -0.580335
-    };
-    const COEF_PH = {
-        dose: -0.000108, temp: -0.004002, reintegro: -0.000005, ospiti: -0.009237,
-        intercetta: 0.167751
     };
 
     function formatDataItaliana(testo) {
@@ -330,7 +326,7 @@
 
         // --- pH- (solo se c'è una dose di pH- da valutare, cioè se pH mattina sopra il target) ---
         let phMattina = oggi.mattina.ph;
-        let grammiPh = null;
+        let rangePh = null;
         let alkaUsato = null;
         if (phMattina != null) {
             let alkaVoce = null;
@@ -338,22 +334,13 @@
                 if (elencoAlkaOrdinato[i].chiave <= chiaveGiorno) { alkaVoce = elencoAlkaOrdinato[i]; break; }
             }
             alkaUsato = alkaVoce ? alkaVoce.valore : null;
-            let fattoreAlka = alkaUsato != null ? (alkaUsato / 100) : 1;
-
-            let deltaTargetPh = TARGET_PH_IDEALE - phMattina;
-            let contributiNotiPh = COEF_PH.temp * tempMedia + COEF_PH.reintegro * reintegroUsato
-                + COEF_PH.ospiti * ospitiUsati + COEF_PH.intercetta;
-            if (deltaTargetPh < 0) { // serve scendere
-                grammiPh = Math.max(0, Math.round(((deltaTargetPh - contributiNotiPh) / COEF_PH.dose) * fattoreAlka));
-            } else {
-                grammiPh = 0; // pH già alla o sotto la fascia ideale, nessuna dose di pH- suggerita
-            }
+            rangePh = window.ModelloPH.calcolaRangeDosePH(phMattina, alkaUsato); // null se pH già al target o sotto
         }
 
         return {
             chiaveGiorno, clMattina, clSeraIeri, comMattina, comSeraIeri, tempMattina, tempSeraIeri,
             deltaNotteLibero, deltaNotteCombinato, tempMedia, cya, reintegroUsato, ospitiUsati, ospitiSonoReali: (ospitiReali != null), ospitiIeri, phMattina, alkaUsato,
-            grammiCloro, cloroAnomalo, grammiPh,
+            grammiCloro, cloroAnomalo, rangePh,
             datiReali: (ospitiReali != null && reintegroStesso != null) // vero se il calcolo usa dati reali di quel giorno, non stime
         };
     }
@@ -826,13 +813,13 @@
                 let doseUsata = parseFloat(r.quantita.replace(",", "."));
                 let grammiTotaliNecessari = null;
                 if (nomeProdotto === "cloro") grammiTotaliNecessari = suggerimentoGiorno.grammiCloro;
-                else if (nomeProdotto === "ph-") grammiTotaliNecessari = suggerimentoGiorno.grammiPh;
+                else if (nomeProdotto === "ph-") grammiTotaliNecessari = suggerimentoGiorno.rangePh ? suggerimentoGiorno.rangePh.teorico : null;
 
                 if (grammiTotaliNecessari != null && !isNaN(doseUsata)) {
                     let grammiExtra = Math.max(0, Math.round(grammiTotaliNecessari - doseUsata));
                     if (grammiExtra > 0) {
                         let avvisoAffidabilita = nomeProdotto === "ph-"
-                            ? " — ⚠️ modello pH- poco affidabile (R²=0,25-0,30), prendilo solo come ordine di grandezza"
+                            ? " — ⚠️ stima teorica di centro range, non un valore preciso: valuta con giudizio prima di aggiungerne altro"
                             : "";
                         notaGrammiExtra = `<br><span style="font-size:0.85rem; color:#0369a1; font-weight:bold;">💡 ~${grammiExtra}g in più avrebbero probabilmente centrato l'obiettivo</span>
                             <span style="font-size:0.75rem; color:#94a3b8;"> (stima retrospettiva col modello validato, usando ospiti/reintegro reali di quel giorno${suggerimentoGiorno.datiReali ? '' : ' — parzialmente stimati, non tutti registrati'}${avvisoAffidabilita})</span>`;
@@ -915,7 +902,8 @@
             // Quando serve lo shock, sostituisce la dose ordinaria di ipoclorito (non si sommano:
             // lo shock porta il libero già molto oltre il target ordinario). Il pH- invece si
             // somma, perché è un correttivo aggiuntivo per l'alcalinità portata dall'ipoclorito.
-            let grammiPhTotale = (s.grammiPh || 0) + grammiPhShock;
+            let phMinTotale = (s.rangePh ? s.rangePh.min : 0) + grammiPhShock;
+            let phMaxTotale = (s.rangePh ? s.rangePh.max : 0) + grammiPhShock;
             let targetRientroLibero = 1.05;
             let ppmDaRidurreStima = Math.max(0, targetShock - targetRientroLibero);
             let grammiDeclorStima = Math.round(ppmDaRidurreStima * GRAMMI_DECLORATORE_PER_PPM);
@@ -925,7 +913,7 @@
 
                 <p style="margin:10px 0 4px 0; font-weight:bold;">1. Aggiungi in vasca, con la pompa di filtrazione accesa:</p>
                 <p style="margin:2px 0;">≈ <strong>${grammiShock}g</strong> di Ipoclorito di Calcio (target ${targetShock.toFixed(1)} mg/l, 10× il combinato)</p>
-                <p style="margin:2px 0 8px 0;">≈ <strong>${grammiPhTotale}g</strong> di pH- totali (${it(s.grammiPh,0)}g mantenimento ordinario + ${grammiPhShock}g extra per l'alcalinità dello shock)</p>
+                <p style="margin:2px 0 8px 0;">≈ <strong>${phMinTotale}-${phMaxTotale}g</strong> di pH- totali (${s.rangePh ? s.rangePh.min+'-'+s.rangePh.max+'g' : '0g'} mantenimento ordinario + ${grammiPhShock}g extra per l'alcalinità dello shock)</p>
 
                 <p style="margin:10px 0 4px 0; font-weight:bold;">2. Lascia la pompa in ricircolo continuo</p>
                 <p style="margin:2px 0 8px 0; font-size:0.85rem;">Per almeno 8-12 ore (tipicamente durante la notte). <strong>Vasca chiusa ai bagnanti</strong> in questo periodo: il cloro libero sarà troppo alto per la balneazione.</p>
@@ -947,18 +935,27 @@
             <span style="font-size:0.8rem; color:#94a3b8;">${serveShock ? 'Quantità dello shock indicato sopra (sostituisce il mantenimento ordinario per oggi).' : 'Modello validato sui tuoi dati storici (R²=0,78).'}</span>
         </div>`;
 
-        if (s.grammiPh !== null) {
-            let avvisoPhAnomalo = s.grammiPh > LIMITE_ANOMALO_PHMENO_G
+        if (s.rangePh !== null) {
+            let phMin = s.rangePh.min + (serveShock ? grammiPhShock : 0);
+            let phMax = s.rangePh.max + (serveShock ? grammiPhShock : 0);
+
+            let avvisoDatiLimitati = s.rangePh.datiLimitati
                 ? `<p style="font-size:0.8rem; color:#0369a1; background-color:#f0f9ff; padding:8px 10px; border-radius:4px; margin:6px 0;">
-                     ℹ️ Più alto di quanto tu abbia mai testato in un solo giorno (max storico ${LIMITE_ANOMALO_PHMENO_G}g) — considera di dosarne una parte oggi, rimisurare, e completare nei giorni successivi.
+                     ℹ️ Con Alka sotto ${window.ModelloPH.SOGLIA_ALKA_VALIDATA} ppm abbiamo ancora poche osservazioni reali (solo 2 finora) — parti dal valore basso del range, rimisura la sera, e completa nei giorni successivi solo se serve davvero.
+                   </p>`
+                : "";
+            let avvisoPhAnomalo = phMax > LIMITE_ANOMALO_PHMENO_G
+                ? `<p style="font-size:0.8rem; color:#0369a1; background-color:#f0f9ff; padding:8px 10px; border-radius:4px; margin:6px 0;">
+                     ℹ️ Il valore alto del range supera quanto tu abbia mai testato in un solo giorno (max storico ${LIMITE_ANOMALO_PHMENO_G}g) — non è detto sia sbagliato, ma a queste quantità non abbiamo dati reali.
                    </p>`
                 : "";
             corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
                 <strong>pH-</strong>
-                <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${serveShock ? (s.grammiPh + grammiPhShock) : s.grammiPh} g</div>
+                <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${phMin}-${phMax} g</div>
+                ${avvisoDatiLimitati}
                 ${avvisoPhAnomalo}
-                <span style="font-size:0.8rem; color:#94a3b8;">${serveShock ? `Include ${grammiPhShock}g extra per l'alcalinità dello shock, già conteggiati sopra. ` : ''}⚠️ Modello meno affidabile di quello del cloro (R²=0,25-0,30) — il pH si muove poco nei tuoi dati, quindi il segnale è debole. Prendilo solo come indicazione di massima.
-                Dose corretta per l'Alka ${s.alkaUsato!=null? 'attuale ('+Math.round(s.alkaUsato)+' ppm)' : 'standard (nessuna lettura recente, assunta 100 ppm)'} — con TA più alto serve più prodotto per lo stesso effetto.</span>
+                <span style="font-size:0.8rem; color:#94a3b8;">${serveShock ? `Include ${grammiPhShock}g extra per l'alcalinità dello shock, già conteggiati sopra. ` : ''}Stesso modello e stesso target (7,30) del popup diagnostico del Registro Chimico. Parti dal valore basso del range e rimisura alla lettura successiva prima di aggiungerne altro.
+                Range corretto per l'Alka ${s.alkaUsato!=null? 'attuale ('+Math.round(s.alkaUsato)+' ppm)' : 'standard (nessuna lettura recente, assunta 100 ppm)'} — con TA più alto serve più prodotto per lo stesso effetto.</span>
             </div>`;
         }
 

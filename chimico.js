@@ -388,32 +388,27 @@
 
         if (p === 'ph') {
             if (valore > 7.3) {
-                // Tasso base validato sui dati reali (regressione pulita, n=30, post 15/6):
-                // ~943g per 0,1 pH con Alka vasca ~100 ppm — praticamente identico al tasso
-                // teorico della formula (920g), quindi confermato. Scalato linearmente sull'Alka
-                // corrente: più tampone (Alka alto) = serve più prodotto per lo stesso effetto,
-                // coerente con le due dosi da 2000g fatte con Alka 155-157 che hanno mosso il pH
-                // pochissimo. Scalatura lineare di primo ordine, da raffinare con più letture Alka.
-                let alkaRiferimento = alkaCorrenteRiga != null ? alkaCorrenteRiga : 100;
-                let fattoreAlka = alkaRiferimento / 100;
+                // Formula, target e range condivisi con "Suggerimento dose di oggi" (Consumi):
+                // vedi modello-ph.js. Calibrato sui dati reali dose pH- / pH osservato.
+                let r = window.ModelloPH.calcolaRangeDosePH(valore, alkaCorrenteRiga);
 
-                let dLimite = valore - 7.5;
-                let dIdeale = valore - 7.3;
-                let gLimite = Math.round((dLimite / 0.1) * 10 * VOL_PISCINA * fattoreAlka);
-                let gIdeale = Math.round((dIdeale / 0.1) * 10 * VOL_PISCINA * fattoreAlka);
+                let notaAlka = r.alkaNota
+                    ? `<p style="font-size:0.75rem; color:#94a3b8;">Range corretto per l'alcalinità attuale (Alka ${Math.round(r.alka)} ppm) — con TA più alto serve più prodotto per lo stesso effetto (effetto tampone), con TA più basso ne serve meno.</p>`
+                    : `<p style="font-size:0.75rem; color:#94a3b8;">Nessuna lettura recente di Alka: range calcolato assumendo Alka standard (100 ppm). Misurala per un consiglio più preciso.</p>`;
 
-                let notaAlka = alkaCorrenteRiga != null
-                    ? `<p style="font-size:0.75rem; color:#94a3b8;">Dose corretta per l'alcalinità attuale (Alka ${Math.round(alkaRiferimento)} ppm) — con TA più alto serve più prodotto per lo stesso effetto (effetto tampone), con TA più basso ne serve meno.</p>`
-                    : `<p style="font-size:0.75rem; color:#94a3b8;">Nessuna lettura recente di Alka: dose calcolata assumendo Alka standard (100 ppm). Misurala per un consiglio più preciso.</p>`;
+                let avvisoDatiLimitati = r.datiLimitati
+                    ? `<p style="font-size:0.8rem; color:#0369a1; background-color:#f0f9ff; padding:8px 10px; border-radius:4px;">ℹ️ Con Alka sotto ${window.ModelloPH.SOGLIA_ALKA_VALIDATA} ppm abbiamo ancora poche osservazioni reali (solo 2 finora) — parti dal valore basso del range, rimisura la sera, e completa nei giorni successivi solo se serve davvero.</p>`
+                    : "";
 
-                let avvisoNonValidato = gIdeale > LIMITE_ANOMALO_PHMENO_G
-                    ? `<p style="font-size:0.8rem; color:#0369a1;">ℹ️ Dose più alta di quanto tu abbia mai testato in un solo giorno (max storico ${LIMITE_ANOMALO_PHMENO_G}g) — non è detto sia sbagliata, ma a queste quantità non abbiamo dati reali. Valuta di dosarne una parte oggi, rimisurare, e completare nei giorni successivi.</p>`
+                let avvisoNonValidato = r.max > LIMITE_ANOMALO_PHMENO_G
+                    ? `<p style="font-size:0.8rem; color:#0369a1;">ℹ️ Il valore alto del range supera quanto tu abbia mai testato in un solo giorno (max storico ${LIMITE_ANOMALO_PHMENO_G}g) — non è detto sia sbagliato, ma a queste quantità non abbiamo dati reali.</p>`
                     : "";
 
                 corpoHTML += `<h3>Stato: <span style="color:#991b1b;">pH Alto (${valore})</span></h3><br>
-                <p style="margin-bottom:8px;"><strong>1. Dose correttiva di rientro (Limite 7.5):</strong> aggiungere <strong>${gLimite > 0 ? gLimite : 0}g</strong> di Riduttore Acido.</p>
-                <p><strong>2. Dose ottimale di stabilizzazione (Ideale 7.3):</strong> aggiungere <strong>${gIdeale}g</strong> di Riduttore Acido.</p>
+                <p style="margin-bottom:8px;"><strong>Dose stimata di Riduttore Acido:</strong> tra <strong>${r.min}g</strong> e <strong>${r.max}g</strong>.</p>
+                <p style="font-size:0.8rem; color:#64748b;">Parti dal valore più basso del range, poi rimisura alla lettura successiva prima di aggiungerne altro.</p>
                 ${notaAlka}
+                ${avvisoDatiLimitati}
                 ${avvisoNonValidato}`;
             } else if (valore < 7.0) {
                 corpoHTML += `<h3>Stato: <span style="color:#991b1b;">pH Basso (${valore})</span></h3><br>
