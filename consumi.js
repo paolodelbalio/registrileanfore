@@ -51,14 +51,13 @@
 
     // ============================================================
     // Suggerimento dose giornaliera (Cloro/pH-)
-    // Modello Cloro fittato sui dati reali del periodo ipoclorito (dal 15/6/2026, n=29-30
-    // giorni), R²=0,78 sui dati storici.
-    // Il pH- usa invece il modello condiviso con il popup diagnostico del Registro Chimico
-    // (vedi modello-ph.js) — stesso target (7,30) e stesso range calibrato sui dati reali,
-    // così i due suggerimenti non divergono più.
+    // Il mantenimento ordinario del Cloro usa il modello condiviso con il popup
+    // diagnostico del Registro Chimico (vedi modello-cloro.js, R²=0,78).
+    // COEF_CLORO qui sotto resta solo per il calcolo dello shock clorativo
+    // (formula diversa, proporzionale, non il modello di mantenimento).
+    // Il pH- usa il modello condiviso window.ModelloPH (vedi modello-ph.js).
     // ============================================================
-    const TARGET_CLORO_IDEALE = 1.05; // centro fascia 0,9-1,2
-    const OSPITI_MEDIO_STAGIONE = 2.9; // media storica, usata quando gli ospiti di oggi non sono ancora noti
+    const OSPITI_MEDIO_STAGIONE = window.ModelloCloro.OSPITI_MEDIO_STAGIONE; // media storica, usata quando gli ospiti di oggi non sono ancora noti (unica fonte: modello-cloro.js)
     const LIMITE_ANOMALO_CLORO_G = 350; // riferimento storico (dose massima normalmente usata finora), non una soglia di errore: superarlo può essere legittimo in certe condizioni
     const LIMITE_ANOMALO_PHMENO_G = 2000; // dose massima di pH- realmente testata sui dati storici
 
@@ -316,12 +315,11 @@
         let reintegroUsato = reintegroStesso != null ? reintegroStesso : (reintegroIeri != null ? reintegroIeri : 0);
 
         // --- Cloro ---
-        let deltaTargetCloro = TARGET_CLORO_IDEALE - clMattina;
-        let contributiNotiCloro = COEF_CLORO.temp * tempMedia + COEF_CLORO.ospiti * ospitiUsati
-            + COEF_CLORO.cya * (cya != null ? cya : 50) + COEF_CLORO.notteLibero * deltaNotteLibero
-            + COEF_CLORO.notteCombinato * deltaNotteCombinato + COEF_CLORO.reintegro * reintegroUsato
-            + COEF_CLORO.intercetta;
-        let grammiCloro = Math.max(0, Math.round((deltaTargetCloro - contributiNotiCloro) / COEF_CLORO.dose));
+        // Formula condivisa con il popup diagnostico del Registro Chimico (vedi modello-cloro.js).
+        let grammiCloro = window.ModelloCloro.calcolaDoseCloro({
+            clMattina, clSeraIeri, comMattina, comSeraIeri,
+            tempMattina, tempSeraIeri, cya, ospiti: ospitiUsati, reintegro: reintegroUsato
+        }) || 0;
         let cloroAnomalo = grammiCloro > LIMITE_ANOMALO_CLORO_G;
 
         // --- pH- (solo se c'è una dose di pH- da valutare, cioè se pH mattina sopra il target) ---
@@ -1145,4 +1143,4 @@
             }
         });
     };
-})();
+})();s

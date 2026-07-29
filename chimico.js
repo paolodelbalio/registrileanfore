@@ -35,6 +35,80 @@
         return new Date(anno, meseIdx, giorno);
     }
 
+    // Divide una stringa "Data Ora" (es. "mer 29 lug 2026 07:00") nelle sue due parti.
+    function estraiDataEOra(testo) {
+        let m = (testo || '').trim().match(/^(.*)\s(\d{2}:\d{2})$/);
+        if (!m) return { dataTesto: (testo || '').trim(), ora: null };
+        return { dataTesto: m[1].trim(), ora: m[2] };
+    }
+
+    // Mappa {isoDate: {ora: {clLib, clCom, temp}}} costruita da datiChimico, con la Data
+    // propagata in avanti (le righe delle 21:00 hanno Data vuota nel CSV). Usata per recuperare
+    // la lettura delle 21 del giorno prima, necessaria al modello cloro completo (a 7 variabili).
+    // Invalidata ogni volta che datiChimico viene ricaricato (vedi elaboraDatiChimico).
+    let mappaLetturePerDataOraCache = null;
+    function ottieniLetturaPerDataOra(dataObj, ora) {
+        if (!dataObj) return null;
+        if (!mappaLetturePerDataOraCache) {
+            let mappa = {};
+            let dataCorrente = null;
+            datiChimico.forEach(riga => {
+                let d = (riga['Data'] || '').trim();
+                if (d !== '') dataCorrente = parseDataItalianaChimico(d);
+                if (!dataCorrente) return;
+                let iso = dataCorrente.toISOString().slice(0, 10);
+                let oraRiga = (riga['Ora'] || '').trim();
+                if (oraRiga === '') return;
+                if (!mappa[iso]) mappa[iso] = {};
+                mappa[iso][oraRiga] = {
+                    clLib: parseFloat((riga['Cl. Lib'] || '').replace(',', '.')),
+                    clCom: parseFloat((riga['Cl. Com'] || '').replace(',', '.')),
+                    temp: parseFloat((riga['Temp'] || '').replace(',', '.'))
+                };
+            });
+            mappaLetturePerDataOraCache = mappa;
+        }
+        let iso = dataObj.toISOString().slice(0, 10);
+        let voce = mappaLetturePerDataOraCache[iso] && mappaLetturePerDataOraCache[iso][ora];
+        if (!voce || isNaN(voce.clLib) || isNaN(voce.clCom) || isNaN(voce.temp)) return null;
+        return voce;
+    }
+
+    // Interpreta una data nel formato del Registro Contatori (es. "mer 29/lug 26").
+    function parseDataContatori(testo) {
+        let parti = (testo || '').trim().split(/\s+/);
+        if (parti.length < 3) return null;
+        let gm = parti[1].split('/');
+        if (gm.length < 2) return null;
+        let giorno = parseInt(gm[0], 10);
+        let meseIdx = MESI_IT_BREVI.indexOf(gm[1].toLowerCase());
+        let anno = parseInt(parti[2], 10);
+        if (isNaN(giorno) || meseIdx === -1 || isNaN(anno)) return null;
+        if (anno < 100) anno += 2000;
+        return new Date(anno, meseIdx, giorno);
+    }
+
+    // Mappa {isoDate: litriReintegro} costruita da window.__registroContatoriDati (esposto da
+    // contatori.js). Se i contatori non sono ancora stati caricati restituisce null senza
+    // creare una cache vuota permanente, così viene ritentato alla prossima apertura del popup.
+    let mappaReintegroCache = null;
+    function ottieniReintegroPerData(dataObj) {
+        if (!dataObj || !window.__registroContatoriDati) return null;
+        if (!mappaReintegroCache) {
+            let mappa = {};
+            window.__registroContatoriDati.forEach(r => {
+                let d = parseDataContatori(r['Data']);
+                if (!d) return;
+                let iso = d.toISOString().slice(0, 10);
+                let val = parseFloat((r['Reintegro  (L)'] || '').replace(',', '.'));
+                if (!isNaN(val)) mappa[iso] = val;
+            });
+            mappaReintegroCache = mappa;
+        }
+        let iso = dataObj.toISOString().slice(0, 10);
+        return mappaReintegroCache[iso] != null ? mappaReintegroCache[iso] : null;
+    }
+
     // Costruisce uno sfondo "a bande" che replica l'alternanza bianco/grigio delle righe della
     // tabella (tr:nth-child(even) -> #f8fafc) dentro a una cella unita (rowspan). Serve perché
     // una cella con rowspan ha UN SOLO sfondo per tutta la sua area: senza questo trucco le
@@ -110,6 +184,7 @@
         }
 
         datiChimico = datiFormattati;
+        mappaLetturePerDataOraCache = null; // invalida la cache di ottieniLetturaPerDataOra: dati nuovi in arrivo
         creaTabellaChimica(intestazioni, datiFormattati);
 
         window.__registroChimicoDati = datiFormattati;
@@ -353,6 +428,7 @@
         let cyaCorrenteRiga = null;
         let alkaCorrenteRiga = null;
         let clLibCorrente = null;
+        let clComCorrente = null;
         if (rigaCriptata !== "") {
             try {
                 let rigaDecodificata = JSON.parse(decodeURIComponent(escape(atob(rigaCriptata))));
@@ -367,6 +443,7 @@
                 if (rigaDecodificata["_cyaStimato"] != null) cyaCorrenteRiga = rigaDecodificata["_cyaStimato"];
                 if (rigaDecodificata["_alkaStimato"] != null) alkaCorrenteRiga = rigaDecodificata["_alkaStimato"];
                 if (rigaDecodificata["Cl. Lib"]) clLibCorrente = parseFloat(rigaDecodificata["Cl. Lib"].replace(",", ".")) || null;
+                if (rigaDecodificata["Cl. Com"]) clComCorrente = parseFloat(rigaDecodificata["Cl. Com"].replace(",", ".")) || null;
             } catch (e) { console.log("Errore parsing parametri riga", e); }
         }
 
@@ -419,20 +496,52 @@
         }
         else if (p === 'cl. lib' || p === 'cl. tot') {
             if (valore < 0.8) {
-                let cyaCorrente = cyaCorrenteRiga != null ? cyaCorrenteRiga : 50;
-                let dIdeale = 1.05 - valore;
-                let contributiNoti = COEF_CLORO_BASE.temp * tempCorrente + COEF_CLORO_BASE.ospiti * ospitiCorrenti
-                    + COEF_CLORO_BASE.cya * cyaCorrente + COEF_CLORO_BASE.intercetta;
-                let gIdeale = Math.max(0, Math.round((dIdeale - contributiNoti) / COEF_CLORO_BASE.dose));
+                // Prova il modello completo (a 7 variabili, R²=0,78 — stesso di "Suggerimento
+                // dose di oggi" in Consumi): serve la lettura delle 21 del giorno prima e il
+                // reintegro, quindi funziona solo per letture delle 7 con dati completi attorno.
+                let { dataTesto, ora } = estraiDataEOra(dataOra);
+                let dataRigaObj = parseDataItalianaChimico(dataTesto);
+                let inputCompleto = null;
+
+                if (ora === '07:00' && dataRigaObj && clComCorrente != null) {
+                    let dataIeriObj = new Date(dataRigaObj);
+                    dataIeriObj.setDate(dataIeriObj.getDate() - 1);
+                    let rigaIeriSera = ottieniLetturaPerDataOra(dataIeriObj, '21:00');
+                    if (rigaIeriSera) {
+                        inputCompleto = {
+                            clMattina: valore, clSeraIeri: rigaIeriSera.clLib,
+                            comMattina: clComCorrente, comSeraIeri: rigaIeriSera.clCom,
+                            tempMattina: tempCorrente, tempSeraIeri: rigaIeriSera.temp,
+                            cya: cyaCorrenteRiga, ospiti: ospitiDisponibili ? ospitiCorrenti : null,
+                            reintegro: ottieniReintegroPerData(dataRigaObj)
+                        };
+                    }
+                }
+
+                let gIdeale, notaModello;
+                if (inputCompleto) {
+                    gIdeale = window.ModelloCloro.calcolaDoseCloro(inputCompleto);
+                    notaModello = `<p style="font-size:0.75rem; color:#94a3b8;">Modello completo, validato sui tuoi dati storici (R²=0,78) — stesso identico calcolo del "💡 Suggerimento dose di oggi" in Consumi.</p>`;
+                } else {
+                    // Fallback: modello semplificato a 4 variabili (R²=0,68), usato solo se
+                    // mancano i dati per quello completo (non è una lettura delle 7, o manca
+                    // la lettura delle 21 del giorno prima).
+                    let cyaCorrente = cyaCorrenteRiga != null ? cyaCorrenteRiga : 50;
+                    let dIdeale = 1.05 - valore;
+                    let contributiNoti = COEF_CLORO_BASE.temp * tempCorrente + COEF_CLORO_BASE.ospiti * ospitiCorrenti
+                        + COEF_CLORO_BASE.cya * cyaCorrente + COEF_CLORO_BASE.intercetta;
+                    gIdeale = Math.max(0, Math.round((dIdeale - contributiNoti) / COEF_CLORO_BASE.dose));
+                    notaModello = `<p style="font-size:0.75rem; color:#94a3b8;">Stima semplificata (modello a 4 variabili, R²=0,68): mancano i dati per il modello completo (serve una lettura delle 7 con la lettura delle 21 del giorno prima disponibile).</p>`;
+                }
 
                 let avvisoAnomalo = gIdeale > LIMITE_ANOMALO_CLORO_G
                     ? `<p style="font-size:0.8rem; color:#0369a1;">ℹ️ Più alto di quanto tu abbia normalmente dosato finora (di solito sotto ${LIMITE_ANOMALO_CLORO_G}g) — non è detto sia sbagliato, ma vale la pena ricontrollare temperatura/CYA prima di seguirlo.</p>`
                     : "";
 
                 corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Cloro Basso (${valore} mg/l)</span></h3><br>
-                <p style="margin-bottom:8px;"><strong>Dose correttiva stimata (in base a ${ospitiCorrenti} ospiti, ${tempCorrente}°C e CYA ${Math.round(cyaCorrente)} ppm):</strong> aggiungere circa <strong>${gIdeale}g</strong> di Ipoclorito di Calcio.</p>
+                <p style="margin-bottom:8px;"><strong>Dose correttiva stimata:</strong> aggiungere circa <strong>${gIdeale}g</strong> di Ipoclorito di Calcio.</p>
                 ${avvisoAnomalo}
-                <p style="font-size:0.75rem; color:#94a3b8;">Stima di massima (modello validato R²=0,68) — per un calcolo più completo, che include anche il consumo notturno e il reintegro, usa "💡 Suggerimento dose di oggi" in cima alla pagina.</p>`;
+                ${notaModello}`;
             } else if (valore > 1.4) {
                 let deltaDaRidurre = valore - 1.05;
                 let grammiDecloratore = Math.round(deltaDaRidurre * GRAMMI_DECLORATORE_PER_PPM);
