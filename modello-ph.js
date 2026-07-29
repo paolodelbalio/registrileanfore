@@ -15,15 +15,15 @@
 //
 // Range calibrato sui dati reali (dose pH- realmente immessa vs pH
 // osservato la sera stessa, periodo ipoclorito di calcio dal 15/6/2026,
-// confronto fatto il 29/7/2026):
+// confronto fatto il 29/7/2026, forbice stretta il 29/7/2026 su richiesta):
 //
 //  - Con Alka >= 70 ppm: 16 osservazioni reali. Rapporto dose_reale/teorico
-//    mediana 1,24x, range interquartile circa 0,6-1,4x, esito quasi sempre
-//    entro 0,05-0,10 di pH dal target -> range = teorico * [0,6 - 1,4]
+//    mediana 1,24x -> range = teorico * [0,7 - 1,3]
 //
 //  - Con Alka < 70 ppm: SOLO 2 osservazioni reali finora (25 e 27/7/2026),
-//    entrambe con dose_reale/teorico = 0,25x ed esito comunque in fascia
-//    -> range = teorico * [0,25 - 0,8], con avviso esplicito di dati
+//    entrambe con dose_reale/teorico = 0,25x -> range = teorico * [0,25 - 0,5],
+//    minimo ancorato alle 2 osservazioni reali, massimo tenuto più vicino
+//    per non essere inutilmente ampio, con avviso esplicito di dati
 //    limitati (troppo pochi punti per essere sicuri che la scalatura
 //    lineare sull'Alka valga anche qui sotto)
 //
@@ -36,8 +36,8 @@
     const SOGLIA_ALKA_VALIDATA = 70;
 
     const FASCE_PER_ALKA = {
-        validata: { min: 0.6, max: 1.4 },   // Alka >= soglia, 16 osservazioni reali
-        limitata: { min: 0.25, max: 0.8 }   // Alka < soglia, solo 2 osservazioni reali
+        validata: { min: 0.7, max: 1.3 },   // Alka >= soglia, 16 osservazioni reali
+        limitata: { min: 0.25, max: 0.5 }   // Alka < soglia, solo 2 osservazioni reali
     };
 
     window.ModelloPH = {
