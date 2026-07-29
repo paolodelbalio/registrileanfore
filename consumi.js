@@ -871,7 +871,7 @@
         </p>`;
 
         corpoHTML += `<p style="font-size:0.85rem; color:#334155; background-color:#f1f5f9; padding:8px 10px; border-radius:4px; margin-bottom:12px;">
-            🌡️ ${it(s.tempSeraIeri,1)}°C ieri sera / ${it(s.tempMattina,1)}°C oggi mattina &nbsp;·&nbsp;
+            🌡️ ${it(s.tempSeraIeri,1)}°C ieri sera / ${it(s.tempMattina,1)}°C questa mattina &nbsp;·&nbsp;
             📉 Cl. Lib notte: ${it(s.clSeraIeri,2)} → ${it(s.clMattina,2)} (${s.deltaNotteLibero>=0?'+':''}${it(s.deltaNotteLibero,2)}) &nbsp;·&nbsp;
             📈 Cl. Com notte: ${it(s.comSeraIeri,2)} → ${it(s.comMattina,2)} (${s.deltaNotteCombinato>=0?'+':''}${it(s.deltaNotteCombinato,2)}) &nbsp;·&nbsp;
             🧪 CYA: ${s.cya!=null? Math.round(s.cya) : 'n/d'} ppm &nbsp;·&nbsp;
@@ -1143,4 +1143,4 @@
             }
         });
     };
-})();s
+})();
