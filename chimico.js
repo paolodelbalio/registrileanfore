@@ -496,46 +496,21 @@
         }
         else if (p === 'cl. lib' || p === 'cl. tot') {
             if (valore < 0.8) {
-                // Prova il modello completo (a 7 variabili, R²=0,78 — stesso di "Suggerimento
-                // dose di oggi" in Consumi): serve la lettura delle 21 del giorno prima e il
-                // reintegro, quindi funziona solo per letture delle 7 con dati completi attorno.
-                let { dataTesto, ora } = estraiDataEOra(dataOra);
+                // Modello ricalibrato automaticamente sui tuoi dati reali dal 15/06/2026 (vedi
+                // modello-cloro.js). Prevede il Cl.Lib atteso in giornata (poche ore dopo il
+                // dosaggio, non 24 ore dopo), quindi usa solo la temperatura di QUESTA lettura.
+                let { dataTesto } = estraiDataEOra(dataOra);
                 let dataRigaObj = parseDataItalianaChimico(dataTesto);
-                let inputCompleto = null;
-
-                if (ora === '07:00' && dataRigaObj && clComCorrente != null) {
-                    let dataIeriObj = new Date(dataRigaObj);
-                    dataIeriObj.setDate(dataIeriObj.getDate() - 1);
-                    let rigaIeriSera = ottieniLetturaPerDataOra(dataIeriObj, '21:00');
-                    if (rigaIeriSera) {
-                        inputCompleto = {
-                            clMattina: valore, clSeraIeri: rigaIeriSera.clLib,
-                            comMattina: clComCorrente, comSeraIeri: rigaIeriSera.clCom,
-                            tempMattina: tempCorrente, tempSeraIeri: rigaIeriSera.temp,
-                            cya: cyaCorrenteRiga, ospiti: ospitiDisponibili ? ospitiCorrenti : null,
-                            reintegro: ottieniReintegroPerData(dataRigaObj)
-                        };
-                    }
-                }
-
-                // Modello ricalibrato automaticamente sui dati reali dal 15/06/2026 (vedi
-                // modello-cloro.js). tempMedia usa la lettura delle 21 di ieri se disponibile
-                // (come nel modello completo precedente), altrimenti solo la temperatura di
-                // questa lettura.
-                let tempMediaDiagnostica = tempCorrente;
-                if (inputCompleto && inputCompleto.tempSeraIeri != null) {
-                    tempMediaDiagnostica = (tempCorrente + inputCompleto.tempSeraIeri) / 2;
-                }
 
                 let esito = window.ModelloCloro.calcolaDoseCloro({
-                    clMattina: valore, tempMedia: tempMediaDiagnostica,
+                    clMattina: valore, tempMedia: tempCorrente,
                     ospiti: ospitiDisponibili ? ospitiCorrenti : null,
                     cya: cyaCorrenteRiga, reintegro: ottieniReintegroPerData(dataRigaObj)
                 }) || { grammi: 0, calibrato: false };
 
                 let gIdeale = esito.grammi;
                 let notaModello = esito.calibrato
-                    ? `<p style="font-size:0.75rem; color:#94a3b8;">Modello ricalibrato sui tuoi dati reali dal 15/06/2026 (n=${esito.n}, R²=${esito.r2 != null ? esito.r2.toFixed(2) : 'n/d'}) — stesso calcolo del "💡 Suggerimento dose di oggi" in Consumi. Target di sicurezza: ${window.ModelloCloro.TARGET_CLORO_SICURO} mg/l.</p>`
+                    ? `<p style="font-size:0.75rem; color:#94a3b8;">Modello ricalibrato sui tuoi dati reali dal 15/06/2026 (n=${esito.n}, R²=${esito.r2 != null ? esito.r2.toFixed(2) : 'n/d'}) — stesso calcolo del "💡 Suggerimento dose di oggi" in Consumi. Target di sicurezza: ${window.ModelloCloro.TARGET_CLORO_SICURO} mg/l, atteso in giornata.</p>`
                     : `<p style="font-size:0.75rem; color:#94a3b8;">Dati reali ancora insufficienti per calibrare (servono più giorni dal 15/06/2026 con dose registrata): uso la formula di riserva, meno affidabile.</p>`;
 
                 let avvisoAnomalo = gIdeale > LIMITE_ANOMALO_CLORO_G
@@ -543,7 +518,7 @@
                     : "";
 
                 let avvisoSicurezza = esito.avvisoSuperaMassimo
-                    ? `<p style="font-size:0.8rem; color:#b91c1c; background-color:#fee2e2; padding:6px 10px; border-radius:4px;">🚨 Anche con questa dose il modello prevede un rientro sopra il massimo di legge (${window.ModelloCloro.MASSIMO_LEGALE} mg/l) domattina — dosa meno e ricontrolla prima.</p>`
+                    ? `<p style="font-size:0.8rem; color:#b91c1c; background-color:#fee2e2; padding:6px 10px; border-radius:4px;">🚨 Anche con questa dose il modello prevede un rientro sopra il massimo di legge (${window.ModelloCloro.MASSIMO_LEGALE} mg/l) in giornata — dosa meno e ricontrolla prima.</p>`
                     : "";
 
                 corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Cloro Basso (${valore} mg/l)</span></h3><br>
