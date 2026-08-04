@@ -311,8 +311,10 @@
 
         // --- Cloro ---
         // Modello ricalibrato automaticamente sui dati reali dal 15/06/2026 (vedi modello-cloro.js).
+        // Confronta mattina->sera dello STESSO giorno: usa solo la temperatura del mattino
+        // (quella della sera non è ancora nota nel momento in cui si decide la dose).
         let esitoCloro = window.ModelloCloro.calcolaDoseCloro({
-            clMattina, tempMedia, ospiti: ospitiUsati, cya, reintegro: reintegroUsato
+            clMattina, tempMedia: tempMattina, ospiti: ospitiUsati, cya, reintegro: reintegroUsato
         }) || { grammi: 0, calibrato: false };
         let grammiCloro = esitoCloro.grammi;
         let cloroAnomalo = grammiCloro > LIMITE_ANOMALO_CLORO_G;
@@ -368,10 +370,13 @@
         let osservazioni = [];
         serie.forEach(r => {
             if (r.dose <= 0) return;
-            let oggi = mappaChimicoPerData[r.chiave];
-            let domani = mappaChimicoPerData[chiaveGiornoSuccessivo(r.chiave)];
-            if (!oggi || !oggi.mattina || oggi.mattina.cl == null) return;
-            if (!domani || !domani.mattina || domani.mattina.cl == null) return;
+            let giorno = mappaChimicoPerData[r.chiave];
+            // Confronto mattina -> sera DELLO STESSO GIORNO (poche ore dopo il dosaggio, che
+            // avviene sempre subito dopo la lettura delle 7): molto meno rumoroso del confronto
+            // con la mattina del giorno dopo, che includerebbe un'intera notte di consumo
+            // estraneo a questa dose.
+            if (!giorno || !giorno.mattina || giorno.mattina.cl == null || giorno.mattina.temp == null) return;
+            if (!giorno.sera || giorno.sera.cl == null) return;
 
             let cyaVoce = null;
             for (let i = elencoCyaOrdinato.length - 1; i >= 0; i--) {
@@ -380,13 +385,13 @@
 
             osservazioni.push({
                 chiaveGiorno: r.chiave,
-                clOggi: oggi.mattina.cl,
+                clMattina: giorno.mattina.cl,
                 doseOggi: r.dose,
-                tempMedia: r.temp,
+                tempMattina: giorno.mattina.temp,
                 ospiti: r.ospiti,
                 cya: cyaVoce ? cyaVoce.valore : null,
                 reintegro: mappaReintegroPerData[r.chiave] != null ? mappaReintegroPerData[r.chiave] : null,
-                clDomani: domani.mattina.cl
+                clSera: giorno.sera.cl
             });
         });
         return osservazioni;
@@ -937,9 +942,10 @@
         })();
 
         let corpoHTML = `<p style="font-size:0.85rem; color:#64748b; margin-bottom:12px;">
-            Stima per ${dataLeggibile}, calcolata con i dati già certi stamattina: lettura delle 7 di oggi,
-            lettura delle 21 di ieri, CYA più recente, reintegro di ieri. Non conosce ancora gli ospiti/il
-            reintegro di oggi (non ancora accaduti): per questi usa una media storica stagionale.
+            Stima per ${dataLeggibile}, calcolata con i dati già certi stamattina. Il Cloro prevede il
+            valore atteso in giornata (sera), il pH- usa la lettura delle 7 di oggi e l'Alka più recente.
+            Non conosce ancora gli ospiti/il reintegro di oggi (non ancora accaduti): per questi usa una
+            media storica stagionale.
             <br><strong>È una stima di massima, non un valore esatto — usala come punto di partenza, non come verità.</strong>
         </p>`;
 
