@@ -1,48 +1,96 @@
 // ============================================================
 // Modello condiviso per il dosaggio di pH- (Riduttore Acido)
 // ============================================================
-// Fino ad ora chimico.js (popup diagnostico) e consumi.js (Suggerimento
-// dose di oggi) usavano DUE formule diverse con DUE target diversi (7,30 e
-// 7,15), che sullo stesso identico giorno potevano dare numeri anche 3
-// volte diversi. Questo file unifica tutto in un unico punto.
+// NUOVA VERSIONE (agosto 2026): stesso principio del modello Cloro
+// (vedi modello-cloro.js). Regressione diretta sui dati reali dal
+// 15/06/2026:
 //
-// Target unico: 7,30 (limite alto della fascia verde 7,0-7,3).
+//    pH(sera) = f( pH(mattina), grammi di pH- usati, Alkalinità )
 //
-// Formula di base (teorica): grammi = (pH - 7,30) * VOL_PISCINA_M3 * Alka_ppm
-// Cioè: 1 g di prodotto per m³ di volume per ogni ppm di pH da abbassare,
-// scalato linearmente sull'alcalinità (più TA = più effetto tampone = più
-// prodotto serve per lo stesso spostamento di pH).
+// L'efficacia per grammo rispetto all'alcalinità (richiesta esplicitamente)
+// è quindi calcolata dalla regressione stessa: il coefficiente sull'Alka
+// dice quanto l'alcalinità "frena" l'effetto del prodotto (effetto tampone),
+// invece delle due fasce fisse usate finora (Alka >=70 / <70 ppm).
 //
-// Range calibrato sui dati reali (dose pH- realmente immessa vs pH
-// osservato la sera stessa, periodo ipoclorito di calcio dal 15/6/2026,
-// confronto fatto il 29/7/2026, forbice stretta il 29/7/2026 su richiesta):
-//
-//  - Con Alka >= 70 ppm: 16 osservazioni reali. Rapporto dose_reale/teorico
-//    mediana 1,24x -> range = teorico * [0,7 - 1,3]
-//
-//  - Con Alka < 70 ppm: SOLO 2 osservazioni reali finora (25 e 27/7/2026),
-//    entrambe con dose_reale/teorico = 0,25x -> range = teorico * [0,25 - 0,5],
-//    minimo ancorato alle 2 osservazioni reali, massimo tenuto più vicino
-//    per non essere inutilmente ampio, con avviso esplicito di dati
-//    limitati (troppo pochi punti per essere sicuri che la scalatura
-//    lineare sull'Alka valga anche qui sotto)
-//
-// Da aggiornare quando si accumuleranno più letture reali di TA basso:
-// vedi SOGLIA_ALKA_VALIDATA e le due fasce in FASCE_PER_ALKA.
+// Target: 7,30 (già il limite alto della fascia interna 7,0-7,3, con
+// margine di sicurezza rispetto al massimo di legge 7,5).
 // ============================================================
 (function () {
-    const VOL_PISCINA_M3 = 92;
+    const DATA_INIZIO_CALIBRAZIONE = "2026-06-15";
+    const MINIMO_LEGALE = 6.5;
+    const MASSIMO_LEGALE = 7.5;
     const TARGET_PH = 7.30;
-    const SOGLIA_ALKA_VALIDATA = 70;
+    const ALKA_STANDARD = 100;
 
-    const FASCE_PER_ALKA = {
-        validata: { min: 0.7, max: 1.3 },   // Alka >= soglia, 16 osservazioni reali
-        limitata: { min: 0.25, max: 0.5 }   // Alka < soglia, solo 2 osservazioni reali
+    // Fallback: formula teorica + fasce empiriche precedenti, usato solo se non ci sono
+    // ancora abbastanza osservazioni reali per la regressione.
+    const VOL_PISCINA_M3 = 92;
+    const SOGLIA_ALKA_VALIDATA = 70;
+    const FASCE_PER_ALKA_FALLBACK = {
+        validata: { min: 0.7, max: 1.3 },
+        limitata: { min: 0.25, max: 0.5 }
     };
+
+    let coefAttuali = null; // { x (pH mattina), dose, alka, intercetta }
+    let infoCalibrazione = { attiva: false, n: 0, r2: null, dataInizio: DATA_INIZIO_CALIBRAZIONE };
+
+    // osservazioni: [{ chiaveGiorno, phMattina, doseOggi, alka, phSera }]
+    function ricalibra(osservazioni) {
+        let valide = (osservazioni || []).filter(o =>
+            o.chiaveGiorno >= DATA_INIZIO_CALIBRAZIONE &&
+            [o.phMattina, o.doseOggi, o.phSera].every(v => v != null && !isNaN(v)) &&
+            o.doseOggi > 0
+        );
+
+        let righe = valide.map(o => [o.phMattina, o.doseOggi, o.alka != null ? o.alka : ALKA_STANDARD]);
+        let target = valide.map(o => o.phSera);
+
+        // Con poche variabili (3 + intercetta = 4 coefficienti) il margine di gradi di libertà
+        // di default (3) richiede almeno 7 osservazioni: coerente con l'ordine di grandezza di
+        // dati reali già raccolto finora (~18 osservazioni totali a fine luglio).
+        let esito = window.Calibrazione ? window.Calibrazione.regressioneLineareMultipla(righe, target) : null;
+
+        if (esito) {
+            let [x, dose, alka, intercetta] = esito.coef;
+
+            // CONTROLLO DI SICUREZZA: più pH- deve sempre abbassare il pH atteso, mai alzarlo.
+            // Se la regressione stimasse un coefficiente positivo o nullo (fisicamente
+            // impossibile), la calibrazione viene scartata e si torna alla formula di riserva.
+            if (dose >= 0) {
+                coefAttuali = null;
+                infoCalibrazione = { attiva: false, n: esito.n, r2: esito.r2, dataInizio: DATA_INIZIO_CALIBRAZIONE, scartata: true };
+                return infoCalibrazione;
+            }
+
+            coefAttuali = { x, dose, alka, intercetta };
+            infoCalibrazione = { attiva: true, n: esito.n, r2: esito.r2, dataInizio: DATA_INIZIO_CALIBRAZIONE };
+        } else {
+            coefAttuali = null;
+            infoCalibrazione = { attiva: false, n: valide.length, r2: null, dataInizio: DATA_INIZIO_CALIBRAZIONE };
+        }
+        return infoCalibrazione;
+    }
+
+    function predici(phMattina, dose, alka) {
+        let alkaUsata = alka != null ? alka : ALKA_STANDARD;
+        if (coefAttuali) {
+            let c = coefAttuali;
+            return c.x * phMattina + c.dose * dose + c.alka * alkaUsata + c.intercetta;
+        }
+        // Fallback: formula teorica g = (pH-target)*VOL*Alka, invertita e scalata con le
+        // fasce empiriche precedenti (usa il centro fascia come stima puntuale).
+        return null; // il fallback per il pH- resta a livello di "range", vedi calcolaRangeDosePH
+    }
 
     window.ModelloPH = {
         TARGET_PH: TARGET_PH,
+        MINIMO_LEGALE: MINIMO_LEGALE,
+        MASSIMO_LEGALE: MASSIMO_LEGALE,
         SOGLIA_ALKA_VALIDATA: SOGLIA_ALKA_VALIDATA,
+        DATA_INIZIO_CALIBRAZIONE: DATA_INIZIO_CALIBRAZIONE,
+
+        ricalibra: ricalibra,
+        infoCalibrazione: function () { return infoCalibrazione; },
 
         // Calcola il range di dose consigliata di pH- (Riduttore Acido).
         // pH: valore misurato (es. 7.37). alkaPpm: ultima Alka nota (può essere null).
@@ -51,11 +99,36 @@
             if (pH == null || isNaN(pH) || pH <= TARGET_PH) return null;
 
             let alkaNota = (alkaPpm != null && !isNaN(alkaPpm));
-            let alka = alkaNota ? alkaPpm : 100; // fallback standard se Alka non ancora misurata
+            let alka = alkaNota ? alkaPpm : ALKA_STANDARD;
 
+            if (coefAttuali) {
+                // Risolve per "dose" tale che predici(pH, dose, alka) = TARGET_PH.
+                let c = coefAttuali;
+                let doseCentrale = (TARGET_PH - (c.x * pH + c.alka * alka + c.intercetta)) / c.dose;
+                doseCentrale = Math.max(0, doseCentrale);
+
+                // Margine ±15% intorno alla stima puntuale del modello: la regressione dà già
+                // un valore calibrato sui dati reali (non più una stima teorica da scalare con
+                // fasce arbitrarie), quindi il range serve solo a coprire il rumore normale tra
+                // un'osservazione e l'altra, non più a compensare un modello non validato.
+                return {
+                    teorico: Math.round(doseCentrale),
+                    min: Math.round(doseCentrale * 0.85),
+                    max: Math.round(doseCentrale * 1.15),
+                    alka: alka,
+                    alkaNota: alkaNota,
+                    datiLimitati: false,
+                    calibrato: true,
+                    n: infoCalibrazione.n,
+                    r2: infoCalibrazione.r2
+                };
+            }
+
+            // Fallback: formula teorica + fasce fisse (comportamento precedente), usato solo
+            // finché non ci sono abbastanza osservazioni reali per la regressione.
             let teorico = (pH - TARGET_PH) * VOL_PISCINA_M3 * alka;
             let datiLimitati = alka < SOGLIA_ALKA_VALIDATA;
-            let fascia = datiLimitati ? FASCE_PER_ALKA.limitata : FASCE_PER_ALKA.validata;
+            let fascia = datiLimitati ? FASCE_PER_ALKA_FALLBACK.limitata : FASCE_PER_ALKA_FALLBACK.validata;
 
             return {
                 teorico: Math.round(teorico),
@@ -63,7 +136,10 @@
                 max: Math.round(teorico * fascia.max),
                 alka: alka,
                 alkaNota: alkaNota,
-                datiLimitati: datiLimitati
+                datiLimitati: datiLimitati,
+                calibrato: false,
+                n: infoCalibrazione.n,
+                r2: infoCalibrazione.r2
             };
         }
     };

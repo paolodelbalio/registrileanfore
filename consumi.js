@@ -51,21 +51,16 @@
 
     // ============================================================
     // Suggerimento dose giornaliera (Cloro/pH-)
-    // Il mantenimento ordinario del Cloro usa il modello condiviso con il popup
-    // diagnostico del Registro Chimico (vedi modello-cloro.js, R²=0,78).
-    // COEF_CLORO qui sotto resta solo per il calcolo dello shock clorativo
-    // (formula diversa, proporzionale, non il modello di mantenimento).
-    // Il pH- usa il modello condiviso window.ModelloPH (vedi modello-ph.js).
+    // Cloro e pH- usano i modelli condivisi window.ModelloCloro / window.ModelloPH
+    // (vedi modello-cloro.js, modello-ph.js), ricalibrati automaticamente sui dati
+    // reali dal 15/06/2026 ogni volta che i registri vengono caricati (vedi
+    // ricalibraModelli più sotto). Anche lo shock clorativo usa il coefficiente di
+    // dose calibrato live (window.ModelloCloro.coefficienteDoseAttuale()), invece
+    // di un valore fisso, per restare coerente con l'efficacia osservata di recente.
     // ============================================================
     const OSPITI_MEDIO_STAGIONE = window.ModelloCloro.OSPITI_MEDIO_STAGIONE; // media storica, usata quando gli ospiti di oggi non sono ancora noti (unica fonte: modello-cloro.js)
     const LIMITE_ANOMALO_CLORO_G = 350; // riferimento storico (dose massima normalmente usata finora), non una soglia di errore: superarlo può essere legittimo in certe condizioni
     const LIMITE_ANOMALO_PHMENO_G = 2000; // dose massima di pH- realmente testata sui dati storici
-
-    const COEF_CLORO = {
-        dose: 0.005873, temp: -0.056180, ospiti: -0.047088, cya: 0.027418,
-        notteLibero: -0.304696, notteCombinato: 2.139506, reintegro: 0.000043,
-        intercetta: -0.580335
-    };
 
     function formatDataItaliana(testo) {
         if (!testo) return testo;
@@ -315,11 +310,11 @@
         let reintegroUsato = reintegroStesso != null ? reintegroStesso : (reintegroIeri != null ? reintegroIeri : 0);
 
         // --- Cloro ---
-        // Formula condivisa con il popup diagnostico del Registro Chimico (vedi modello-cloro.js).
-        let grammiCloro = window.ModelloCloro.calcolaDoseCloro({
-            clMattina, clSeraIeri, comMattina, comSeraIeri,
-            tempMattina, tempSeraIeri, cya, ospiti: ospitiUsati, reintegro: reintegroUsato
-        }) || 0;
+        // Modello ricalibrato automaticamente sui dati reali dal 15/06/2026 (vedi modello-cloro.js).
+        let esitoCloro = window.ModelloCloro.calcolaDoseCloro({
+            clMattina, tempMedia, ospiti: ospitiUsati, cya, reintegro: reintegroUsato
+        }) || { grammi: 0, calibrato: false };
+        let grammiCloro = esitoCloro.grammi;
         let cloroAnomalo = grammiCloro > LIMITE_ANOMALO_CLORO_G;
 
         // --- pH- (solo se c'è una dose di pH- da valutare, cioè se pH mattina sopra il target) ---
@@ -338,7 +333,7 @@
         return {
             chiaveGiorno, clMattina, clSeraIeri, comMattina, comSeraIeri, tempMattina, tempSeraIeri,
             deltaNotteLibero, deltaNotteCombinato, tempMedia, cya, reintegroUsato, ospitiUsati, ospitiSonoReali: (ospitiReali != null), ospitiIeri, phMattina, alkaUsato,
-            grammiCloro, cloroAnomalo, rangePh,
+            grammiCloro, cloroAnomalo, esitoCloro, rangePh,
             datiReali: (ospitiReali != null && reintegroStesso != null) // vero se il calcolo usa dati reali di quel giorno, non stime
         };
     }
@@ -354,6 +349,83 @@
         }
         if (!chiaveOggi) return { errore: "Nessuna lettura delle 7 disponibile nel registro chimico." };
         return calcolaSuggerimentoPer(chiaveOggi);
+    }
+
+    // ============================================================
+    // Ricalibrazione automatica dei modelli (Cloro e pH-)
+    // Costruisce, dai dati già caricati, l'elenco di osservazioni reali
+    // "dose usata -> risultato osservato" dal 15/06/2026 ad oggi, e le passa
+    // al motore di regressione condiviso (vedi modello-cloro.js, modello-ph.js,
+    // calibrazione.js). Va richiamata ogni volta che Chimico/Consumi/Contatori
+    // hanno finito di caricare (vedi ridisegnaSeDatiPronti).
+    // ============================================================
+    function costruisciOsservazioniCloro() {
+        if (!mappaChimicoPerData || !intestazioniConsumi || !righeConsumiGrezze) return [];
+        let idxCloro = intestazioniConsumi.findIndex(h => (h || "").trim().toLowerCase() === "cloro");
+        if (idxCloro === -1) return [];
+
+        let serie = estraiSerieProdotto(idxCloro, "Cloro"); // [{chiave, dose, temp, ospiti}, ...]
+        let osservazioni = [];
+        serie.forEach(r => {
+            if (r.dose <= 0) return;
+            let oggi = mappaChimicoPerData[r.chiave];
+            let domani = mappaChimicoPerData[chiaveGiornoSuccessivo(r.chiave)];
+            if (!oggi || !oggi.mattina || oggi.mattina.cl == null) return;
+            if (!domani || !domani.mattina || domani.mattina.cl == null) return;
+
+            let cyaVoce = null;
+            for (let i = elencoCyaOrdinato.length - 1; i >= 0; i--) {
+                if (elencoCyaOrdinato[i].chiave <= r.chiave) { cyaVoce = elencoCyaOrdinato[i]; break; }
+            }
+
+            osservazioni.push({
+                chiaveGiorno: r.chiave,
+                clOggi: oggi.mattina.cl,
+                doseOggi: r.dose,
+                tempMedia: r.temp,
+                ospiti: r.ospiti,
+                cya: cyaVoce ? cyaVoce.valore : null,
+                reintegro: mappaReintegroPerData[r.chiave] != null ? mappaReintegroPerData[r.chiave] : null,
+                clDomani: domani.mattina.cl
+            });
+        });
+        return osservazioni;
+    }
+
+    function costruisciOsservazioniPH() {
+        if (!mappaChimicoPerData || !intestazioniConsumi || !righeConsumiGrezze) return [];
+        let idxPh = intestazioniConsumi.findIndex(h => (h || "").trim().toLowerCase() === "ph-");
+        if (idxPh === -1) return [];
+
+        let serie = estraiSerieProdotto(idxPh, "pH-");
+        let osservazioni = [];
+        serie.forEach(r => {
+            if (r.dose <= 0) return;
+            let oggi = mappaChimicoPerData[r.chiave];
+            if (!oggi || !oggi.mattina || oggi.mattina.ph == null || !oggi.sera || oggi.sera.ph == null) return;
+
+            let alkaVoce = null;
+            for (let i = elencoAlkaOrdinato.length - 1; i >= 0; i--) {
+                if (elencoAlkaOrdinato[i].chiave <= r.chiave) { alkaVoce = elencoAlkaOrdinato[i]; break; }
+            }
+
+            osservazioni.push({
+                chiaveGiorno: r.chiave,
+                phMattina: oggi.mattina.ph,
+                doseOggi: r.dose,
+                alka: alkaVoce ? alkaVoce.valore : null,
+                phSera: oggi.sera.ph
+            });
+        });
+        return osservazioni;
+    }
+
+    function ricalibraModelli() {
+        if (!mappaChimicoPerData || !righeConsumiGrezze) return;
+        let infoCl = window.ModelloCloro.ricalibra(costruisciOsservazioniCloro());
+        let infoPh = window.ModelloPH.ricalibra(costruisciOsservazioniPH());
+        console.log("[Consumi] Modello Cloro ricalibrato:", infoCl);
+        console.log("[Consumi] Modello pH ricalibrato:", infoPh);
     }
 
     // Verifica dedicata per il Tricloro: calcola il CYA atteso dalla formula stechiometrica
@@ -565,6 +637,7 @@
 
     function ridisegnaSeDatiPronti() {
         if (righeConsumiGrezze && intestazioniConsumi) {
+            ricalibraModelli();
             disegnaTabellaConsumi(intestazioniConsumi, righeConsumiGrezze);
         }
     }
@@ -592,7 +665,7 @@
         intestazioniConsumi = intestazioni;
         righeConsumiGrezze = righeDati;
 
-        disegnaTabellaConsumi(intestazioni, righeDati);
+        ridisegnaSeDatiPronti();
     }
 
     function disegnaTabellaConsumi(intestazioni, righeDati) {
@@ -892,7 +965,7 @@
         if (serveShock) {
             let targetShock = s.comMattina * 10;
             let deltaShock = Math.max(0, targetShock - (s.clMattina != null ? s.clMattina : 1.0));
-            grammiShock = Math.round(deltaShock / COEF_CLORO.dose);
+            grammiShock = Math.round(deltaShock / window.ModelloCloro.coefficienteDoseAttuale());
             grammiPhShock = Math.round(grammiShock * 0.10);
 
             modal.classList.add("modal-critica");
@@ -926,11 +999,19 @@
             </div>`;
         }
 
+        let avvisoSicurezzaCloro = (!serveShock && s.esitoCloro && s.esitoCloro.avvisoSuperaMassimo)
+            ? `<p style="font-size:0.8rem; color:#b91c1c; background-color:#fee2e2; padding:6px 10px; border-radius:4px; margin:6px 0;">🚨 Anche con questa dose il modello prevede un rientro sopra il massimo di legge (${window.ModelloCloro.MASSIMO_LEGALE} mg/l) domattina — dosa meno e ricontrolla prima.</p>`
+            : "";
+        let notaModelloCloro = s.esitoCloro && s.esitoCloro.calibrato
+            ? `Modello ricalibrato sui tuoi dati reali dal ${window.ModelloCloro.DATA_INIZIO_CALIBRAZIONE} (n=${s.esitoCloro.n}, R²=${s.esitoCloro.r2 != null ? s.esitoCloro.r2.toFixed(2) : 'n/d'}). Target di sicurezza: ${window.ModelloCloro.TARGET_CLORO_SICURO} mg/l.`
+            : `Dati reali ancora insufficienti per calibrare: uso la formula di riserva, meno affidabile.`;
+
         corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
             <strong>Ipoclorito di calcio (Cloro)</strong>
             <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${serveShock ? grammiShock : s.grammiCloro} g</div>
             ${serveShock ? '' : avvisoCloro}
-            <span style="font-size:0.8rem; color:#94a3b8;">${serveShock ? 'Quantità dello shock indicato sopra (sostituisce il mantenimento ordinario per oggi).' : 'Modello validato sui tuoi dati storici (R²=0,78).'}</span>
+            ${serveShock ? '' : avvisoSicurezzaCloro}
+            <span style="font-size:0.8rem; color:#94a3b8;">${serveShock ? 'Quantità dello shock indicato sopra (sostituisce il mantenimento ordinario per oggi).' : notaModelloCloro}</span>
         </div>`;
 
         if (s.rangePh !== null) {

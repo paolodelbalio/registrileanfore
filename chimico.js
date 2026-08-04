@@ -6,9 +6,9 @@
     const VOL_PISCINA = 92; // 92 m³ costanti
     const TEMP_REINTEGRO = 22.0;
 
-    // Modello validato sui dati reali del periodo ipoclorito (dose, temp, ospiti, CYA -> delta
-    // Cl.Lib nella giornata, R²=0,68 su 30 giorni). Sostituisce la vecchia formula (mai validata).
-    const COEF_CLORO_BASE = { dose: 0.00607, temp: -0.05777, ospiti: -0.05795, cya: 0.02951, intercetta: -0.57151 };
+    // Il calcolo del dosaggio Cloro (mantenimento e shock) usa ora il modello condiviso
+    // window.ModelloCloro, ricalibrato automaticamente sui dati reali dal 15/06/2026
+    // (vedi modello-cloro.js). Non ci sono più coefficienti fissi qui in chimico.js.
     const LIMITE_ANOMALO_CLORO_G = 350; // riferimento storico (dose massima normalmente usata finora), non una soglia di errore: superarlo può essere legittimo in certe condizioni
 
     // pH-: dose massima realmente testata sui dati storici (Registro Consumi). Non è una soglia
@@ -518,29 +518,38 @@
                     }
                 }
 
-                let gIdeale, notaModello;
-                if (inputCompleto) {
-                    gIdeale = window.ModelloCloro.calcolaDoseCloro(inputCompleto);
-                    notaModello = `<p style="font-size:0.75rem; color:#94a3b8;">Modello completo, validato sui tuoi dati storici (R²=0,78) — stesso identico calcolo del "💡 Suggerimento dose di oggi" in Consumi.</p>`;
-                } else {
-                    // Fallback: modello semplificato a 4 variabili (R²=0,68), usato solo se
-                    // mancano i dati per quello completo (non è una lettura delle 7, o manca
-                    // la lettura delle 21 del giorno prima).
-                    let cyaCorrente = cyaCorrenteRiga != null ? cyaCorrenteRiga : 50;
-                    let dIdeale = 1.05 - valore;
-                    let contributiNoti = COEF_CLORO_BASE.temp * tempCorrente + COEF_CLORO_BASE.ospiti * ospitiCorrenti
-                        + COEF_CLORO_BASE.cya * cyaCorrente + COEF_CLORO_BASE.intercetta;
-                    gIdeale = Math.max(0, Math.round((dIdeale - contributiNoti) / COEF_CLORO_BASE.dose));
-                    notaModello = `<p style="font-size:0.75rem; color:#94a3b8;">Stima semplificata (modello a 4 variabili, R²=0,68): mancano i dati per il modello completo (serve una lettura delle 7 con la lettura delle 21 del giorno prima disponibile).</p>`;
+                // Modello ricalibrato automaticamente sui dati reali dal 15/06/2026 (vedi
+                // modello-cloro.js). tempMedia usa la lettura delle 21 di ieri se disponibile
+                // (come nel modello completo precedente), altrimenti solo la temperatura di
+                // questa lettura.
+                let tempMediaDiagnostica = tempCorrente;
+                if (inputCompleto && inputCompleto.tempSeraIeri != null) {
+                    tempMediaDiagnostica = (tempCorrente + inputCompleto.tempSeraIeri) / 2;
                 }
+
+                let esito = window.ModelloCloro.calcolaDoseCloro({
+                    clMattina: valore, tempMedia: tempMediaDiagnostica,
+                    ospiti: ospitiDisponibili ? ospitiCorrenti : null,
+                    cya: cyaCorrenteRiga, reintegro: ottieniReintegroPerData(dataRigaObj)
+                }) || { grammi: 0, calibrato: false };
+
+                let gIdeale = esito.grammi;
+                let notaModello = esito.calibrato
+                    ? `<p style="font-size:0.75rem; color:#94a3b8;">Modello ricalibrato sui tuoi dati reali dal 15/06/2026 (n=${esito.n}, R²=${esito.r2 != null ? esito.r2.toFixed(2) : 'n/d'}) — stesso calcolo del "💡 Suggerimento dose di oggi" in Consumi. Target di sicurezza: ${window.ModelloCloro.TARGET_CLORO_SICURO} mg/l.</p>`
+                    : `<p style="font-size:0.75rem; color:#94a3b8;">Dati reali ancora insufficienti per calibrare (servono più giorni dal 15/06/2026 con dose registrata): uso la formula di riserva, meno affidabile.</p>`;
 
                 let avvisoAnomalo = gIdeale > LIMITE_ANOMALO_CLORO_G
                     ? `<p style="font-size:0.8rem; color:#0369a1;">ℹ️ Più alto di quanto tu abbia normalmente dosato finora (di solito sotto ${LIMITE_ANOMALO_CLORO_G}g) — non è detto sia sbagliato, ma vale la pena ricontrollare temperatura/CYA prima di seguirlo.</p>`
                     : "";
 
+                let avvisoSicurezza = esito.avvisoSuperaMassimo
+                    ? `<p style="font-size:0.8rem; color:#b91c1c; background-color:#fee2e2; padding:6px 10px; border-radius:4px;">🚨 Anche con questa dose il modello prevede un rientro sopra il massimo di legge (${window.ModelloCloro.MASSIMO_LEGALE} mg/l) domattina — dosa meno e ricontrolla prima.</p>`
+                    : "";
+
                 corpoHTML += `<h3>Stato: <span style="color:#991b1b;">Cloro Basso (${valore} mg/l)</span></h3><br>
                 <p style="margin-bottom:8px;"><strong>Dose correttiva stimata:</strong> aggiungere circa <strong>${gIdeale}g</strong> di Ipoclorito di Calcio.</p>
                 ${avvisoAnomalo}
+                ${avvisoSicurezza}
                 ${notaModello}`;
             } else if (valore > 1.4) {
                 let deltaDaRidurre = valore - 1.05;
@@ -556,7 +565,7 @@
             let targetShock = valore * 10;
             let baseCorrente = clLibCorrente != null ? clLibCorrente : 1.0;
             let deltaShock = Math.max(0, targetShock - baseCorrente);
-            let grammiShock = Math.round(deltaShock / COEF_CLORO_BASE.dose);
+            let grammiShock = Math.round(deltaShock / window.ModelloCloro.coefficienteDoseAttuale());
 
             let grammiPhStimati = Math.round(grammiShock * 0.10);
 
