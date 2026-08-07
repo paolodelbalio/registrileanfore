@@ -1010,14 +1010,8 @@
         let cloroAltoDaDeclorare = cloroGiaAlto && s.clMattina > SOGLIA_CLORO_ALTO;
         let grammiDecloratore = cloroAltoDaDeclorare ? Math.round((s.clMattina - 1.05) * GRAMMI_DECLORATORE_PER_PPM) : 0;
 
-        let avvisoCloroAlto = cloroGiaAlto
-            ? (cloroAltoDaDeclorare
-                ? `<p style="font-size:0.85rem; color:#b91c1c; background-color:#fee2e2; padding:8px 10px; border-radius:4px; margin:6px 0;">
-                    🚨 Cloro Alto (${s.clMattina} mg/l) — non aggiungere altro ipoclorito.<br>
-                    <strong>Dose di Decloratore (Water Stop Cloro) per rientrare in fascia:</strong> aggiungere circa <strong>${grammiDecloratore}g</strong>.<br>
-                    <span style="font-size:0.75rem; color:#94a3b8;">Calcolato dall'etichetta del prodotto (100g riducono 0,5 ppm ogni 100 m³), convertito per la vasca da 92 m³. In alternativa, sospendere il dosaggio e attendere il rientro naturale.</span>
-                   </p>`
-                : `<p style="font-size:0.85rem; color:#a16207; background-color:#fef9c3; padding:8px 10px; border-radius:4px; margin:6px 0;">⚠️ Cloro già al livello di sicurezza (${s.clMattina} mg/l) — non serve aggiungere altro ipoclorito oggi.</p>`)
+        let avvisoCloroSicurezza = (cloroGiaAlto && !cloroAltoDaDeclorare)
+            ? `<p style="font-size:0.85rem; color:#a16207; background-color:#fef9c3; padding:8px 10px; border-radius:4px; margin:6px 0;">⚠️ Cloro già al livello di sicurezza (${s.clMattina} mg/l) — non serve aggiungere altro ipoclorito oggi.</p>`
             : "";
         let avvisoSicurezzaCloro = (!serveShock && !cloroGiaAlto && s.esitoCloro && s.esitoCloro.avvisoSuperaMassimo)
             ? `<p style="font-size:0.8rem; color:#b91c1c; background-color:#fee2e2; padding:6px 10px; border-radius:4px; margin:6px 0;">🚨 Anche con questa dose il modello prevede un rientro sopra il massimo di legge (${window.ModelloCloro.MASSIMO_LEGALE} mg/l) domattina — dosa meno e ricontrolla prima.</p>`
@@ -1026,14 +1020,26 @@
             ? `Modello ricalibrato sui tuoi dati reali dal ${window.ModelloCloro.DATA_INIZIO_CALIBRAZIONE} (n=${s.esitoCloro.n}, R²=${s.esitoCloro.r2 != null ? s.esitoCloro.r2.toFixed(2) : 'n/d'}). Target di sicurezza: ${window.ModelloCloro.TARGET_CLORO_SICURO} mg/l.`
             : `Dati reali ancora insufficienti per calibrare: uso la formula di riserva, meno affidabile.`;
 
-        corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
-            <strong>Ipoclorito di calcio (Cloro)</strong>
-            <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${serveShock ? grammiShock : s.grammiCloro} g</div>
-            ${serveShock ? '' : avvisoCloroAlto}
-            ${serveShock ? '' : avvisoCloro}
-            ${serveShock ? '' : avvisoSicurezzaCloro}
-            <span style="font-size:0.8rem; color:#94a3b8;">${serveShock ? 'Quantità dello shock indicato sopra (sostituisce il mantenimento ordinario per oggi).' : notaModelloCloro}</span>
-        </div>`;
+        // Quando serve il Decloratore, il titolo e il numero grande mostrano QUEL prodotto — non
+        // ha senso mostrare in grande "Ipoclorito ≈ 0g" e nascondere il prodotto giusto in una
+        // nota sotto, dove è facile non notarlo.
+        if (!serveShock && cloroAltoDaDeclorare) {
+            corpoHTML += `<div style="padding:12px; border-top:1px solid #e2e8f0; background-color:#fee2e2; border-radius:6px;">
+                <strong style="color:#991b1b;">🚨 Decloratore (Water Stop Cloro) — Cloro Alto</strong>
+                <div style="font-size:1.6rem; font-weight:bold; color:#b91c1c; margin:4px 0;">≈ ${grammiDecloratore} g</div>
+                <p style="font-size:0.85rem; margin:4px 0;">Cloro attuale ${s.clMattina} mg/l — <strong>non aggiungere altro Ipoclorito di calcio oggi</strong>, aggiungi solo il Decloratore.</p>
+                <p style="font-size:0.75rem; color:#94a3b8; margin-bottom:0;">Calcolato dall'etichetta del prodotto (100g riducono 0,5 ppm ogni 100 m³), convertito per la vasca da 92 m³. In alternativa, sospendere il dosaggio e attendere il rientro naturale.</p>
+            </div>`;
+        } else {
+            corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
+                <strong>Ipoclorito di calcio (Cloro)</strong>
+                <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${serveShock ? grammiShock : s.grammiCloro} g</div>
+                ${serveShock ? '' : avvisoCloroSicurezza}
+                ${serveShock ? '' : avvisoCloro}
+                ${serveShock ? '' : avvisoSicurezzaCloro}
+                <span style="font-size:0.8rem; color:#94a3b8;">${serveShock ? 'Quantità dello shock indicato sopra (sostituisce il mantenimento ordinario per oggi).' : notaModelloCloro}</span>
+            </div>`;
+        }
 
 
         if (s.rangePh !== null) {
