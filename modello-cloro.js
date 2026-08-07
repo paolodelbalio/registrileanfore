@@ -133,6 +133,25 @@
             let { clMattina, tempMedia, ospiti, cya, reintegro } = input;
             if (clMattina == null || isNaN(clMattina) || tempMedia == null || isNaN(tempMedia)) return null;
 
+            // CONTROLLO DI SICUREZZA, PRIMA di consultare il modello: se il Cloro è già al livello
+            // di sicurezza o oltre, la risposta è sempre "zero grammi" — punto, senza bisogno di
+            // regressioni. Questo controllo non dipende dal modello statistico apposta: un valore
+            // di partenza molto fuori dal range su cui il modello si è allenato (es. un Cloro Alto
+            // anomalo) può fargli fare previsioni inaffidabili se lo si lascia calcolare comunque.
+            if (clMattina >= TARGET_CLORO_SICURO) {
+                return {
+                    grammi: 0,
+                    target: TARGET_CLORO_SICURO,
+                    predettoSenzaDose: clMattina,
+                    predettoConDose: clMattina,
+                    avvisoSuperaMassimo: clMattina > MASSIMO_LEGALE,
+                    giaSopraTarget: true,
+                    calibrato: !!coefAttuali,
+                    n: infoCalibrazione.n,
+                    r2: infoCalibrazione.r2
+                };
+            }
+
             // Quanto Cl.Lib è previsto in giornata SENZA aggiungere altro prodotto (dose=0): serve
             // per capire se il target è già raggiungibile o se un giorno "difficile" (tanti ospiti,
             // poco CYA) farebbe scendere il cloro comunque, a prescindere dal dosaggio di oggi.
@@ -155,6 +174,7 @@
                 predettoSenzaDose: Math.round(predettoSenzaDose * 100) / 100,
                 predettoConDose: Math.round(predettoConDose * 100) / 100,
                 avvisoSuperaMassimo: predettoConDose > MASSIMO_LEGALE,
+                giaSopraTarget: false,
                 calibrato: !!coefAttuali,
                 n: infoCalibrazione.n,
                 r2: infoCalibrazione.r2

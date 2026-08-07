@@ -1005,7 +1005,14 @@
             </div>`;
         }
 
-        let avvisoSicurezzaCloro = (!serveShock && s.esitoCloro && s.esitoCloro.avvisoSuperaMassimo)
+        let cloroGiaAlto = !serveShock && s.esitoCloro && s.esitoCloro.giaSopraTarget;
+        let avvisoCloroAlto = cloroGiaAlto
+            ? `<p style="font-size:0.85rem; color:${s.esitoCloro.avvisoSuperaMassimo ? '#b91c1c' : '#a16207'}; background-color:${s.esitoCloro.avvisoSuperaMassimo ? '#fee2e2' : '#fef9c3'}; padding:8px 10px; border-radius:4px; margin:6px 0;">
+                ${s.esitoCloro.avvisoSuperaMassimo ? '🚨 Cloro già sopra il massimo di legge (' + window.ModelloCloro.MASSIMO_LEGALE + ' mg/l)' : '⚠️ Cloro già al livello di sicurezza o oltre'} (${s.clMattina} mg/l) — non aggiungerne altro.
+                ${s.esitoCloro.avvisoSuperaMassimo ? ' Apri il popup diagnostico sulla cella del Cl. Lib per la dose di Decloratore.' : ''}
+            </p>`
+            : "";
+        let avvisoSicurezzaCloro = (!serveShock && !cloroGiaAlto && s.esitoCloro && s.esitoCloro.avvisoSuperaMassimo)
             ? `<p style="font-size:0.8rem; color:#b91c1c; background-color:#fee2e2; padding:6px 10px; border-radius:4px; margin:6px 0;">🚨 Anche con questa dose il modello prevede un rientro sopra il massimo di legge (${window.ModelloCloro.MASSIMO_LEGALE} mg/l) domattina — dosa meno e ricontrolla prima.</p>`
             : "";
         let notaModelloCloro = s.esitoCloro && s.esitoCloro.calibrato
@@ -1015,10 +1022,12 @@
         corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
             <strong>Ipoclorito di calcio (Cloro)</strong>
             <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${serveShock ? grammiShock : s.grammiCloro} g</div>
+            ${serveShock ? '' : avvisoCloroAlto}
             ${serveShock ? '' : avvisoCloro}
             ${serveShock ? '' : avvisoSicurezzaCloro}
             <span style="font-size:0.8rem; color:#94a3b8;">${serveShock ? 'Quantità dello shock indicato sopra (sostituisce il mantenimento ordinario per oggi).' : notaModelloCloro}</span>
         </div>`;
+
 
         if (s.rangePh !== null) {
             let phMin = s.rangePh.min + (serveShock ? grammiPhShock : 0);
