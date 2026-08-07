@@ -61,6 +61,7 @@
     const OSPITI_MEDIO_STAGIONE = window.ModelloCloro.OSPITI_MEDIO_STAGIONE; // media storica, usata quando gli ospiti di oggi non sono ancora noti (unica fonte: modello-cloro.js)
     const LIMITE_ANOMALO_CLORO_G = 350; // riferimento storico (dose massima normalmente usata finora), non una soglia di errore: superarlo può essere legittimo in certe condizioni
     const LIMITE_ANOMALO_PHMENO_G = 2000; // dose massima di pH- realmente testata sui dati storici
+    const SOGLIA_CLORO_ALTO = 1.4; // stessa soglia usata in chimico.js per lo stato "Cloro Alto"
 
     function formatDataItaliana(testo) {
         if (!testo) return testo;
@@ -1006,11 +1007,17 @@
         }
 
         let cloroGiaAlto = !serveShock && s.esitoCloro && s.esitoCloro.giaSopraTarget;
+        let cloroAltoDaDeclorare = cloroGiaAlto && s.clMattina > SOGLIA_CLORO_ALTO;
+        let grammiDecloratore = cloroAltoDaDeclorare ? Math.round((s.clMattina - 1.05) * GRAMMI_DECLORATORE_PER_PPM) : 0;
+
         let avvisoCloroAlto = cloroGiaAlto
-            ? `<p style="font-size:0.85rem; color:${s.esitoCloro.avvisoSuperaMassimo ? '#b91c1c' : '#a16207'}; background-color:${s.esitoCloro.avvisoSuperaMassimo ? '#fee2e2' : '#fef9c3'}; padding:8px 10px; border-radius:4px; margin:6px 0;">
-                ${s.esitoCloro.avvisoSuperaMassimo ? '🚨 Cloro già sopra il massimo di legge (' + window.ModelloCloro.MASSIMO_LEGALE + ' mg/l)' : '⚠️ Cloro già al livello di sicurezza o oltre'} (${s.clMattina} mg/l) — non aggiungerne altro.
-                ${s.esitoCloro.avvisoSuperaMassimo ? ' Apri il popup diagnostico sulla cella del Cl. Lib per la dose di Decloratore.' : ''}
-            </p>`
+            ? (cloroAltoDaDeclorare
+                ? `<p style="font-size:0.85rem; color:#b91c1c; background-color:#fee2e2; padding:8px 10px; border-radius:4px; margin:6px 0;">
+                    🚨 Cloro Alto (${s.clMattina} mg/l) — non aggiungere altro ipoclorito.<br>
+                    <strong>Dose di Decloratore (Water Stop Cloro) per rientrare in fascia:</strong> aggiungere circa <strong>${grammiDecloratore}g</strong>.<br>
+                    <span style="font-size:0.75rem; color:#94a3b8;">Calcolato dall'etichetta del prodotto (100g riducono 0,5 ppm ogni 100 m³), convertito per la vasca da 92 m³. In alternativa, sospendere il dosaggio e attendere il rientro naturale.</span>
+                   </p>`
+                : `<p style="font-size:0.85rem; color:#a16207; background-color:#fef9c3; padding:8px 10px; border-radius:4px; margin:6px 0;">⚠️ Cloro già al livello di sicurezza (${s.clMattina} mg/l) — non serve aggiungere altro ipoclorito oggi.</p>`)
             : "";
         let avvisoSicurezzaCloro = (!serveShock && !cloroGiaAlto && s.esitoCloro && s.esitoCloro.avvisoSuperaMassimo)
             ? `<p style="font-size:0.8rem; color:#b91c1c; background-color:#fee2e2; padding:6px 10px; border-radius:4px; margin:6px 0;">🚨 Anche con questa dose il modello prevede un rientro sopra il massimo di legge (${window.ModelloCloro.MASSIMO_LEGALE} mg/l) domattina — dosa meno e ricontrolla prima.</p>`
