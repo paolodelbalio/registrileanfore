@@ -29,8 +29,15 @@
     const MINIMO_LEGALE = 0.7;
     const MASSIMO_LEGALE = 1.5;
     const TARGET_CLORO_SICURO = 0.90; // sopra il minimo (0,7) con margine, ben sotto il massimo (1,5)
-    const OSPITI_MEDIO_STAGIONE = 2.9;
+    const OSPITI_MEDIO_STAGIONE_FALLBACK = 2.9; // usato solo se non ci sono abbastanza dati recenti (es. inizio stagione)
     const CYA_STANDARD = 50;
+
+    // Media ospiti "recente", aggiornata da aggiornaMediaOspiti() con una media ponderata delle
+    // ultime 3 settimane (settimana più recente pesata 3x, quella di mezzo 2x, la più vecchia 1x)
+    // invece di una media fissa su tutta la stagione — più reattiva a cambi di affluenza (es. alta
+    // stagione vs bassa stagione, giorni feriali vs weekend che si susseguono).
+    let ospitiMedioRecente = OSPITI_MEDIO_STAGIONE_FALLBACK;
+    let infoMediaOspiti = { attiva: false, n: 0 };
 
     // Fallback: usato SOLO se non ci sono ancora abbastanza osservazioni reali per
     // calibrare (es. a inizio stagione, o pochi giorni dopo il 15/06).
@@ -41,6 +48,42 @@
 
     let coefAttuali = null; // { x, dose, temp, ospiti, cya, reintegro, intercetta }
     let infoCalibrazione = { attiva: false, n: 0, r2: null, dataInizio: DATA_INIZIO_CALIBRAZIONE };
+
+    // ------------------------------------------------------------
+    // Ricalcola la media ospiti ponderata sulle ultime 3 settimane.
+    // osservazioni: [{chiaveGiorno: "AAAA-MM-GG", ospiti: Number}, ...] — tipicamente da
+    // mappaOspitiPerGiorno in consumi.js. Va richiamata insieme a ricalibra().
+    // ------------------------------------------------------------
+    function aggiornaMediaOspiti(osservazioni) {
+        let valide = (osservazioni || []).filter(o => o.chiaveGiorno && o.ospiti != null && !isNaN(o.ospiti));
+        if (valide.length === 0) {
+            ospitiMedioRecente = OSPITI_MEDIO_STAGIONE_FALLBACK;
+            infoMediaOspiti = { attiva: false, n: 0 };
+            return infoMediaOspiti;
+        }
+
+        valide.sort((a, b) => a.chiaveGiorno < b.chiaveGiorno ? 1 : -1); // più recente prima
+        let dataRiferimento = new Date(valide[0].chiaveGiorno);
+
+        let sommaPesata = 0, sommaPesi = 0, n = 0;
+        valide.forEach(o => {
+            let giorniFa = Math.round((dataRiferimento - new Date(o.chiaveGiorno)) / 86400000);
+            if (giorniFa < 0 || giorniFa > 20) return; // solo le ultime 3 settimane (0-20 giorni fa)
+            let peso = giorniFa < 7 ? 3 : (giorniFa < 14 ? 2 : 1); // settimana più recente pesata di più
+            sommaPesata += o.ospiti * peso;
+            sommaPesi += peso;
+            n++;
+        });
+
+        if (sommaPesi > 0) {
+            ospitiMedioRecente = sommaPesata / sommaPesi;
+            infoMediaOspiti = { attiva: true, n: n, valore: Math.round(ospitiMedioRecente * 10) / 10 };
+        } else {
+            ospitiMedioRecente = OSPITI_MEDIO_STAGIONE_FALLBACK;
+            infoMediaOspiti = { attiva: false, n: 0 };
+        }
+        return infoMediaOspiti;
+    }
 
     // ------------------------------------------------------------
     // Costruisce il dataset di calibrazione e rifà la regressione.
@@ -62,7 +105,7 @@
             o.clMattina,
             o.doseOggi,
             o.tempMattina,
-            o.ospiti != null ? o.ospiti : OSPITI_MEDIO_STAGIONE,
+            o.ospiti != null ? o.ospiti : ospitiMedioRecente,
             o.cya != null ? o.cya : CYA_STANDARD,
             o.reintegro != null ? o.reintegro : 0
         ]);
@@ -97,7 +140,7 @@
     // "dose" grammi subito dopo la lettura di partenza (clPartenza) di temperatura "temp".
     function predici(clPartenza, dose, temp, ospiti, cya, reintegro) {
         let c = coefAttuali;
-        let ospitiUsati = ospiti != null ? ospiti : OSPITI_MEDIO_STAGIONE;
+        let ospitiUsati = ospiti != null ? ospiti : ospitiMedioRecente;
         let cyaUsato = cya != null ? cya : CYA_STANDARD;
         let reintegroUsato = reintegro != null ? reintegro : 0;
 
@@ -114,10 +157,14 @@
         TARGET_CLORO_SICURO: TARGET_CLORO_SICURO,
         MINIMO_LEGALE: MINIMO_LEGALE,
         MASSIMO_LEGALE: MASSIMO_LEGALE,
-        OSPITI_MEDIO_STAGIONE: OSPITI_MEDIO_STAGIONE,
         DATA_INIZIO_CALIBRAZIONE: DATA_INIZIO_CALIBRAZIONE,
+        // Media ospiti attualmente in uso (ponderata sulle ultime 3 settimane se ci sono dati
+        // sufficienti, altrimenti la media stagionale fissa come riserva).
+        OSPITI_MEDIO_STAGIONE: function () { return ospitiMedioRecente; },
 
         ricalibra: ricalibra,
+        aggiornaMediaOspiti: aggiornaMediaOspiti,
+        infoMediaOspiti: function () { return infoMediaOspiti; },
         infoCalibrazione: function () { return infoCalibrazione; },
         // Espone il coefficiente "grammi -> mg/l" attualmente in uso (calibrato o fallback),
         // usato dalla formula dello shock clorativo in consumi.js per restare coerente con lo
