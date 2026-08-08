@@ -58,7 +58,9 @@
     // dose calibrato live (window.ModelloCloro.coefficienteDoseAttuale()), invece
     // di un valore fisso, per restare coerente con l'efficacia osservata di recente.
     // ============================================================
-    const OSPITI_MEDIO_STAGIONE = window.ModelloCloro.OSPITI_MEDIO_STAGIONE; // media storica, usata quando gli ospiti di oggi non sono ancora noti (unica fonte: modello-cloro.js)
+    // Nota: la media ospiti (window.ModelloCloro.OSPITI_MEDIO_STAGIONE()) ora è una funzione,
+    // non un valore fisso in cache — si aggiorna con la media ponderata delle ultime 3
+    // settimane ogni volta che ricalibraModelli() gira (vedi aggiornaMediaOspiti più sotto).
     const LIMITE_ANOMALO_CLORO_G = 350; // riferimento storico (dose massima normalmente usata finora), non una soglia di errore: superarlo può essere legittimo in certe condizioni
     const LIMITE_ANOMALO_PHMENO_G = 2000; // dose massima di pH- realmente testata sui dati storici
     const SOGLIA_CLORO_ALTO = 1.4; // stessa soglia usata in chimico.js per lo stato "Cloro Alto"
@@ -302,7 +304,7 @@
         // Ospiti: usa il dato reale di quel giorno se già registrato, altrimenti la media storica.
         let ospitiReali = mappaOspitiPerGiorno[chiaveGiorno];
         let ospitiIeri = mappaOspitiPerGiorno[chiaveIeri];
-        let ospitiUsati = ospitiReali != null ? ospitiReali : OSPITI_MEDIO_STAGIONE;
+        let ospitiUsati = ospitiReali != null ? ospitiReali : window.ModelloCloro.OSPITI_MEDIO_STAGIONE();
 
         // Reintegro: usa quello dello STESSO giorno se già registrato (giorno passato); altrimenti
         // quello di ieri come proxy (caso "oggi", non ancora concluso).
@@ -430,8 +432,11 @@
         if (!mappaChimicoPerData || !righeConsumiGrezze) return;
         let infoCl = window.ModelloCloro.ricalibra(costruisciOsservazioniCloro());
         let infoPh = window.ModelloPH.ricalibra(costruisciOsservazioniPH());
+        let osservazioniOspiti = Object.keys(mappaOspitiPerGiorno).map(chiave => ({ chiaveGiorno: chiave, ospiti: mappaOspitiPerGiorno[chiave] }));
+        let infoOspiti = window.ModelloCloro.aggiornaMediaOspiti(osservazioniOspiti);
         console.log("[Consumi] Modello Cloro ricalibrato:", infoCl);
         console.log("[Consumi] Modello pH ricalibrato:", infoPh);
+        console.log("[Consumi] Media ospiti (ultime 3 settimane):", infoOspiti);
     }
 
     // Verifica dedicata per il Tricloro: calcola il CYA atteso dalla formula stechiometrica
