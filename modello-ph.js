@@ -39,8 +39,8 @@
     const ALKA_STANDARD = 100; // usato solo se non è mai stata registrata nessuna Alka prima di quella data
 
     const FASCE_PER_ALKA = {
-        validata: { min: 0.85, max: 1.35 }, // Alka >= soglia, 16 osservazioni reali pulite (05/08/2026)
-        limitata: { min: 0.25, max: 0.40 }  // Alka < soglia, solo 4 osservazioni reali (05/08/2026)
+        validata: { min: 0.85, max: 1.35, mediana: 1.11 }, // Alka >= soglia, 16 osservazioni reali pulite (05/08/2026)
+        limitata: { min: 0.25, max: 0.40, mediana: 0.27 }  // Alka < soglia, solo 4 osservazioni reali (05/08/2026)
     };
 
     // ------------------------------------------------------------
@@ -96,6 +96,45 @@
                 alkaNota: alkaNota,
                 rapportoUsato: RAPPORTO_MANTENIMENTO,
                 n: 9
+            };
+        },
+
+        // Prevede il pH atteso in giornata (sera) data una dose GIÀ DECISA (es. quella realmente
+        // registrata nel Registro Consumi di oggi) — a differenza di calcolaRangeDosePH/
+        // calcolaDoseMantenimento, che consigliano una dose invece di prevedere un risultato.
+        // Usa la mediana della fascia pertinente (correzione se pH sopra target, mantenimento se
+        // già a target o sotto) per convertire grammi in effetto atteso sul pH.
+        // Attenzione: meno affidabile della stessa funzione per il Cloro (qui non c'è una vera
+        // regressione validata, solo la formula teorica scalata con un rapporto mediano — vedi
+        // le note in cima al file). Utile come punto di partenza da confrontare con la lettura
+        // reale delle 21, non come previsione precisa.
+        simulaEsito: function (phMattina, doseUsata, alkaPpm) {
+            if (phMattina == null || isNaN(phMattina)) return null;
+            let alkaNota = (alkaPpm != null && !isNaN(alkaPpm));
+            let alka = alkaNota ? alkaPpm : ALKA_STANDARD;
+            let dose = (doseUsata != null && !isNaN(doseUsata)) ? doseUsata : 0;
+
+            let phAtteso;
+            if (phMattina > TARGET_PH) {
+                // Regime di correzione: il rapporto mediano include già la dinamica reale
+                // (deriva compresa), non si aggiunge un'altra deriva separata.
+                let datiLimitati = alka < SOGLIA_ALKA_VALIDATA;
+                let ratio = (datiLimitati ? FASCE_PER_ALKA.limitata : FASCE_PER_ALKA.validata).mediana;
+                let deltaDaDose = dose / (VOL_PISCINA_M3 * alka * ratio);
+                phAtteso = phMattina - deltaDaDose;
+            } else {
+                // Regime di mantenimento: deriva naturale e effetto della dose stimati separatamente.
+                let deltaDaDose = dose / (VOL_PISCINA_M3 * alka * RAPPORTO_MANTENIMENTO);
+                phAtteso = phMattina + DERIVA_NATURALE_MEDIA - deltaDaDose;
+            }
+
+            return {
+                predetto: Math.round(phAtteso * 1000) / 1000,
+                doseUsata: dose,
+                avvisoSuperaMassimo: phAtteso > MASSIMO_LEGALE,
+                avvisoSottoMinimo: phAtteso < MINIMO_LEGALE,
+                alka: alka,
+                alkaNota: alkaNota
             };
         },
 

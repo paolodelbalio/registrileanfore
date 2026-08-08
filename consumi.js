@@ -356,6 +356,21 @@
         return calcolaSuggerimentoPer(chiaveOggi);
     }
 
+    // Legge la dose (grammi) di un prodotto per una data specifica, dalla stessa fonte usata da
+    // estraiSerieProdotto ma per un solo giorno — usato da "Atteso Stasera" per leggere la dose
+    // già registrata oggi (non quella consigliata) e simulare il risultato di QUELLA dose.
+    function otteniDoseProdottoPerData(indiceColonna, chiaveGiorno) {
+        if (!righeConsumiGrezze || indiceColonna === -1) return null;
+        let riga = righeConsumiGrezze.find(r => {
+            if (!r[0]) return false;
+            let dObj = parseDataAbbreviata(r[0]);
+            return dObj && chiaveData(dObj) === chiaveGiorno;
+        });
+        if (!riga) return null;
+        let val = parseFloat((riga[indiceColonna] || "").replace(",", "."));
+        return isNaN(val) ? null : val;
+    }
+
     // ============================================================
     // Ricalibrazione automatica dei modelli (Cloro e pH-)
     // Costruisce, dai dati già caricati, l'elenco di osservazioni reali
@@ -1086,10 +1101,86 @@
         modal.classList.remove("hidden");
     };
 
+    // ============================================================
+    // "Atteso Stasera" (aggiunto 08/08/2026)
+    // A differenza di "Suggerimento dose di oggi" (che consiglia quanto dosare),
+    // questa finestra prende le dosi GIÀ REGISTRATE oggi e prevede il risultato
+    // atteso stasera — pensata per essere confrontata con la lettura reale delle
+    // 21, per capire settimana dopo settimana se i modelli vanno aggiustati.
+    // ============================================================
+    window.mostraAttesoStasera = function () {
+        const modal = document.getElementById("dosageModal");
+        const contenitore = document.getElementById("dosageContent");
+        if (!modal || !contenitore) return;
+
+        let s = calcolaSuggerimentoOggi();
+        if (s.errore) {
+            contenitore.innerHTML = `<h2>📈 Atteso Stasera</h2><br><p>${s.errore}</p>`;
+            modal.classList.remove("hidden");
+            return;
+        }
+
+        let idxCloro = intestazioniConsumi ? intestazioniConsumi.findIndex(h => (h || "").trim().toLowerCase() === "cloro") : -1;
+        let idxPh = intestazioniConsumi ? intestazioniConsumi.findIndex(h => (h || "").trim().toLowerCase() === "ph-") : -1;
+        let doseCloroOggi = otteniDoseProdottoPerData(idxCloro, s.chiaveGiorno);
+        let dosePhOggi = otteniDoseProdottoPerData(idxPh, s.chiaveGiorno);
+
+        let corpoHTML = `<p style="font-size:0.85rem; color:#64748b; margin-bottom:12px;">
+            Previsione per stasera, basata sulla lettura delle 7 di oggi e sulle dosi già registrate
+            in Consumi. Non è un consiglio — <strong>confrontala con la lettura reale delle 21</strong>:
+            è così che capiamo se i modelli vanno aggiustati.
+        </p>`;
+
+        // --- Cloro ---
+        if (doseCloroOggi == null) {
+            corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
+                <strong>Cloro</strong>
+                <p style="font-size:0.85rem; color:#94a3b8; margin:4px 0;">Nessuna dose di Cloro registrata oggi in Consumi — nulla da prevedere.</p>
+            </div>`;
+        } else {
+            let esitoCloro = window.ModelloCloro.simulaEsito({
+                clMattina: s.clMattina, tempMedia: s.tempMattina, doseUsata: doseCloroOggi,
+                ospiti: s.ospitiUsati, cya: s.cya, reintegro: s.reintegroUsato
+            });
+            let avvisoCl = esitoCloro && (esitoCloro.avvisoSuperaMassimo || esitoCloro.avvisoSottoMinimo)
+                ? `<p style="font-size:0.8rem; color:#b91c1c; background-color:#fee2e2; padding:6px 10px; border-radius:4px; margin:6px 0;">🚨 Fuori fascia legale (${window.ModelloCloro.MINIMO_LEGALE}-${window.ModelloCloro.MASSIMO_LEGALE} mg/l) secondo la previsione.</p>`
+                : "";
+            corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
+                <strong>Cloro</strong> — ${doseCloroOggi}g registrati oggi
+                <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${esitoCloro ? esitoCloro.predetto : 'n/d'} mg/l</div>
+                ${avvisoCl}
+                <span style="font-size:0.8rem; color:#94a3b8;">Partenza stamattina: ${s.clMattina} mg/l. ${esitoCloro && esitoCloro.calibrato ? `Modello ricalibrato (n=${esitoCloro.n}, R²=${esitoCloro.r2 != null ? esitoCloro.r2.toFixed(2) : 'n/d'}).` : 'Dati reali insufficienti: formula di riserva, meno affidabile.'}</span>
+            </div>`;
+        }
+
+        // --- pH ---
+        if (dosePhOggi == null) {
+            corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
+                <strong>pH</strong>
+                <p style="font-size:0.85rem; color:#94a3b8; margin:4px 0;">Nessuna dose di pH- registrata oggi in Consumi — nulla da prevedere.</p>
+            </div>`;
+        } else {
+            let esitoPh = window.ModelloPH.simulaEsito(s.phMattina, dosePhOggi, s.alkaUsato);
+            let avvisoPh = esitoPh && (esitoPh.avvisoSuperaMassimo || esitoPh.avvisoSottoMinimo)
+                ? `<p style="font-size:0.8rem; color:#b91c1c; background-color:#fee2e2; padding:6px 10px; border-radius:4px; margin:6px 0;">🚨 Fuori fascia legale (${window.ModelloPH.MINIMO_LEGALE}-${window.ModelloPH.MASSIMO_LEGALE}) secondo la previsione.</p>`
+                : "";
+            corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
+                <strong>pH</strong> — ${dosePhOggi}g di pH- registrati oggi
+                <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${esitoPh ? esitoPh.predetto : 'n/d'}</div>
+                ${avvisoPh}
+                <span style="font-size:0.8rem; color:#94a3b8;">Partenza stamattina: ${s.phMattina}. Formula teorica + rapporto mediano (non una regressione validata come il Cloro) — meno precisa, usala come indicazione di massima.</span>
+            </div>`;
+        }
+
+        contenitore.innerHTML = `<h2>📈 Atteso Stasera</h2><br>${corpoHTML}`;
+        modal.classList.remove("hidden");
+    };
+
     // Inserisce un pulsante leggero (non una colonna) accanto ai titoli di Chimico e Consumi,
     // per accedere al suggerimento da entrambi i registri senza affollare le tabelle.
     function inserisciPulsantiSuggerimento() {
-        const html = ` <button onclick="window.mostraSuggerimentoDoseOggi()" style="font-size:0.8rem; padding:4px 10px; border-radius:4px; border:1px solid #0369a1; background-color:#f0f9ff; color:#0369a1; cursor:pointer; vertical-align:middle;">💡 Suggerimento dose di oggi</button>`;
+        const html = ` <button onclick="window.mostraSuggerimentoDoseOggi()" style="font-size:0.8rem; padding:4px 10px; border-radius:4px; border:1px solid #0369a1; background-color:#f0f9ff; color:#0369a1; cursor:pointer; vertical-align:middle;">💡 Suggerimento dose di oggi</button>
+        <button onclick="window.mostraAttesoStasera()" style="font-size:0.8rem; padding:4px 10px; border-radius:4px; border:1px solid #0369a1; background-color:#f0f9ff; color:#0369a1; cursor:pointer; vertical-align:middle; margin-left:6px;">📈 Atteso stasera</button>`;
 
         document.querySelectorAll("h2").forEach(h2 => {
             let testo = h2.textContent.trim();

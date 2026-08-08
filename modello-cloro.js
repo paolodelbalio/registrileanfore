@@ -171,6 +171,28 @@
         // stesso modello di efficacia del mantenimento ordinario.
         coefficienteDoseAttuale: function () { return coefAttuali ? coefAttuali.dose : COEF_FALLBACK.dose; },
 
+        // Prevede il Cl.Lib atteso in giornata (sera) data una dose GIÀ DECISA (es. quella
+        // realmente registrata nel Registro Consumi di oggi) — a differenza di calcolaDoseCloro,
+        // che calcola invece quanta dose serve per raggiungere il target. Utile per il pulsante
+        // "Atteso stasera": non consiglia nulla, prevede solo cosa succederà.
+        // input = { clMattina, tempMedia, doseUsata, ospiti, cya, reintegro }
+        simulaEsito: function (input) {
+            if (!input) return null;
+            let { clMattina, tempMedia, doseUsata, ospiti, cya, reintegro } = input;
+            if (clMattina == null || isNaN(clMattina) || tempMedia == null || isNaN(tempMedia)) return null;
+            let dose = (doseUsata != null && !isNaN(doseUsata)) ? doseUsata : 0;
+            let predetto = predici(clMattina, dose, tempMedia, ospiti, cya, reintegro);
+            return {
+                predetto: Math.round(predetto * 100) / 100,
+                doseUsata: dose,
+                avvisoSuperaMassimo: predetto > MASSIMO_LEGALE,
+                avvisoSottoMinimo: predetto < MINIMO_LEGALE,
+                calibrato: !!coefAttuali,
+                n: infoCalibrazione.n,
+                r2: infoCalibrazione.r2
+            };
+        },
+
         // input = { clMattina, tempMedia, ospiti, cya, reintegro }
         // clMattina: lettura di partenza (di norma quella delle 7). tempMedia: temperatura di
         // quella stessa lettura (non una media con letture future, che non sono ancora note).
