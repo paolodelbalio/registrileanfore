@@ -1048,7 +1048,7 @@
 
             let avvisoDatiLimitati = s.rangePh.datiLimitati
                 ? `<p style="font-size:0.8rem; color:#0369a1; background-color:#f0f9ff; padding:8px 10px; border-radius:4px; margin:6px 0;">
-                     ℹ️ Con Alka sotto ${window.ModelloPH.SOGLIA_ALKA_VALIDATA} ppm abbiamo ancora poche osservazioni reali (solo 2 finora) — parti dal valore basso del range, rimisura la sera, e completa nei giorni successivi solo se serve davvero.
+                     ℹ️ Con Alka sotto ${window.ModelloPH.SOGLIA_ALKA_VALIDATA} ppm abbiamo ancora poche osservazioni reali (solo 4 finora) — parti dal valore basso del range, rimisura la sera, e completa nei giorni successivi solo se serve davvero.
                    </p>`
                 : "";
             let avvisoPhAnomalo = phMax > LIMITE_ANOMALO_PHMENO_G
@@ -1063,6 +1063,15 @@
                 ${avvisoPhAnomalo}
                 <span style="font-size:0.8rem; color:#94a3b8;">${serveShock ? `Include ${grammiPhShock}g extra per l'alcalinità dello shock, già conteggiati sopra. ` : ''}Stesso modello e stesso target (7,30) del popup diagnostico del Registro Chimico. Parti dal valore basso del range e rimisura alla lettura successiva prima di aggiungerne altro.
                 Range corretto per l'Alka ${s.alkaUsato!=null? 'attuale ('+Math.round(s.alkaUsato)+' ppm)' : 'standard (nessuna lettura recente, assunta 100 ppm)'} — con TA più alto serve più prodotto per lo stesso effetto.</span>
+            </div>`;
+        } else if (s.phMattina != null) {
+            // pH già al target (7,30) o sotto: lo diciamo esplicitamente invece di omettere la
+            // sezione, per lo stesso motivo per cui il Cloro ora dice "0g, già a posto" invece
+            // di sparire silenziosamente dal popup.
+            corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
+                <strong>pH-</strong>
+                <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ 0 g</div>
+                <p style="font-size:0.85rem; color:#166534; background-color:#dcfce7; padding:8px 10px; border-radius:4px; margin:6px 0;">✅ pH già a ${s.phMattina} (target ${window.ModelloPH.TARGET_PH}) — non serve aggiungere pH- oggi.</p>
             </div>`;
         }
 
