@@ -1065,13 +1065,15 @@
                 Range corretto per l'Alka ${s.alkaUsato!=null? 'attuale ('+Math.round(s.alkaUsato)+' ppm)' : 'standard (nessuna lettura recente, assunta 100 ppm)'} — con TA più alto serve più prodotto per lo stesso effetto.</span>
             </div>`;
         } else if (s.phMattina != null) {
-            // pH già al target (7,30) o sotto: lo diciamo esplicitamente invece di omettere la
-            // sezione, per lo stesso motivo per cui il Cloro ora dice "0g, già a posto" invece
-            // di sparire silenziosamente dal popup.
+            // pH già al target (7,30) o sotto: invece di dire solo "non serve nulla", suggerisce
+            // una piccola dose di mantenimento per contrastare la deriva naturale verso l'alto
+            // (vedi nota in modello-ph.js) — provvisoria, da affinare settimanalmente con i dati reali.
+            let mant = window.ModelloPH.calcolaDoseMantenimento(s.alkaUsato);
             corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
-                <strong>pH-</strong>
-                <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ 0 g</div>
-                <p style="font-size:0.85rem; color:#166534; background-color:#dcfce7; padding:8px 10px; border-radius:4px; margin:6px 0;">✅ pH già a ${s.phMattina} (target ${window.ModelloPH.TARGET_PH}) — non serve aggiungere pH- oggi.</p>
+                <strong>pH- (mantenimento)</strong>
+                <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;">≈ ${mant.grammi} g</div>
+                <p style="font-size:0.85rem; color:#166534; background-color:#dcfce7; padding:8px 10px; border-radius:4px; margin:6px 0;">✅ pH già a ${s.phMattina} (target ${window.ModelloPH.TARGET_PH}) — questa non è una correzione, è una dose piccola per contrastare la salita naturale del pH durante la giornata.</p>
+                <span style="font-size:0.75rem; color:#94a3b8;">Provvisorio: basato su solo 9 osservazioni reali con Alka 52-73 ppm. Da affinare settimanalmente — se il pH continua a salire nonostante questa dose, o scende troppo, segnalalo così aggiustiamo il rapporto usato nel calcolo.</span>
             </div>`;
         }
 

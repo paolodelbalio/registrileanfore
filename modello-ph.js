@@ -43,6 +43,34 @@
         limitata: { min: 0.25, max: 0.40 }  // Alka < soglia, solo 4 osservazioni reali (05/08/2026)
     };
 
+    // ------------------------------------------------------------
+    // Dose di mantenimento (aggiunta 07/08/2026)
+    // ------------------------------------------------------------
+    // Una dose piccola, singola (non un range), da usare quando il pH è già a
+    // target o sotto, per contrastare la deriva naturale verso l'alto che
+    // avviene comunque durante la giornata (fotosintesi, aerazione,
+    // degassamento di CO2). Derivata da:
+    //
+    //  - 15 giorni reali SENZA alcuna dose di pH-: il pH sale in media di
+    //    +0,056 tra mattina e sera (mediana +0,06), e sale (invece di
+    //    scendere) nel 67% dei giorni — non è un'eccezione, è la norma.
+    //  - 9 giorni reali con una dose piccola (50-150g, media 99g) e pH già
+    //    vicino al target: il delta medio scende a -0,017 (sostanzialmente
+    //    stabile) — cioè una dose sui 75-100g è bastata storicamente a
+    //    compensare la deriva.
+    //
+    // Rapporto dose_reale/teorico su questi 9 giorni (Alka nell'intervallo
+    // 52-73 ppm): mediana ~0,30 — RAPPORTO_MANTENIMENTO qui sotto.
+    //
+    // Attenzione: solo 9 osservazioni, tutte con Alka sotto 75 — quindi il
+    // numero è un punto di partenza ragionevole, non una certezza. Da
+    // affinare settimanalmente insieme a Paolo, che terrà traccia delle
+    // dosi al grammo: se si osserva una deriva verso l'alto nonostante la
+    // dose di mantenimento, alzare RAPPORTO_MANTENIMENTO; se il pH scende
+    // troppo, abbassarlo.
+    const DERIVA_NATURALE_MEDIA = 0.056; // pH guadagnato in media in una giornata, senza alcuna dose di pH-
+    const RAPPORTO_MANTENIMENTO = 0.30;  // vedi nota sopra — da affinare settimanalmente con i dati reali
+
     window.ModelloPH = {
         TARGET_PH: TARGET_PH,
         MINIMO_LEGALE: MINIMO_LEGALE,
@@ -54,6 +82,22 @@
         // aggiornano — non fa nulla, la formula resta sempre quella fissa qui sotto.
         ricalibra: function () { return { attiva: false, motivo: "regressione non usata per il pH-, vedi commento in modello-ph.js" }; },
         infoCalibrazione: function () { return { attiva: false }; },
+
+        // Dose di mantenimento: un singolo numero in grammi (non un range), pensato per essere
+        // regolato al grammo settimana per settimana. Da chiamare quando calcolaRangeDosePH ha
+        // già restituito null (pH già a target o sotto).
+        calcolaDoseMantenimento: function (alkaPpm) {
+            let alkaNota = (alkaPpm != null && !isNaN(alkaPpm));
+            let alka = alkaNota ? alkaPpm : ALKA_STANDARD;
+            let teorico = DERIVA_NATURALE_MEDIA * VOL_PISCINA_M3 * alka;
+            return {
+                grammi: Math.round(teorico * RAPPORTO_MANTENIMENTO),
+                alka: alka,
+                alkaNota: alkaNota,
+                rapportoUsato: RAPPORTO_MANTENIMENTO,
+                n: 9
+            };
+        },
 
         // Calcola il range di dose consigliata di pH- (Riduttore Acido).
         // pH: valore misurato (es. 7.37). alkaPpm: ultima Alka nota (può essere null).
