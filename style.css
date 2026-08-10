@@ -82,6 +82,7 @@ header p {
 .table-wrapper {
     max-height: 65vh;
     overflow-y: auto;
+    overflow-x: auto;
     border: 1px solid #dddddd;
     border-radius: 4px;
 }
@@ -112,6 +113,17 @@ tbody td {
 
 tr:nth-child(even) td {
     background-color: #f8fafc;
+}
+
+/* Colonna Note: testo lungo troncato con puntini di sospensione invece di allargare tutta la
+   tabella. Il testo completo resta comunque leggibile passandoci sopra col mouse (il tooltip
+   "title" è già presente su ogni cella nel codice che genera la tabella). Aggiunto 09/08/2026
+   per lasciare spazio visibile alle nuove colonne (pH atteso, % errore, ecc.) senza dover
+   scorrere sempre orizzontalmente su schermi normali da PC. */
+.col-note {
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* COLORI COMPATTI IN TRASPARENZA (STILE ORIGINALE MA SOFT) */
