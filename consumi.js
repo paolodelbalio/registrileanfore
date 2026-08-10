@@ -810,14 +810,89 @@
         return risultato;
     }
 
+    // ============================================================
+    // Dettaglio previsione (aggiunto 10/08/2026): apre un popup quando si clicca una cella
+    // "% errore" nella tabella Consumi. Non ripete il significato della percentuale (quello
+    // misura solo quanto ha indovinato il modello) — mostra invece la cosa utile in pratica:
+    // quanto prodotto il modello avrebbe consigliato QUELLA mattina, da confrontare con quanto
+    // ne è stato usato davvero.
+    // ============================================================
+    window.apriDettaglioPrevisione = function (chiaveGiorno, prodotto) {
+        const modal = document.getElementById("dosageModal");
+        const contenitore = document.getElementById("dosageContent");
+        if (!modal || !contenitore) return;
+
+        let giorno = mappaChimicoPerData ? mappaChimicoPerData[chiaveGiorno] : null;
+        if (!giorno || !giorno.mattina) {
+            contenitore.innerHTML = `<h2>Dettaglio Previsione</h2><br><p>Dati insufficienti per questa data.</p>`;
+            modal.classList.remove("hidden");
+            return;
+        }
+
+        let cyaVoce = null;
+        for (let i = elencoCyaOrdinato.length - 1; i >= 0; i--) {
+            if (elencoCyaOrdinato[i].chiave <= chiaveGiorno) { cyaVoce = elencoCyaOrdinato[i]; break; }
+        }
+        let alkaVoce = null;
+        for (let i = elencoAlkaOrdinato.length - 1; i >= 0; i--) {
+            if (elencoAlkaOrdinato[i].chiave <= chiaveGiorno) { alkaVoce = elencoAlkaOrdinato[i]; break; }
+        }
+        let ospiti = mappaOspitiPerGiorno[chiaveGiorno];
+        let reintegro = mappaReintegroPerData[chiaveGiorno];
+
+        let idxPhCol = intestazioniConsumi.findIndex(h => (h || "").trim().toLowerCase() === "ph-");
+        let idxCloroCol = intestazioniConsumi.findIndex(h => (h || "").trim().toLowerCase() === "cloro");
+        let rigaCsv = righeConsumiGrezze.find(r => {
+            let d = parseDataAbbreviata(r[0]);
+            return d && chiaveData(d) === chiaveGiorno;
+        });
+
+        let corpoHTML = "";
+        let [annoD, meseD, giornoD] = chiaveGiorno.split("-").map(Number);
+        let dLeggibile = `${GIORNI_IT[new Date(annoD, meseD - 1, giornoD).getDay()]} ${giornoD} ${MESI_IT[meseD - 1]} ${annoD}`;
+
+        if (prodotto === "cloro") {
+            let doseReale = rigaCsv && idxCloroCol !== -1 ? parseFloat((rigaCsv[idxCloroCol] || "").replace(",", ".")) : NaN;
+            let consigliato = window.ModelloCloro.calcolaDoseCloro({
+                clMattina: giorno.mattina.cl, tempMedia: giorno.mattina.temp,
+                ospiti: ospiti, cya: cyaVoce ? cyaVoce.valore : null, reintegro: reintegro
+            });
+            corpoHTML = `<h2>Dettaglio Previsione — Cloro</h2><br>
+                <p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">${dLeggibile} — Cl.Lib mattina: ${giorno.mattina.cl} mg/l</p>
+                <div style="display:flex; gap:20px; margin-bottom:10px;">
+                    <div><span style="font-size:0.8rem; color:#94a3b8;">Dose usata</span><br><strong style="font-size:1.3rem;">${!isNaN(doseReale) ? doseReale : '–'} g</strong></div>
+                    <div><span style="font-size:0.8rem; color:#94a3b8;">Il modello avrebbe consigliato</span><br><strong style="font-size:1.3rem; color:#0369a1;">${consigliato ? consigliato.grammi : '–'} g</strong></div>
+                </div>
+                <p style="font-size:0.8rem; color:#94a3b8;">Calcolato con i dati reali di quella mattina (ospiti, CYA, reintegro, temperatura) e il target di sicurezza (${window.ModelloCloro.TARGET_CLORO_SICURO} mg/l). Ricorda: il modello spiega solo una parte della variazione reale (R²=${window.ModelloCloro.infoCalibrazione().r2 != null ? window.ModelloCloro.infoCalibrazione().r2.toFixed(2) : 'n/d'}) — usalo come riferimento, non come regola fissa.</p>`;
+        } else if (prodotto === "ph-") {
+            let doseReale = rigaCsv && idxPhCol !== -1 ? parseFloat((rigaCsv[idxPhCol] || "").replace(",", ".")) : NaN;
+            let alka = alkaVoce ? alkaVoce.valore : null;
+            let range = window.ModelloPH.calcolaRangeDosePH(giorno.mattina.ph, alka);
+            let mant = (!range) ? window.ModelloPH.calcolaDoseMantenimento(alka) : null;
+            corpoHTML = `<h2>Dettaglio Previsione — pH-</h2><br>
+                <p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">${dLeggibile} — pH mattina: ${giorno.mattina.ph}</p>
+                <div style="display:flex; gap:20px; margin-bottom:10px;">
+                    <div><span style="font-size:0.8rem; color:#94a3b8;">Dose usata</span><br><strong style="font-size:1.3rem;">${!isNaN(doseReale) ? doseReale : '–'} g</strong></div>
+                    <div><span style="font-size:0.8rem; color:#94a3b8;">Il modello avrebbe consigliato</span><br><strong style="font-size:1.3rem; color:#0369a1;">${range ? range.min + '-' + range.max + ' g' : (mant ? '≈' + mant.grammi + ' g (mantenimento)' : '–')}</strong></div>
+                </div>
+                <p style="font-size:0.8rem; color:#94a3b8;">Calcolato con l'Alka nota di quella data (${alka != null ? Math.round(alka) + ' ppm' : 'non nota'}). Il pH- usa una formula più semplice del Cloro (non una vera regressione, vedi modello-ph.js) — meno precisa, prendila come indicazione di massima.</p>`;
+        } else {
+            corpoHTML = `<h2>Dettaglio Previsione</h2><br><p>Prodotto non riconosciuto.</p>`;
+        }
+
+        contenitore.innerHTML = corpoHTML;
+        modal.classList.remove("hidden");
+    };
+
     // Cella HTML per un valore "atteso" o "% errore", colorata in base a quanto è vicino/lontano.
-    function cellaPrevisione(valore, unita, soglie) {
+    function cellaPrevisione(valore, unita, soglie, onclick) {
         if (valore == null) return `<td class="testo-muto" style="text-align:center;">-</td>`;
         let colore = "#94a3b8";
         if (soglie) {
             colore = Math.abs(valore) <= soglie.buono ? "#166534" : (Math.abs(valore) <= soglie.medio ? "#a16207" : "#b91c1c");
         }
-        return `<td style="text-align:center; color:${colore}; ${soglie ? 'font-weight:bold;' : ''}">${valore > 0 && soglie ? '+' : ''}${valore}${unita || ''}</td>`;
+        let attrClick = onclick ? ` onclick="${onclick}" style="text-align:center; color:${colore}; ${soglie ? 'font-weight:bold;' : ''} cursor:pointer; text-decoration:underline dotted;" title="Clicca per vedere quanto avrebbe consigliato il modello"` : ` style="text-align:center; color:${colore}; ${soglie ? 'font-weight:bold;' : ''}"`;
+        return `<td${attrClick}>${valore > 0 && soglie ? '+' : ''}${valore}${unita || ''}</td>`;
     }
 
     function disegnaTabellaConsumi(intestazioni, righeDati) {
@@ -877,9 +952,11 @@
                 idxCloroCol !== -1 ? riga[idxCloroCol] : null
             );
             html += cellaPrevisione(previsione.phAtteso, "");
-            html += cellaPrevisione(previsione.erroreProntoPh, "%", { buono: 1, medio: 3 });
+            html += cellaPrevisione(previsione.erroreProntoPh, "%", { buono: 1, medio: 3 },
+                chiaveRigaPrevisione ? `window.apriDettaglioPrevisione('${chiaveRigaPrevisione}','ph-')` : null);
             html += cellaPrevisione(previsione.cloroAtteso, " mg/l");
-            html += cellaPrevisione(previsione.erroreCloro, "%", { buono: 15, medio: 35 });
+            html += cellaPrevisione(previsione.erroreCloro, "%", { buono: 15, medio: 35 },
+                chiaveRigaPrevisione ? `window.apriDettaglioPrevisione('${chiaveRigaPrevisione}','cloro')` : null);
 
             if (icona) {
                 let cliccabile = risultatiVerifica.some(r => r.esito !== null || r.posticipato || r.tipo === "tricloro");
