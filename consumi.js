@@ -561,6 +561,65 @@
         return { esito, delta, label: def.label, prima: vPrima, dopo: vDopo };
     }
 
+    // ------------------------------------------------------------
+    // Valutazione basata sul modello (aggiunta 10/08/2026), usata SOLO per Cloro e pH- (gli
+    // unici due con un modello di previsione — vedi modello-cloro.js/modello-ph.js). Risponde
+    // a una domanda diversa e più giusta di valutaEsito(): non "il valore si è mosso abbastanza
+    // nella direzione giusta?" (che punisce una dose che ha aiutato ma non bastava, come se non
+    // avesse fatto nulla), ma "questa dose ha aiutato rispetto a NON fare nulla?", confrontando
+    // il risultato reale con quello che il modello prevede sarebbe successo con dose zero.
+    // ============================================================
+    function valutaEsitoConModello(chiaveProdotto, chiaveGiorno, doseTesto, prima, dopo) {
+        let dose = parseFloat((doseTesto || "").replace(",", "."));
+        if (isNaN(dose) || dose <= 0 || !prima || !dopo) return null;
+
+        let cyaVoce = null;
+        for (let i = elencoCyaOrdinato.length - 1; i >= 0; i--) {
+            if (elencoCyaOrdinato[i].chiave <= chiaveGiorno) { cyaVoce = elencoCyaOrdinato[i]; break; }
+        }
+        let alkaVoce = null;
+        for (let i = elencoAlkaOrdinato.length - 1; i >= 0; i--) {
+            if (elencoAlkaOrdinato[i].chiave <= chiaveGiorno) { alkaVoce = elencoAlkaOrdinato[i]; break; }
+        }
+        let ospiti = mappaOspitiPerGiorno[chiaveGiorno];
+        let reintegro = mappaReintegroPerData[chiaveGiorno];
+
+        if (chiaveProdotto === "cloro") {
+            if (prima.cl == null || prima.temp == null || dopo.cl == null) return null;
+            let senzaDose = window.ModelloCloro.simulaEsito({ clMattina: prima.cl, tempMedia: prima.temp, doseUsata: 0, ospiti, cya: cyaVoce ? cyaVoce.valore : null, reintegro });
+            let conDoseAttesa = window.ModelloCloro.simulaEsito({ clMattina: prima.cl, tempMedia: prima.temp, doseUsata: dose, ospiti, cya: cyaVoce ? cyaVoce.valore : null, reintegro });
+            if (!senzaDose) return null;
+            let reale = dopo.cl;
+            let inRangeIdeale = reale >= window.ModelloCloro.TARGET_CLORO_SICURO && reale <= window.ModelloCloro.MASSIMO_LEGALE;
+            let haAiutato = reale > senzaDose.predetto + 0.05; // margine: differenze minuscole non contano come "ha aiutato"
+
+            let esito = inRangeIdeale ? "ok" : (haAiutato ? "parziale" : "ko");
+            return {
+                esito, delta: reale - prima.cl, label: "Cl. Lib", prima: prima.cl, dopo: reale,
+                modello: true, senzaDose: senzaDose.predetto, conDoseAttesa: conDoseAttesa ? conDoseAttesa.predetto : null
+            };
+        }
+
+        if (chiaveProdotto === "ph-") {
+            if (prima.ph == null || dopo.ph == null) return null;
+            let alka = alkaVoce ? alkaVoce.valore : null;
+            let senzaDose = window.ModelloPH.simulaEsito(prima.ph, 0, alka);
+            let conDoseAttesa = window.ModelloPH.simulaEsito(prima.ph, dose, alka);
+            if (!senzaDose) return null;
+            let reale = dopo.ph;
+            let inRangeIdeale = reale >= 7.0 && reale <= 7.3;
+            let haAiutato = reale < senzaDose.predetto - 0.02;
+
+            let esito = inRangeIdeale ? "ok" : (haAiutato ? "parziale" : "ko");
+            return {
+                esito, delta: reale - prima.ph, label: "pH", prima: prima.ph, dopo: reale,
+                modello: true, senzaDose: senzaDose.predetto, conDoseAttesa: conDoseAttesa ? conDoseAttesa.predetto : null
+            };
+        }
+
+        return null;
+    }
+
     // Calcola gli esiti di verifica per tutti i prodotti dosati in una riga di Consumi,
     // insieme al contesto del giorno (temperatura, ospiti, reintegro) utile per interpretarli.
     function calcolaVerificaRiga(intestazioni, riga) {
@@ -606,7 +665,9 @@
 
             if (!(n in PRODOTTI_VERIFICABILI)) return;
 
-            let esito = valutaEsito(n, prima, dopo);
+            let esito = (n === "cloro" || n === "ph-")
+                ? valutaEsitoConModello(n, chiaveGiorno, valoreTesto, prima, dopo)
+                : valutaEsito(n, prima, dopo);
             risultati.push({
                 prodotto: intestazione.trim(),
                 quantita: valoreTesto,
@@ -977,10 +1038,27 @@
             }
 
             let coloreEsito = r.esito.esito === "ok" ? "#166534" : (r.esito.esito === "parziale" ? "#854d0e" : "#991b1b");
-            let testoEsito = r.esito.esito === "ok" ? "Dose efficace" : (r.esito.esito === "parziale" ? "Variazione insufficiente" : "Dose non sufficiente a contrastare la tendenza della giornata");
-            let notaKo = r.esito.esito === "ko"
-                ? `<br><span style="font-size:0.8rem; color:#94a3b8; font-style:italic;">La dose ha comunque agito nella direzione corretta: il resto della giornata (temperatura, ospiti, altri fattori) ha pesato di più. Da valutare se aumentarla.</span>`
-                : "";
+            let testoEsito;
+            let notaKo;
+            if (r.esito.modello) {
+                // Cloro/pH-: valutazione basata sul modello (10/08/2026) — confronta il reale con
+                // lo scenario "senza dose" previsto, non solo la direzione grezza del cambiamento.
+                testoEsito = r.esito.esito === "ok" ? "Dose efficace"
+                    : (r.esito.esito === "parziale" ? "Ha aiutato, ma non è bastata" : "Nessun effetto misurabile rispetto a non dosare nulla");
+                let senzaDoseTesto = String(Math.round(r.esito.senzaDose * 100) / 100).replace(".", ",");
+                if (r.esito.esito === "parziale") {
+                    notaKo = `<br><span style="font-size:0.8rem; color:#94a3b8; font-style:italic;">Il modello prevede che senza questa dose saresti arrivato a circa ${senzaDoseTesto} — sei arrivato a ${String(r.esito.dopo).replace(".", ",")}: la dose ha aiutato, ma non abbastanza da rientrare nella fascia ideale.</span>`;
+                } else if (r.esito.esito === "ko") {
+                    notaKo = `<br><span style="font-size:0.8rem; color:#94a3b8; font-style:italic;">Il modello prevede che senza alcuna dose saresti arrivato comunque a circa ${senzaDoseTesto} — troppo vicino al risultato reale per dire che questa dose abbia avuto un effetto chiaro. Il resto della giornata (temperatura, ospiti, altri fattori) ha pesato di più.</span>`;
+                } else {
+                    notaKo = "";
+                }
+            } else {
+                testoEsito = r.esito.esito === "ok" ? "Dose efficace" : (r.esito.esito === "parziale" ? "Variazione insufficiente" : "Dose non sufficiente a contrastare la tendenza della giornata");
+                notaKo = r.esito.esito === "ko"
+                    ? `<br><span style="font-size:0.8rem; color:#94a3b8; font-style:italic;">La dose ha comunque agito nella direzione corretta: il resto della giornata (temperatura, ospiti, altri fattori) ha pesato di più. Da valutare se aumentarla.</span>`
+                    : "";
+            }
             let prima = String(r.esito.prima).replace(".", ",");
             let dopo = String(r.esito.dopo).replace(".", ",");
 
