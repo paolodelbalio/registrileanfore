@@ -694,9 +694,77 @@
         ridisegnaSeDatiPronti();
     }
 
+    // Calcola, per una singola riga del Registro Consumi, il valore atteso (Cloro e pH) e
+    // l'errore percentuale rispetto alla lettura reale delle 21 dello stesso giorno — usato per
+    // le 4 colonne permanenti "pH atteso / % errore pH / Cloro atteso / % errore Cloro" nella
+    // tabella Consumi (aggiunte 09/08/2026, sostituiscono lo storico in localStorage: qui il
+    // dato è sempre visibile per tutti, su qualsiasi dispositivo, perché calcolato al volo dai
+    // registri reali invece che salvato nel browser).
+    function calcolaPrevistoPerRiga(chiaveGiorno, dosePhTesto, doseCloroTesto) {
+        let vuoto = { phAtteso: null, erroreProntoPh: null, cloroAtteso: null, erroreCloro: null };
+        if (!chiaveGiorno || !mappaChimicoPerData) return vuoto;
+        let giorno = mappaChimicoPerData[chiaveGiorno];
+        if (!giorno || !giorno.mattina) return vuoto;
+
+        let cyaVoce = null;
+        for (let i = elencoCyaOrdinato.length - 1; i >= 0; i--) {
+            if (elencoCyaOrdinato[i].chiave <= chiaveGiorno) { cyaVoce = elencoCyaOrdinato[i]; break; }
+        }
+        let alkaVoce = null;
+        for (let i = elencoAlkaOrdinato.length - 1; i >= 0; i--) {
+            if (elencoAlkaOrdinato[i].chiave <= chiaveGiorno) { alkaVoce = elencoAlkaOrdinato[i]; break; }
+        }
+        let ospiti = mappaOspitiPerGiorno[chiaveGiorno];
+        let reintegro = mappaReintegroPerData[chiaveGiorno];
+
+        let clReale = giorno.sera ? giorno.sera.cl : null;
+        let phReale = giorno.sera ? giorno.sera.ph : null;
+
+        let risultato = Object.assign({}, vuoto);
+
+        let dosePh = parseFloat((dosePhTesto || "").replace(",", "."));
+        if (!isNaN(dosePh) && dosePh > 0 && giorno.mattina.ph != null) {
+            let esitoPh = window.ModelloPH.simulaEsito(giorno.mattina.ph, dosePh, alkaVoce ? alkaVoce.valore : null);
+            if (esitoPh) {
+                risultato.phAtteso = esitoPh.predetto;
+                if (phReale != null && esitoPh.predetto) {
+                    risultato.erroreProntoPh = Math.round(((phReale - esitoPh.predetto) / esitoPh.predetto) * 1000) / 10;
+                }
+            }
+        }
+
+        let doseCloro = parseFloat((doseCloroTesto || "").replace(",", "."));
+        if (!isNaN(doseCloro) && doseCloro > 0 && giorno.mattina.cl != null && giorno.mattina.temp != null) {
+            let esitoCloro = window.ModelloCloro.simulaEsito({
+                clMattina: giorno.mattina.cl, tempMedia: giorno.mattina.temp, doseUsata: doseCloro,
+                ospiti: ospiti, cya: cyaVoce ? cyaVoce.valore : null, reintegro: reintegro
+            });
+            if (esitoCloro) {
+                risultato.cloroAtteso = esitoCloro.predetto;
+                if (clReale != null && esitoCloro.predetto) {
+                    risultato.erroreCloro = Math.round(((clReale - esitoCloro.predetto) / esitoCloro.predetto) * 1000) / 10;
+                }
+            }
+        }
+        return risultato;
+    }
+
+    // Cella HTML per un valore "atteso" o "% errore", colorata in base a quanto è vicino/lontano.
+    function cellaPrevisione(valore, unita, soglie) {
+        if (valore == null) return `<td class="testo-muto" style="text-align:center;">-</td>`;
+        let colore = "#94a3b8";
+        if (soglie) {
+            colore = Math.abs(valore) <= soglie.buono ? "#166534" : (Math.abs(valore) <= soglie.medio ? "#a16207" : "#b91c1c");
+        }
+        return `<td style="text-align:center; color:${colore}; ${soglie ? 'font-weight:bold;' : ''}">${valore > 0 && soglie ? '+' : ''}${valore}${unita || ''}</td>`;
+    }
+
     function disegnaTabellaConsumi(intestazioni, righeDati) {
         const tabella = document.getElementById("consumiTable");
         if (!tabella) return;
+
+        let idxPhCol = intestazioni.findIndex(h => (h || "").trim().toLowerCase() === "ph-");
+        let idxCloroCol = intestazioni.findIndex(h => (h || "").trim().toLowerCase() === "cloro");
 
         let html = "<thead><tr>";
         intestazioni.forEach((titolo, indice) => {
@@ -709,6 +777,10 @@
                 html += `<th class="${classeColonna}">${titolo || ""}</th>`;
             }
         });
+        html += `<th title="Calcolato dal modello, confrontato con la lettura reale delle 21">pH atteso</th>`;
+        html += `<th title="(reale - atteso) / atteso, in percentuale">% errore pH</th>`;
+        html += `<th title="Calcolato dal modello, confrontato con la lettura reale delle 21">Cloro atteso</th>`;
+        html += `<th title="(reale - atteso) / atteso, in percentuale">% errore Cloro</th>`;
         html += `<th id="colonnaVerifica">Verifica</th>`;
         html += "</tr></thead><tbody>";
 
@@ -735,6 +807,18 @@
 
                 html += `<td class="${classi.join(" ")}" title="${valore.replace(/"/g, '&quot;')}">${valore !== "" ? valore : "-"}</td>`;
             });
+
+            let dObjRigaPrevisione = parseDataAbbreviata(riga[0]);
+            let chiaveRigaPrevisione = dObjRigaPrevisione ? chiaveData(dObjRigaPrevisione) : null;
+            let previsione = calcolaPrevistoPerRiga(
+                chiaveRigaPrevisione,
+                idxPhCol !== -1 ? riga[idxPhCol] : null,
+                idxCloroCol !== -1 ? riga[idxCloroCol] : null
+            );
+            html += cellaPrevisione(previsione.phAtteso, "");
+            html += cellaPrevisione(previsione.erroreProntoPh, "%", { buono: 1, medio: 3 });
+            html += cellaPrevisione(previsione.cloroAtteso, " mg/l");
+            html += cellaPrevisione(previsione.erroreCloro, "%", { buono: 15, medio: 35 });
 
             if (icona) {
                 let cliccabile = risultatiVerifica.some(r => r.esito !== null || r.posticipato || r.tipo === "tricloro");
@@ -1108,6 +1192,91 @@
     // atteso stasera — pensata per essere confrontata con la lettura reale delle
     // 21, per capire settimana dopo settimana se i modelli vanno aggiustati.
     // ============================================================
+    // ============================================================
+    // Storico previsioni "Atteso Stasera" (aggiunto 09/08/2026)
+    // Salvato nel localStorage del browser (persiste tra una visita e l'altra sullo
+    // stesso computer/browser, si perde solo cancellando i dati di navigazione o
+    // usando un browser/dispositivo diverso — o la navigazione in incognito).
+    // ============================================================
+    const CHIAVE_STORICO_PREVISIONI = "piscinaAnfore_storicoPrevisioni";
+    const MAX_VOCI_STORICO = 30;
+
+    function leggiStoricoPrevisioni() {
+        try {
+            let grezzo = localStorage.getItem(CHIAVE_STORICO_PREVISIONI);
+            return grezzo ? JSON.parse(grezzo) : [];
+        } catch (e) {
+            console.warn("[Consumi] Storico previsioni non disponibile (localStorage bloccato):", e);
+            return [];
+        }
+    }
+
+    // Salva/aggiorna la previsione di un giorno (sovrascrive se richiamata più volte lo stesso
+    // giorno, es. dopo aver aggiunto altro prodotto), e tiene solo le ultime MAX_VOCI_STORICO voci.
+    function salvaPrevisione(chiaveGiorno, voce) {
+        try {
+            let storico = leggiStoricoPrevisioni().filter(v => v.chiaveGiorno !== chiaveGiorno);
+            storico.push(Object.assign({ chiaveGiorno: chiaveGiorno }, voce));
+            storico.sort((a, b) => a.chiaveGiorno < b.chiaveGiorno ? 1 : -1); // più recente prima
+            if (storico.length > MAX_VOCI_STORICO) storico = storico.slice(0, MAX_VOCI_STORICO);
+            localStorage.setItem(CHIAVE_STORICO_PREVISIONI, JSON.stringify(storico));
+        } catch (e) {
+            console.warn("[Consumi] Impossibile salvare la previsione (localStorage bloccato):", e);
+        }
+    }
+
+    // Costruisce la tabella HTML dello storico, confrontando ogni previsione salvata con la
+    // lettura reale delle 21 di quel giorno (se ormai disponibile nel Registro Chimico).
+    function disegnaTabellaStoricoPrevisioni() {
+        let storico = leggiStoricoPrevisioni();
+        if (storico.length === 0) return "";
+
+        let righe = storico.map(v => {
+            let giorno = mappaChimicoPerData ? mappaChimicoPerData[v.chiaveGiorno] : null;
+            let clReale = (giorno && giorno.sera) ? giorno.sera.cl : null;
+            let phReale = (giorno && giorno.sera) ? giorno.sera.ph : null;
+
+            let scartoCl = (v.previstoCloro != null && clReale != null) ? Math.round((clReale - v.previstoCloro) * 100) / 100 : null;
+            let scartoPh = (v.previstoPh != null && phReale != null) ? Math.round((phReale - v.previstoPh) * 1000) / 1000 : null;
+
+            let coloreCl = scartoCl == null ? "#94a3b8" : (Math.abs(scartoCl) <= 0.2 ? "#166534" : "#b91c1c");
+            let colorePh = scartoPh == null ? "#94a3b8" : (Math.abs(scartoPh) <= 0.05 ? "#166534" : "#b91c1c");
+
+            let [annoV, meseV, giornoV] = v.chiaveGiorno.split("-").map(Number);
+            let dObj = new Date(annoV, meseV - 1, giornoV);
+            let dataLeggibile = isNaN(dObj.getTime()) ? v.chiaveGiorno : `${GIORNI_IT[dObj.getDay()]} ${giornoV} ${MESI_IT[meseV - 1]}`;
+
+            return `<tr>
+                <td style="padding:4px 6px; white-space:nowrap;">${dataLeggibile}</td>
+                <td style="padding:4px 6px; text-align:center;">${v.previstoCloro != null ? v.previstoCloro : '–'}</td>
+                <td style="padding:4px 6px; text-align:center;">${clReale != null ? clReale : '–'}</td>
+                <td style="padding:4px 6px; text-align:center; color:${coloreCl}; font-weight:bold;">${scartoCl != null ? (scartoCl > 0 ? '+' : '') + scartoCl : '–'}</td>
+                <td style="padding:4px 6px; text-align:center;">${v.previstoPh != null ? v.previstoPh : '–'}</td>
+                <td style="padding:4px 6px; text-align:center;">${phReale != null ? phReale : '–'}</td>
+                <td style="padding:4px 6px; text-align:center; color:${colorePh}; font-weight:bold;">${scartoPh != null ? (scartoPh > 0 ? '+' : '') + scartoPh : '–'}</td>
+            </tr>`;
+        }).join("");
+
+        return `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
+            <strong>Storico previsioni</strong>
+            <span style="font-size:0.75rem; color:#94a3b8; display:block; margin-bottom:6px;">Salvato in questo browser — sparisce se cancelli i dati di navigazione o cambi computer. Verde = scarto piccolo, rosso = scarto grande (aiuta a capire quando aggiustare i modelli).</span>
+            <div style="overflow-x:auto;">
+            <table style="width:100%; font-size:0.78rem; border-collapse:collapse;">
+                <thead><tr style="border-bottom:1px solid #e2e8f0; color:#64748b;">
+                    <th style="padding:4px 6px; text-align:left;">Data</th>
+                    <th style="padding:4px 6px;">Cl. previsto</th>
+                    <th style="padding:4px 6px;">Cl. reale</th>
+                    <th style="padding:4px 6px;">Scarto</th>
+                    <th style="padding:4px 6px;">pH previsto</th>
+                    <th style="padding:4px 6px;">pH reale</th>
+                    <th style="padding:4px 6px;">Scarto</th>
+                </tr></thead>
+                <tbody>${righe}</tbody>
+            </table>
+            </div>
+        </div>`;
+    }
+
     window.mostraAttesoStasera = function () {
         const modal = document.getElementById("dosageModal");
         const contenitore = document.getElementById("dosageContent");
@@ -1132,6 +1301,7 @@
         </p>`;
 
         // --- Cloro ---
+        let previstoCloroOggi = null;
         if (doseCloroOggi == null) {
             corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
                 <strong>Cloro</strong>
@@ -1142,6 +1312,7 @@
                 clMattina: s.clMattina, tempMedia: s.tempMattina, doseUsata: doseCloroOggi,
                 ospiti: s.ospitiUsati, cya: s.cya, reintegro: s.reintegroUsato
             });
+            previstoCloroOggi = esitoCloro ? esitoCloro.predetto : null;
             let avvisoCl = esitoCloro && (esitoCloro.avvisoSuperaMassimo || esitoCloro.avvisoSottoMinimo)
                 ? `<p style="font-size:0.8rem; color:#b91c1c; background-color:#fee2e2; padding:6px 10px; border-radius:4px; margin:6px 0;">🚨 Fuori fascia legale (${window.ModelloCloro.MINIMO_LEGALE}-${window.ModelloCloro.MASSIMO_LEGALE} mg/l) secondo la previsione.</p>`
                 : "";
@@ -1154,6 +1325,7 @@
         }
 
         // --- pH ---
+        let previstoPhOggi = null;
         if (dosePhOggi == null) {
             corpoHTML += `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
                 <strong>pH</strong>
@@ -1161,6 +1333,7 @@
             </div>`;
         } else {
             let esitoPh = window.ModelloPH.simulaEsito(s.phMattina, dosePhOggi, s.alkaUsato);
+            previstoPhOggi = esitoPh ? esitoPh.predetto : null;
             let avvisoPh = esitoPh && (esitoPh.avvisoSuperaMassimo || esitoPh.avvisoSottoMinimo)
                 ? `<p style="font-size:0.8rem; color:#b91c1c; background-color:#fee2e2; padding:6px 10px; border-radius:4px; margin:6px 0;">🚨 Fuori fascia legale (${window.ModelloPH.MINIMO_LEGALE}-${window.ModelloPH.MASSIMO_LEGALE}) secondo la previsione.</p>`
                 : "";
@@ -1171,6 +1344,16 @@
                 <span style="font-size:0.8rem; color:#94a3b8;">Partenza stamattina: ${s.phMattina}. Formula teorica + rapporto mediano (non una regressione validata come il Cloro) — meno precisa, usala come indicazione di massima.</span>
             </div>`;
         }
+
+        // Salva la previsione di oggi nello storico (solo se c'è almeno una previsione da salvare)
+        // e aggiunge la tabella storico in fondo al popup.
+        if (previstoCloroOggi != null || previstoPhOggi != null) {
+            salvaPrevisione(s.chiaveGiorno, {
+                doseCloro: doseCloroOggi, previstoCloro: previstoCloroOggi,
+                dosePh: dosePhOggi, previstoPh: previstoPhOggi
+            });
+        }
+        corpoHTML += disegnaTabellaStoricoPrevisioni();
 
         contenitore.innerHTML = `<h2>📈 Atteso Stasera</h2><br>${corpoHTML}`;
         modal.classList.remove("hidden");
