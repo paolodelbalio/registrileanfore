@@ -104,7 +104,7 @@ gio 30 lug 26,07:00,G,,,Paolo,,Sdraio,,
 ven 31 lug 26,07:00,G,,,Paolo,,Pulizia,,
 sab 1 ago 26,07:00,G,,,Paolo,,,,
 dom 2 ago 26,07:00,G,,,Paolo,,,,
-lun 3 ago 26,07:00,GS,lavato a pressione zona piedi nudi e lettini,Cloro,Paolo,,Giornaliero,Settimanale,Mensile
+lun 3 ago 26,07:00,GSM,lavato a pressione zona piedi nudi e lettini,Cloro,Paolo,,Giornaliero,Settimanale,Mensile
 mar 4 ago 26,07:00,G,Pulito Linea battente,Cloro,Paolo,,Bordo,Ombrelloni,Pompa filtro
 ,,,,,,,Linea battente,Bacheca,Pulizia
 mer 5 ago 26,07:00,G,Incrostazioni soffione doccia e robot,acido,Paolo,,Doccia,Locale tecnico,
@@ -114,7 +114,7 @@ gio 6 ago 26,07:00,G,,,Paolo,,Sdraio,,
 ven 7 ago 26,07:00,G,Pulito locale tecnico,,Paolo,,Pulizia,,
 sab 8 ago 26,07:00,G,,,Paolo,,,,
 dom 9 ago 26,07:00,G,,,Paolo,,,,
-lun 10 ago 26,07:00,,,,,,Giornaliero,Settimanale,Mensile
+lun 10 ago 26,07:00,GS,lavato a pressione zona piedi nudi e lettini,,Paolo,,Giornaliero,Settimanale,Mensile
 mar 11 ago 26,07:00,,,,,,Bordo,Ombrelloni,Pompa filtro
 ,,,,,,,Linea battente,Bacheca,Pulizia
 mer 12 ago 26,07:00,,,,,,Doccia,Locale tecnico,
