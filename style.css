@@ -126,6 +126,15 @@ tr:nth-child(even) td {
     text-overflow: ellipsis;
 }
 
+/* Colonne "pH previsto / Diff. pH / Cloro previsto / Diff. Cloro" (aggiunte 09-10/08/2026):
+   contenuto sempre breve (numeri), ma le intestazioni sono lunghe e allargavano la tabella.
+   Stessa logica della colonna Note: taglio con puntini, testo completo nel tooltip. */
+.col-stretta {
+    max-width: 78px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* COLORI COMPATTI IN TRASPARENZA (STILE ORIGINALE MA SOFT) */
 .evidenzia-verde {
     background-color: rgba(187, 247, 208, 0.5) !important; /* Verde leggero */

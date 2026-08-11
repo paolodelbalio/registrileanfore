@@ -887,12 +887,12 @@
 
     // Cella HTML per un valore "previsto" o "differenza", colorata in base a quanto è vicino/lontano.
     function cellaPrevisione(valore, unita, soglie, onclick) {
-        if (valore == null) return `<td class="testo-muto" style="text-align:center;">-</td>`;
+        if (valore == null) return `<td class="col-stretta testo-muto" style="text-align:center;">-</td>`;
         let colore = "#94a3b8";
         if (soglie) {
             colore = Math.abs(valore) <= soglie.buono ? "#166534" : (Math.abs(valore) <= soglie.medio ? "#a16207" : "#b91c1c");
         }
-        let attrClick = onclick ? ` onclick="${onclick}" style="text-align:center; color:${colore}; ${soglie ? 'font-weight:bold;' : ''} cursor:pointer; text-decoration:underline dotted;" title="Clicca per vedere quanto avrebbe consigliato il modello"` : ` style="text-align:center; color:${colore}; ${soglie ? 'font-weight:bold;' : ''}"`;
+        let attrClick = onclick ? ` onclick="${onclick}" class="col-stretta" style="text-align:center; color:${colore}; ${soglie ? 'font-weight:bold;' : ''} cursor:pointer; text-decoration:underline dotted;" title="Clicca per vedere quanto avrebbe consigliato il modello"` : ` class="col-stretta" style="text-align:center; color:${colore}; ${soglie ? 'font-weight:bold;' : ''}"`;
         return `<td${attrClick}>${valore > 0 && soglie ? '+' : ''}${valore}${unita || ''}</td>`;
     }
 
@@ -914,10 +914,10 @@
                 html += `<th class="${classeColonna}">${titolo || ""}</th>`;
             }
         });
-        html += `<th title="Previsione del modello, calcolata con la lettura delle 7 e la dose usata — NON è la lettura reale delle 21">pH previsto (modello)</th>`;
-        html += `<th title="Lettura reale delle 21 MENO la previsione — es. +0,20 vuol dire che il pH reale è finito più alto del previsto">Differenza pH (reale-previsto)</th>`;
-        html += `<th title="Previsione del modello, calcolata con la lettura delle 7 e la dose usata — NON è la lettura reale delle 21">Cloro previsto (modello)</th>`;
-        html += `<th title="Lettura reale delle 21 MENO la previsione — es. +0,30 vuol dire che il Cloro reale è finito più alto del previsto">Differenza Cloro (reale-previsto)</th>`;
+        html += `<th class="col-stretta" title="Previsione del modello, calcolata con la lettura delle 7 e la dose usata — NON è la lettura reale delle 21">pH previsto</th>`;
+        html += `<th class="col-stretta" title="Lettura reale delle 21 MENO la previsione — es. +0,20 vuol dire che il pH reale è finito più alto del previsto">Diff. pH</th>`;
+        html += `<th class="col-stretta" title="Previsione del modello, calcolata con la lettura delle 7 e la dose usata — NON è la lettura reale delle 21">Cloro previsto</th>`;
+        html += `<th class="col-stretta" title="Lettura reale delle 21 MENO la previsione — es. +0,30 vuol dire che il Cloro reale è finito più alto del previsto">Diff. Cloro</th>`;
         html += `<th id="colonnaVerifica">Verifica</th>`;
         html += "</tr></thead><tbody>";
 
