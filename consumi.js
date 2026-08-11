@@ -757,12 +757,12 @@
 
     // Calcola, per una singola riga del Registro Consumi, il valore atteso (Cloro e pH) e
     // l'errore percentuale rispetto alla lettura reale delle 21 dello stesso giorno — usato per
-    // le 4 colonne permanenti "pH atteso / % errore pH / Cloro atteso / % errore Cloro" nella
+    // le 4 colonne permanenti "pH previsto / Differenza pH / Cloro previsto / Differenza Cloro" nella
     // tabella Consumi (aggiunte 09/08/2026, sostituiscono lo storico in localStorage: qui il
     // dato è sempre visibile per tutti, su qualsiasi dispositivo, perché calcolato al volo dai
     // registri reali invece che salvato nel browser).
     function calcolaPrevistoPerRiga(chiaveGiorno, dosePhTesto, doseCloroTesto) {
-        let vuoto = { phAtteso: null, erroreProntoPh: null, cloroAtteso: null, erroreCloro: null };
+        let vuoto = { phAtteso: null, differenzaPh: null, cloroAtteso: null, differenzaCloro: null };
         if (!chiaveGiorno || !mappaChimicoPerData) return vuoto;
         let giorno = mappaChimicoPerData[chiaveGiorno];
         if (!giorno || !giorno.mattina) return vuoto;
@@ -788,8 +788,8 @@
             let esitoPh = window.ModelloPH.simulaEsito(giorno.mattina.ph, dosePh, alkaVoce ? alkaVoce.valore : null);
             if (esitoPh) {
                 risultato.phAtteso = esitoPh.predetto;
-                if (phReale != null && esitoPh.predetto) {
-                    risultato.erroreProntoPh = Math.round(((phReale - esitoPh.predetto) / esitoPh.predetto) * 1000) / 10;
+                if (phReale != null) {
+                    risultato.differenzaPh = Math.round((phReale - esitoPh.predetto) * 1000) / 1000;
                 }
             }
         }
@@ -802,17 +802,18 @@
             });
             if (esitoCloro) {
                 risultato.cloroAtteso = esitoCloro.predetto;
-                if (clReale != null && esitoCloro.predetto) {
-                    risultato.erroreCloro = Math.round(((clReale - esitoCloro.predetto) / esitoCloro.predetto) * 1000) / 10;
+                if (clReale != null) {
+                    risultato.differenzaCloro = Math.round((clReale - esitoCloro.predetto) * 100) / 100;
                 }
             }
         }
         return risultato;
     }
 
+
     // ============================================================
     // Dettaglio previsione (aggiunto 10/08/2026): apre un popup quando si clicca una cella
-    // "% errore" nella tabella Consumi. Non ripete il significato della percentuale (quello
+    // "Differenza" nella tabella Consumi. Non ripete il significato della differenza (quella
     // misura solo quanto ha indovinato il modello) — mostra invece la cosa utile in pratica:
     // quanto prodotto il modello avrebbe consigliato QUELLA mattina, da confrontare con quanto
     // ne è stato usato davvero.
@@ -884,7 +885,7 @@
         modal.classList.remove("hidden");
     };
 
-    // Cella HTML per un valore "atteso" o "% errore", colorata in base a quanto è vicino/lontano.
+    // Cella HTML per un valore "previsto" o "differenza", colorata in base a quanto è vicino/lontano.
     function cellaPrevisione(valore, unita, soglie, onclick) {
         if (valore == null) return `<td class="testo-muto" style="text-align:center;">-</td>`;
         let colore = "#94a3b8";
@@ -913,10 +914,10 @@
                 html += `<th class="${classeColonna}">${titolo || ""}</th>`;
             }
         });
-        html += `<th title="Calcolato dal modello, confrontato con la lettura reale delle 21">pH atteso</th>`;
-        html += `<th title="(reale - atteso) / atteso, in percentuale">% errore pH</th>`;
-        html += `<th title="Calcolato dal modello, confrontato con la lettura reale delle 21">Cloro atteso</th>`;
-        html += `<th title="(reale - atteso) / atteso, in percentuale">% errore Cloro</th>`;
+        html += `<th title="Previsione del modello, calcolata con la lettura delle 7 e la dose usata — NON è la lettura reale delle 21">pH previsto (modello)</th>`;
+        html += `<th title="Lettura reale delle 21 MENO la previsione — es. +0,20 vuol dire che il pH reale è finito più alto del previsto">Differenza pH (reale-previsto)</th>`;
+        html += `<th title="Previsione del modello, calcolata con la lettura delle 7 e la dose usata — NON è la lettura reale delle 21">Cloro previsto (modello)</th>`;
+        html += `<th title="Lettura reale delle 21 MENO la previsione — es. +0,30 vuol dire che il Cloro reale è finito più alto del previsto">Differenza Cloro (reale-previsto)</th>`;
         html += `<th id="colonnaVerifica">Verifica</th>`;
         html += "</tr></thead><tbody>";
 
@@ -952,10 +953,10 @@
                 idxCloroCol !== -1 ? riga[idxCloroCol] : null
             );
             html += cellaPrevisione(previsione.phAtteso, "");
-            html += cellaPrevisione(previsione.erroreProntoPh, "%", { buono: 1, medio: 3 },
+            html += cellaPrevisione(previsione.differenzaPh, "", { buono: 0.05, medio: 0.15 },
                 chiaveRigaPrevisione ? `window.apriDettaglioPrevisione('${chiaveRigaPrevisione}','ph-')` : null);
             html += cellaPrevisione(previsione.cloroAtteso, " mg/l");
-            html += cellaPrevisione(previsione.erroreCloro, "%", { buono: 15, medio: 35 },
+            html += cellaPrevisione(previsione.differenzaCloro, " mg/l", { buono: 0.15, medio: 0.35 },
                 chiaveRigaPrevisione ? `window.apriDettaglioPrevisione('${chiaveRigaPrevisione}','cloro')` : null);
 
             if (icona) {
