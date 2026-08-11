@@ -582,7 +582,13 @@
             if (elencoAlkaOrdinato[i].chiave <= chiaveGiorno) { alkaVoce = elencoAlkaOrdinato[i]; break; }
         }
         let ospiti = mappaOspitiPerGiorno[chiaveGiorno];
+        // Reintegro: se quello di oggi non è ancora registrato, usa quello di ieri come stima
+        // (stessa logica di calcolaSuggerimentoPer/"Atteso Stasera") — prima questo fallback
+        // mancava qui e produceva un numero diverso da quello del popup per lo stesso giorno.
         let reintegro = mappaReintegroPerData[chiaveGiorno];
+        if (reintegro == null) {
+            reintegro = mappaReintegroPerData[chiaveGiornoPrecedente(chiaveGiorno)];
+        }
 
         if (chiaveProdotto === "cloro") {
             if (prima.cl == null || prima.temp == null || dopo.cl == null) return null;
@@ -776,7 +782,13 @@
             if (elencoAlkaOrdinato[i].chiave <= chiaveGiorno) { alkaVoce = elencoAlkaOrdinato[i]; break; }
         }
         let ospiti = mappaOspitiPerGiorno[chiaveGiorno];
+        // Reintegro: se quello di oggi non è ancora registrato, usa quello di ieri come stima
+        // (stessa logica di calcolaSuggerimentoPer/"Atteso Stasera") — prima questo fallback
+        // mancava qui e produceva un numero diverso da quello del popup per lo stesso giorno.
         let reintegro = mappaReintegroPerData[chiaveGiorno];
+        if (reintegro == null) {
+            reintegro = mappaReintegroPerData[chiaveGiornoPrecedente(chiaveGiorno)];
+        }
 
         let clReale = giorno.sera ? giorno.sera.cl : null;
         let phReale = giorno.sera ? giorno.sera.ph : null;
@@ -839,7 +851,13 @@
             if (elencoAlkaOrdinato[i].chiave <= chiaveGiorno) { alkaVoce = elencoAlkaOrdinato[i]; break; }
         }
         let ospiti = mappaOspitiPerGiorno[chiaveGiorno];
+        // Reintegro: se quello di oggi non è ancora registrato, usa quello di ieri come stima
+        // (stessa logica di calcolaSuggerimentoPer/"Atteso Stasera") — prima questo fallback
+        // mancava qui e produceva un numero diverso da quello del popup per lo stesso giorno.
         let reintegro = mappaReintegroPerData[chiaveGiorno];
+        if (reintegro == null) {
+            reintegro = mappaReintegroPerData[chiaveGiornoPrecedente(chiaveGiorno)];
+        }
 
         let idxPhCol = intestazioniConsumi.findIndex(h => (h || "").trim().toLowerCase() === "ph-");
         let idxCloroCol = intestazioniConsumi.findIndex(h => (h || "").trim().toLowerCase() === "cloro");
