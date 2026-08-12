@@ -768,7 +768,7 @@
     // dato è sempre visibile per tutti, su qualsiasi dispositivo, perché calcolato al volo dai
     // registri reali invece che salvato nel browser).
     function calcolaPrevistoPerRiga(chiaveGiorno, dosePhTesto, doseCloroTesto) {
-        let vuoto = { phAtteso: null, differenzaPh: null, cloroAtteso: null, differenzaCloro: null };
+        let vuoto = { phAtteso: null, differenzaPh: null, phReale: null, cloroAtteso: null, differenzaCloro: null, clReale: null };
         if (!chiaveGiorno || !mappaChimicoPerData) return vuoto;
         let giorno = mappaChimicoPerData[chiaveGiorno];
         if (!giorno || !giorno.mattina) return vuoto;
@@ -794,6 +794,8 @@
         let phReale = giorno.sera ? giorno.sera.ph : null;
 
         let risultato = Object.assign({}, vuoto);
+        risultato.phReale = phReale;
+        risultato.clReale = clReale;
 
         let dosePh = parseFloat((dosePhTesto || "").replace(",", "."));
         if (!isNaN(dosePh) && dosePh > 0 && giorno.mattina.ph != null) {
@@ -903,6 +905,36 @@
         modal.classList.remove("hidden");
     };
 
+    // Stessa logica di colorazione del Registro Chimico (vedi ottieniClasseColore in chimico.js),
+    // replicata qui per pH e Cl.Lib — usa le classi CSS globali evidenzia-verde/giallo/rosso,
+    // già definite in style.css, quindi il colore è identico a quello che vedi nell'altro registro.
+    function classeColoreValoreReale(parametro, v) {
+        if (v == null || isNaN(v)) return "";
+        if (parametro === "ph") {
+            if (v >= 7.0 && v <= 7.3) return "evidenzia-verde";
+            if ((v >= 6.5 && v < 7.0) || (v > 7.3 && v <= 7.5)) return "evidenzia-giallo";
+            return "evidenzia-rosso";
+        }
+        if (parametro === "cl") {
+            if (v >= 0.8 && v <= 1.4) return "evidenzia-verde";
+            if ((v >= 0.7 && v < 0.8) || (v > 1.4 && v <= 1.5)) return "evidenzia-giallo";
+            return "evidenzia-rosso";
+        }
+        return "";
+    }
+
+    // Cella per il valore REALE (non la previsione): colorata in base alla fascia ideale/di
+    // legge, non in base a quanto il modello ha indovinato — risponde alla domanda "questo
+    // valore va bene?", diversa da quella a cui risponde cellaPrevisione ("il modello ha
+    // previsto giusto?"). Aggiunta 11/08/2026 su segnalazione di Paolo: prima un pH salito da
+    // 7,30 a 7,33 (leggermente fuori dalla fascia ideale 7,0-7,3) risultava "verde" solo perché
+    // il modello l'aveva previsto bene, dando l'impressione sbagliata che il valore andasse bene.
+    function cellaValoreReale(parametro, valore) {
+        if (valore == null) return `<td class="col-stretta testo-muto" style="text-align:center;">-</td>`;
+        let classe = classeColoreValoreReale(parametro, valore);
+        return `<td class="col-stretta ${classe}" style="text-align:center;">${valore}</td>`;
+    }
+
     // Cella HTML per un valore "previsto" o "differenza", colorata in base a quanto è vicino/lontano.
     function cellaPrevisione(valore, unita, soglie, onclick) {
         if (valore == null) return `<td class="col-stretta testo-muto" style="text-align:center;">-</td>`;
@@ -933,9 +965,11 @@
             }
         });
         html += `<th class="col-stretta" title="Previsione del modello, calcolata con la lettura delle 7 e la dose usata — NON è la lettura reale delle 21">pH previsto</th>`;
-        html += `<th class="col-stretta" title="Lettura reale delle 21 MENO la previsione — es. +0,20 vuol dire che il pH reale è finito più alto del previsto">Diff. pH</th>`;
+        html += `<th class="col-stretta" title="Lettura reale delle 21. Colorata in base alla fascia ideale (verde 7,0-7,3) e di legge (giallo 6,5-7,5), come nel Registro Chimico">pH reale</th>`;
+        html += `<th class="col-stretta" title="Lettura reale delle 21 MENO la previsione — es. +0,20 vuol dire che il pH reale è finito più alto del previsto. NON dice se il valore va bene, solo se il modello ha indovinato">Diff. pH</th>`;
         html += `<th class="col-stretta" title="Previsione del modello, calcolata con la lettura delle 7 e la dose usata — NON è la lettura reale delle 21">Cloro previsto</th>`;
-        html += `<th class="col-stretta" title="Lettura reale delle 21 MENO la previsione — es. +0,30 vuol dire che il Cloro reale è finito più alto del previsto">Diff. Cloro</th>`;
+        html += `<th class="col-stretta" title="Lettura reale delle 21. Colorata in base alla fascia ideale (verde 0,8-1,4) e di legge (giallo 0,7-0,8 o 1,4-1,5), come nel Registro Chimico">Cloro reale</th>`;
+        html += `<th class="col-stretta" title="Lettura reale delle 21 MENO la previsione — es. +0,30 vuol dire che il Cloro reale è finito più alto del previsto. NON dice se il valore va bene, solo se il modello ha indovinato">Diff. Cloro</th>`;
         html += `<th id="colonnaVerifica">Verifica</th>`;
         html += "</tr></thead><tbody>";
 
@@ -971,9 +1005,11 @@
                 idxCloroCol !== -1 ? riga[idxCloroCol] : null
             );
             html += cellaPrevisione(previsione.phAtteso, "");
+            html += cellaValoreReale("ph", previsione.phReale);
             html += cellaPrevisione(previsione.differenzaPh, "", { buono: 0.05, medio: 0.15 },
                 chiaveRigaPrevisione ? `window.apriDettaglioPrevisione('${chiaveRigaPrevisione}','ph-')` : null);
             html += cellaPrevisione(previsione.cloroAtteso, " mg/l");
+            html += cellaValoreReale("cl", previsione.clReale);
             html += cellaPrevisione(previsione.differenzaCloro, " mg/l", { buono: 0.15, medio: 0.35 },
                 chiaveRigaPrevisione ? `window.apriDettaglioPrevisione('${chiaveRigaPrevisione}','cloro')` : null);
 
