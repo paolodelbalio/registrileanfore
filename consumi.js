@@ -1452,34 +1452,54 @@
             let coloreCl = scartoCl == null ? "#94a3b8" : (Math.abs(scartoCl) <= 0.2 ? "#166534" : "#b91c1c");
             let colorePh = scartoPh == null ? "#94a3b8" : (Math.abs(scartoPh) <= 0.05 ? "#166534" : "#b91c1c");
 
+            // Stessa colorazione per fascia ideale/di legge usata nella tabella Consumi (vedi
+            // classeColoreValoreReale) — qui non ci sono le classi CSS globali evidenzia-*
+            // (il popup usa stili inline), quindi replico gli stessi colori direttamente.
+            function coloreFasciaReale(parametro, val) {
+                if (val == null) return "#334155";
+                if (parametro === "ph") {
+                    if (val >= 7.0 && val <= 7.3) return "#166534";
+                    if ((val >= 6.5 && val < 7.0) || (val > 7.3 && val <= 7.5)) return "#a16207";
+                    return "#b91c1c";
+                }
+                if (parametro === "cl") {
+                    if (val >= 0.8 && val <= 1.4) return "#166534";
+                    if ((val >= 0.7 && val < 0.8) || (val > 1.4 && val <= 1.5)) return "#a16207";
+                    return "#b91c1c";
+                }
+                return "#334155";
+            }
+            let coloreClReale = coloreFasciaReale("cl", clReale);
+            let colorePhReale = coloreFasciaReale("ph", phReale);
+
             let [annoV, meseV, giornoV] = v.chiaveGiorno.split("-").map(Number);
             let dObj = new Date(annoV, meseV - 1, giornoV);
             let dataLeggibile = isNaN(dObj.getTime()) ? v.chiaveGiorno : `${GIORNI_IT[dObj.getDay()]} ${giornoV} ${MESI_IT[meseV - 1]}`;
 
             return `<tr>
-                <td style="padding:4px 6px; white-space:nowrap;">${dataLeggibile}</td>
-                <td style="padding:4px 6px; text-align:center;">${v.previstoCloro != null ? v.previstoCloro : '–'}</td>
-                <td style="padding:4px 6px; text-align:center;">${clReale != null ? clReale : '–'}</td>
-                <td style="padding:4px 6px; text-align:center; color:${coloreCl}; font-weight:bold;">${scartoCl != null ? (scartoCl > 0 ? '+' : '') + scartoCl : '–'}</td>
-                <td style="padding:4px 6px; text-align:center;">${v.previstoPh != null ? v.previstoPh : '–'}</td>
-                <td style="padding:4px 6px; text-align:center;">${phReale != null ? phReale : '–'}</td>
-                <td style="padding:4px 6px; text-align:center; color:${colorePh}; font-weight:bold;">${scartoPh != null ? (scartoPh > 0 ? '+' : '') + scartoPh : '–'}</td>
+                <td style="padding:3px 4px; white-space:nowrap;">${dataLeggibile}</td>
+                <td style="padding:3px 4px; text-align:center;">${v.previstoCloro != null ? v.previstoCloro : '–'}</td>
+                <td style="padding:3px 4px; text-align:center; color:${coloreClReale}; font-weight:bold;">${clReale != null ? clReale : '–'}</td>
+                <td style="padding:3px 4px; text-align:center; color:${coloreCl};">${scartoCl != null ? (scartoCl > 0 ? '+' : '') + scartoCl : '–'}</td>
+                <td style="padding:3px 4px; text-align:center;">${v.previstoPh != null ? v.previstoPh : '–'}</td>
+                <td style="padding:3px 4px; text-align:center; color:${colorePhReale}; font-weight:bold;">${phReale != null ? phReale : '–'}</td>
+                <td style="padding:3px 4px; text-align:center; color:${colorePh};">${scartoPh != null ? (scartoPh > 0 ? '+' : '') + scartoPh : '–'}</td>
             </tr>`;
         }).join("");
 
         return `<div style="padding:12px 0; border-top:1px solid #e2e8f0;">
             <strong>Storico previsioni</strong>
-            <span style="font-size:0.75rem; color:#94a3b8; display:block; margin-bottom:6px;">Salvato in questo browser — sparisce se cancelli i dati di navigazione o cambi computer. Verde = scarto piccolo, rosso = scarto grande (aiuta a capire quando aggiustare i modelli).</span>
+            <span style="font-size:0.75rem; color:#94a3b8; display:block; margin-bottom:6px;">Salvato in questo browser — sparisce se cancelli i dati di navigazione o cambi computer. "Reale" colorato in base alla fascia ideale/di legge (come nel Registro Chimico). "Scarto" colorato in base a quanto il modello ha indovinato — sono due cose diverse.</span>
             <div style="overflow-x:auto;">
-            <table style="width:100%; font-size:0.78rem; border-collapse:collapse;">
+            <table style="width:100%; font-size:0.72rem; border-collapse:collapse;">
                 <thead><tr style="border-bottom:1px solid #e2e8f0; color:#64748b;">
-                    <th style="padding:4px 6px; text-align:left;">Data</th>
-                    <th style="padding:4px 6px;">Cl. previsto</th>
-                    <th style="padding:4px 6px;">Cl. reale</th>
-                    <th style="padding:4px 6px;">Scarto</th>
-                    <th style="padding:4px 6px;">pH previsto</th>
-                    <th style="padding:4px 6px;">pH reale</th>
-                    <th style="padding:4px 6px;">Scarto</th>
+                    <th style="padding:3px 4px; text-align:left;">Data</th>
+                    <th style="padding:3px 4px;" title="Previsione del modello">Cl. prev.</th>
+                    <th style="padding:3px 4px;" title="Lettura reale delle 21, colorata per fascia ideale/legge">Cl. reale</th>
+                    <th style="padding:3px 4px;" title="Reale meno previsto: indica solo quanto il modello ha indovinato">Scarto</th>
+                    <th style="padding:3px 4px;" title="Previsione del modello">pH prev.</th>
+                    <th style="padding:3px 4px;" title="Lettura reale delle 21, colorata per fascia ideale/legge">pH reale</th>
+                    <th style="padding:3px 4px;" title="Reale meno previsto: indica solo quanto il modello ha indovinato">Scarto</th>
                 </tr></thead>
                 <tbody>${righe}</tbody>
             </table>
