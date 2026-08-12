@@ -126,13 +126,17 @@ tr:nth-child(even) td {
     text-overflow: ellipsis;
 }
 
-/* Colonne "pH previsto / Diff. pH / Cloro previsto / Diff. Cloro" (aggiunte 09-10/08/2026):
-   contenuto sempre breve (numeri), ma le intestazioni sono lunghe e allargavano la tabella.
-   Stessa logica della colonna Note: taglio con puntini, testo completo nel tooltip. */
+/* Colonne "pH previsto / pH reale / Diff. pH / Cloro previsto / Cloro reale / Diff. Cloro"
+   (6 colonne aggiunte tra il 09 e l'11/08/2026): contenuto sempre breve (numeri), ma
+   l'intestazione più il numero delle colonne (6) rischia di allargare troppo la tabella.
+   Stessa logica della colonna Note: taglio con puntini, testo completo nel tooltip, ma qui
+   anche padding ridotto rispetto alle altre colonne per stare più strette. */
 .col-stretta {
-    max-width: 78px;
+    max-width: 58px;
     overflow: hidden;
     text-overflow: ellipsis;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
 }
 
 /* COLORI COMPATTI IN TRASPARENZA (STILE ORIGINALE MA SOFT) */
