@@ -174,7 +174,7 @@ gio 17 set 26,07:00,G,,,Paolo,,Sdraio,,
 ven 18 set 26,07:00,G,lavato a pressione zona piedi nudi e lettini,Cloro,Paolo,,Pulizia,,
 sab 19 set 26,07:00,G,,,Paolo,,,,
 dom 20 set 26,07:00,G,,,Paolo,,,,
-lun 21 set 26,07:00,,,,,,Giornaliero,Settimanale,Mensile
+lun 21 set 26,07:00,GS,pulizia robot e soffione doccia,acido,Paolo,,Giornaliero,Settimanale,Mensile
 mar 22 set 26,07:00,,,,,,Bordo,Ombrelloni,Pompa filtro
 ,,,,,,,Linea battente,Bacheca,Pulizia
 mer 23 set 26,07:00,,,,,,Doccia,Locale tecnico,
